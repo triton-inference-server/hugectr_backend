@@ -27,13 +27,13 @@
 include(CMakeFindDependencyMacro)
 
 get_filename_component(
-  TRITONIDENTITYBACKEND_CMAKE_DIR "${CMAKE_CURRENT_LIST_FILE}" PATH
+  TRITONHUGECTRBACKEND_CMAKE_DIR "${CMAKE_CURRENT_LIST_FILE}" PATH
 )
 
-list(APPEND CMAKE_MODULE_PATH ${TRITONIDENTITYBACKEND_CMAKE_DIR})
+list(APPEND CMAKE_MODULE_PATH ${TRITONHUGECTRBACKEND_CMAKE_DIR})
 
-if(NOT TARGET TritonIdentityBackend::triton-identity-backend)
-  include("${TRITONIDENTITYBACKEND_CMAKE_DIR}/TritonIdentityBackendTargets.cmake")
+if(NOT TARGET TritonHugectrBackend::triton-hugectr-backend)
+  include("${TRITONHUGECTRBACKEND_CMAKE_DIR}/TritonHugectrBackendTargets.cmake")
 endif()
 
-set(TRITONIDENTITYBACKEND_LIBRARIES TritonIdentityBackend::triton-identity-backend)
+set(TRITONHUGECTRBACKEND_LIBRARIES TritonHugeCTRBackend::triton-hugectr-backend)
