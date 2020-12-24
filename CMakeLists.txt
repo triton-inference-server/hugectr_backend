@@ -26,7 +26,7 @@
 
 cmake_minimum_required(VERSION 3.17)
 
-project(tritonidentitybackend LANGUAGES C CXX)
+project(tritonhugectrbackend LANGUAGES C CXX)
 
 #
 # Options
@@ -34,15 +34,17 @@ project(tritonidentitybackend LANGUAGES C CXX)
 # Must include options required for this project as well as any
 # projects included in this one by FetchContent.
 #
-# GPU support is disabled by default because identity backend doesn't
+# GPU support is disabled by default because hugectr backend doesn't
 # support GPUs.
 #
-option(TRITON_ENABLE_GPU "Enable GPU support in backend" OFF)
+option(TRITON_ENABLE_GPU "Enable GPU support in backend" ON)
 option(TRITON_ENABLE_STATS "Include statistics collections in backend" ON)
 
 set(TRITON_COMMON_REPO_TAG "main" CACHE STRING "Tag for triton-inference-server/common repo")
 set(TRITON_CORE_REPO_TAG "main" CACHE STRING "Tag for triton-inference-server/core repo")
 set(TRITON_BACKEND_REPO_TAG "main" CACHE STRING "Tag for triton-inference-server/backend repo")
+
+#set(libs_DIR lib/libhugectr_ctr_shared.so)
 
 if(NOT CMAKE_BUILD_TYPE)
   set(CMAKE_BUILD_TYPE Release)
@@ -79,81 +81,89 @@ FetchContent_MakeAvailable(repo-common repo-core repo-backend)
 #
 # Shared library implementing the Triton Backend API
 #
-configure_file(src/libtriton_identity.ldscript libtriton_identity.ldscript COPYONLY)
+configure_file(src/libtriton_hugectr.ldscript libtriton_hugectr.ldscript COPYONLY)
+
+link_directories(${libs_DIR})
 
 add_library(
-  triton-identity-backend SHARED
-  src/identity.cc
+  triton-hugectr-backend SHARED
+  src/hugectr.cc
+  src/hugectrmodel.hpp
+  src/inference_utils.hpp
 )
 
 add_library(
-  TritonIdentityBackend::triton-identity-backend ALIAS triton-identity-backend
+  TritonhugectrBackend::triton-hugectr-backend ALIAS triton-hugectr-backend
 )
 
 target_include_directories(
-  triton-identity-backend
+  triton-hugectr-backend
   PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}/src
 )
 
-target_compile_features(triton-identity-backend PRIVATE cxx_std_11)
+target_compile_features(triton-hugectr-backend PRIVATE cxx_std_11)
 target_compile_options(
-  triton-identity-backend PRIVATE
+  triton-hugectr-backend PRIVATE
   $<$<OR:$<CXX_COMPILER_ID:Clang>,$<CXX_COMPILER_ID:AppleClang>,$<CXX_COMPILER_ID:GNU>>:
     -Wall -Wextra -Wno-unused-parameter -Wno-type-limits -Werror>
 )
 
+
+MESSAGE(${PROJECT_SOURCE_DIR})
+
 target_link_libraries(
-  triton-identity-backend
+  triton-hugectr-backend
   PRIVATE
     triton-backend-utils    # from repo-backend
     triton-core-serverstub  # from repo-core
+    huge_ctr_shared
 )
 
 set_target_properties(
-  triton-identity-backend PROPERTIES
+  triton-hugectr-backend PROPERTIES
   POSITION_INDEPENDENT_CODE ON
-  OUTPUT_NAME triton_identity
-  LINK_DEPENDS ${CMAKE_CURRENT_BINARY_DIR}/libtriton_identity.ldscript
-  LINK_FLAGS "-Wl,--version-script libtriton_identity.ldscript"
+  OUTPUT_NAME triton_hugectr
+  LINK_DEPENDS ${CMAKE_CURRENT_BINARY_DIR}/libtriton_hugectr.ldscript
+  LINK_FLAGS "-Wl,--version-script libtriton_hugectr.ldscript"
 )
 
 #
 # Install
 #
 include(GNUInstallDirs)
-set(INSTALL_CONFIGDIR ${CMAKE_INSTALL_LIBDIR}/cmake/TritonIdentityBackend)
+set(INSTALL_CONFIGDIR ${CMAKE_INSTALL_LIBDIR}/cmake/TritonhugectrBackend)
 
 install(
   TARGETS
-    triton-identity-backend
+    triton-hugectr-backend
   EXPORT
-    triton-identity-backend-targets
-  LIBRARY DESTINATION ${CMAKE_INSTALL_PREFIX}/backends/identity
-  ARCHIVE DESTINATION ${CMAKE_INSTALL_PREFIX}/backends/identity
+    triton-hugectr-backend-targets
+  LIBRARY DESTINATION ${CMAKE_INSTALL_PREFIX}/backends/hugectr
+  ARCHIVE DESTINATION ${CMAKE_INSTALL_PREFIX}/backends/hugectr
 )
 
 install(
   EXPORT
-    triton-identity-backend-targets
+    triton-hugectr-backend-targets
   FILE
-    TritonIdentityBackendTargets.cmake
+    TritonhugectrBackendTargets.cmake
   NAMESPACE
-    TritonIdentityBackend::
+    TritonhugectrBackend::
   DESTINATION
     ${INSTALL_CONFIGDIR}
 )
 
 include(CMakePackageConfigHelpers)
 configure_package_config_file(
-  ${CMAKE_CURRENT_LIST_DIR}/cmake/TritonIdentityBackendConfig.cmake.in
-  ${CMAKE_CURRENT_BINARY_DIR}/TritonIdentityBackendConfig.cmake
+  ${CMAKE_CURRENT_LIST_DIR}/cmake/TritonHugectrBackendConfig.cmake.in
+  ${CMAKE_CURRENT_BINARY_DIR}/TritonhugectrBackendConfig.cmake
   INSTALL_DESTINATION ${INSTALL_CONFIGDIR}
 )
 
 install(
   FILES
-  ${CMAKE_CURRENT_BINARY_DIR}/TritonIdentityBackendConfig.cmake
+  ${CMAKE_CURRENT_BINARY_DIR}/TritonhugectrBackendConfig.cmake
   DESTINATION ${INSTALL_CONFIGDIR}
 )
 
@@ -161,9 +171,9 @@ install(
 # Export from build tree
 #
 export(
-  EXPORT triton-identity-backend-targets
-  FILE ${CMAKE_CURRENT_BINARY_DIR}/TritonIdentityBackendTargets.cmake
-  NAMESPACE TritonIdentityBackend::
+  EXPORT triton-hugectr-backend-targets
+  FILE ${CMAKE_CURRENT_BINARY_DIR}/TritonhugectrBackendTargets.cmake
+  NAMESPACE TritonhugectrBackend::
 )
 
-export(PACKAGE TritonIdentityBackend)
+export(PACKAGE TritonhugectrBackend)
