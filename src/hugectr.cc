@@ -240,6 +240,8 @@ class ModelState {
     //HugeCTR Int32 PS
   HugeCTR::HugectrUtility<int32_t>* HugeCTRParameterServerInt32(){return EmbeddingTable_int32;}
 
+  
+
 
 
  private:
@@ -265,6 +267,8 @@ class ModelState {
 
   HugeCTR::HugectrUtility<int32_t>* EmbeddingTable_int32;
   HugeCTR::HugectrUtility<int64_t>* EmbeddingTable_int64;
+
+  HugeCTR::HugeCTRModel* hugectrmode_;
 
 
 };
@@ -348,6 +352,10 @@ ModelState::ModelState(
 
 //HugeCTR EmbeddingTable
 TRITONSERVER_Error* ModelState::HugeCTREmbedding(){
+     LOG_MESSAGE(
+          TRITONSERVER_LOG_INFO,
+          (std::string("enter into ebediing create ") )
+              .c_str());
     HugeCTR::INFER_TYPE type= HugeCTR::INFER_TYPE::TRITON;
     std::vector<std::string> model_config_path;
     std::vector<std::string> model_name;
@@ -637,7 +645,7 @@ ModelInstanceState::ModelInstanceState(
       handle, "predict", false ,
       reinterpret_cast<void**>(&predict)));
     */
-    Create_EmbeddingCache();
+    //Create_EmbeddingCache();
 
 }
 
@@ -841,7 +849,15 @@ TRITONBACKEND_ModelInitialize(TRITONBACKEND_Model* model)
   RETURN_IF_ERROR(model_state->ValidateModelConfig());
 
   RETURN_IF_ERROR(model_state->ParseModelConfig());
-
+  LOG_MESSAGE(
+      TRITONSERVER_LOG_INFO, "begin create CTRembedding");
+  //RETURN_IF_ERROR(model_state->HugeCTREmbedding());
+  HugeCTR::INFER_TYPE type= HugeCTR::INFER_TYPE::TRITON;
+  std::string model_config_path;
+  std::vector<std::string> model_config_path_;
+  std::vector<std::string> model_name;
+  //HugeCTR::HugeCTRModel::load_model(type,model_config_path);
+  HugeCTR::HugectrUtility<int32_t>::Create_Parameter_Server(type,model_config_path_,model_name);
   // For testing.. Block the thread for certain time period before returning.
   RETURN_IF_ERROR(model_state->CreationDelay());
 
@@ -972,8 +988,7 @@ TRITONBACKEND_ModelInstanceExecute(
   // 'responses' is set to nullptr to indicate that that response has
   // already been sent.
   std::vector<TRITONBACKEND_Response*> responses;
-  responses.reserve(request_count);
-
+  responses.reserve(request_count); 
   // Create a single response object for each request. If something
   // goes wrong when attempting to create the response objects just
   // fail all of the requests by returning an error.
@@ -1010,7 +1025,6 @@ TRITONBACKEND_ModelInstanceExecute(
     min_exec_start_ns = std::min(min_exec_start_ns, exec_start_ns);
 
     TRITONBACKEND_Request* request = requests[r];
-
     const char* request_id = "";
     GUARDED_RESPOND_IF_ERROR(
         responses, r, TRITONBACKEND_RequestId(request, &request_id));
