@@ -268,8 +268,6 @@ class ModelState {
   HugeCTR::HugectrUtility<int32_t>* EmbeddingTable_int32;
   HugeCTR::HugectrUtility<int64_t>* EmbeddingTable_int64;
 
-  HugeCTR::HugeCTRModel* hugectrmode_;
-
 
 };
 
@@ -525,6 +523,9 @@ class ModelInstanceState {
   //Create Embedding_cache
   void Create_EmbeddingCache();
 
+  //Create Embedding_cache
+  void LoadHugeCTRModel();
+
  private:
 ModelInstanceState(
       ModelState* model_state,
@@ -547,6 +548,8 @@ ModelInstanceState(
     std::shared_ptr<HugeCTRBuffer<float>> prediction_buf;
     
     HugeCTR::embedding_interface* Embedding_cache;
+
+    HugeCTR::HugeCTRModel* hugectrmodel_;
 
     //HugeCTR Model
     //*hugectrmodel;
@@ -647,6 +650,8 @@ ModelInstanceState::ModelInstanceState(
     */
     //Create_EmbeddingCache();
 
+    //LoadHugeCTRModel();
+
 }
 
 ModelInstanceState::~ModelInstanceState()
@@ -667,6 +672,12 @@ void ModelInstanceState::Create_EmbeddingCache()
   cache_size_percentage,
   model_config_path,
   model_name);
+}
+
+void ModelInstanceState::LoadHugeCTRModel(){
+  std::string modelname;
+  HugeCTR::INFER_TYPE type=HugeCTR::INFER_TYPE::TRITON;
+  hugectrmodel_=HugeCTR::HugeCTRModel::load_model(type,modelname);
 }
 
 void ModelInstanceState::ProcessRequest(TRITONBACKEND_Request* request, uint32_t* wait_ms)
@@ -851,13 +862,9 @@ TRITONBACKEND_ModelInitialize(TRITONBACKEND_Model* model)
   RETURN_IF_ERROR(model_state->ParseModelConfig());
   LOG_MESSAGE(
       TRITONSERVER_LOG_INFO, "begin create CTRembedding");
+
   //RETURN_IF_ERROR(model_state->HugeCTREmbedding());
-  HugeCTR::INFER_TYPE type= HugeCTR::INFER_TYPE::TRITON;
-  std::string model_config_path;
-  std::vector<std::string> model_config_path_;
-  std::vector<std::string> model_name;
-  //HugeCTR::HugeCTRModel::load_model(type,model_config_path);
-  HugeCTR::HugectrUtility<int32_t>::Create_Parameter_Server(type,model_config_path_,model_name);
+
   // For testing.. Block the thread for certain time period before returning.
   RETURN_IF_ERROR(model_state->CreationDelay());
 
