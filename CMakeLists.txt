@@ -90,7 +90,6 @@ add_library(
   src/hugectrmodel.hpp
   src/inference_utils.hpp
   src/embedding_interface.hpp
-  src/hello.h
 )
 
 add_library(
@@ -119,7 +118,6 @@ target_link_libraries(
     triton-backend-utils    # from repo-backend
     triton-core-serverstub  # from repo-core
     ${PROJECT_SOURCE_DIR}/lib/libhuge_ctr_inference.so
-    hello
 )
 
 set_target_properties(
