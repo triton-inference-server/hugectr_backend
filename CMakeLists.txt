@@ -44,7 +44,6 @@ set(TRITON_COMMON_REPO_TAG "main" CACHE STRING "Tag for triton-inference-server/
 set(TRITON_CORE_REPO_TAG "main" CACHE STRING "Tag for triton-inference-server/core repo")
 set(TRITON_BACKEND_REPO_TAG "main" CACHE STRING "Tag for triton-inference-server/backend repo")
 
-#set(libs_DIR lib/libhugectr_ctr_shared.so)
 
 if(NOT CMAKE_BUILD_TYPE)
   set(CMAKE_BUILD_TYPE Release)
@@ -81,15 +80,16 @@ FetchContent_MakeAvailable(repo-common repo-core repo-backend)
 #
 # Shared library implementing the Triton Backend API
 #
-configure_file(src/libtriton_hugectr.ldscript libtriton_hugectr.ldscript COPYONLY)
+#configure_file(src/libtriton_hugectr.ldscript libtriton_hugectr.ldscript COPYONLY)
 
-link_directories(${libs_DIR})
+#link_directories(/hugectr_backend/lib/libhuge_ctr_shared.so)
 
 add_library(
   triton-hugectr-backend SHARED
   src/hugectr.cc
   src/hugectrmodel.hpp
   src/inference_utils.hpp
+  src/embedding_interface.hpp
 )
 
 add_library(
@@ -114,18 +114,19 @@ MESSAGE(${PROJECT_SOURCE_DIR})
 
 target_link_libraries(
   triton-hugectr-backend
-  PRIVATE
+  PUBLIC
     triton-backend-utils    # from repo-backend
     triton-core-serverstub  # from repo-core
-    huge_ctr_shared
+    #huge_ctr_inference
+    #${PROJECT_SOURCE_DIR}/lib/libhuge_ctr_inference.so
 )
 
 set_target_properties(
   triton-hugectr-backend PROPERTIES
   POSITION_INDEPENDENT_CODE ON
   OUTPUT_NAME triton_hugectr
-  LINK_DEPENDS ${CMAKE_CURRENT_BINARY_DIR}/libtriton_hugectr.ldscript
-  LINK_FLAGS "-Wl,--version-script libtriton_hugectr.ldscript"
+  #LINK_DEPENDS ${CMAKE_CURRENT_BINARY_DIR}/libtriton_hugectr.ldscript
+  #LINK_FLAGS "-Wl,--version-script libtriton_hugectr.ldscript"
 )
 
 #
