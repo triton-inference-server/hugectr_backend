@@ -26,16 +26,15 @@
 
 #include "memory"
 #include "thread"
-#include "triton/backend/backend_common.h"
 #include "vector"
-#include "cuda_runtime_api.h"
+#include "map"
 #include "cstdlib"
 #include "dlfcn.h"
+#include "cuda_runtime_api.h"
+#include "triton/backend/backend_common.h"
 #include "hugectrmodel.hpp"
 #include "inference_utils.hpp"
-#include "map"
 #include "embedding_interface.hpp"
-//using namespace HugeCTR;
 
 namespace triton { namespace backend { namespace hugectr {
 
@@ -109,6 +108,7 @@ class CudaAllocator {
   }
   void deallocate(void *ptr) const { CK_CUDA_THROW_(cudaFree(ptr)); }
 };
+
 
 template <typename T>
 class HugeCTRBuffer:public std::enable_shared_from_this<HugeCTRBuffer<T>>  {
@@ -200,17 +200,25 @@ class ModelState {
   // Get the handle to the TRITONBACKEND model.
   int64_t BatchSize() { return max_batch_size_; }
 
-  // Get the handle to the TRITONBACKEND model.
+  // Get the HUgeCTR model slots size.
   int64_t SlotNum() { return slot_num_; }
 
-  // Get the handle to the TRITONBACKEND model.
+  // Get the HUgeCTR model max nnz.
   int64_t MaxNNZ() { return max_nnz_; }
 
-  // Get the handle to the TRITONBACKEND model.
+  // Get the HUgeCTR model dense size.
   int64_t DeseNum() { return dese_num_; }
 
-  // Get the handle to the TRITONBACKEND model.
+  // Get the HUgeCTR model Embedding size.
   int64_t EmbeddingSize() { return embedding_size_; }
+
+  // Get the HUgeCTR cache size per.
+  float CacheSizePer() {return cache_size_per;}
+
+  // Support GPU cache for embedding.
+  bool GPUCache() { return support_gpu_cache_; }
+  
+  std::string HugeCTRJsonConfig() {return hugectr_config_;}
 
   // Get the handle to the Model Configuration.
   common::TritonJson::Value& ModelConfig() { return model_config_; }
@@ -259,8 +267,11 @@ class ModelState {
   int64_t dese_num_;
   int64_t embedding_size_;
   int64_t max_nnz_;
+  float cache_size_per;
+  std::string hugectr_config_;
   common::TritonJson::Value model_config_;
 
+  bool support_gpu_cache_;
   bool supports_batching_initialized_;
   bool supports_batching_;
   bool supports_int64;
@@ -481,10 +492,71 @@ ModelState::ParseModelConfig()
           (std::string("slots set to : ") + std::to_string(slot_num_))
               .c_str());
     }
+    common::TritonJson::Value dense;
+    if (parameters.Find("des_feature_num", &dense)) {
+      std::string dese_str;
+      (dense.MemberAsString(
+          "string_value", &dese_str));
+      dese_num_=std::stoi(dese_str );
+      LOG_MESSAGE(
+          TRITONSERVER_LOG_INFO,
+          (std::string("desene num to : ") + std::to_string(dese_num_))
+              .c_str());
+    }
+    common::TritonJson::Value embsize;
+    if (parameters.Find("embedding_vector_size", &embsize)) {
+      std::string embsize_str;
+      (embsize.MemberAsString(
+          "string_value", &embsize_str));
+      embedding_size_=std::stoi(embsize_str );
+      LOG_MESSAGE(
+          TRITONSERVER_LOG_INFO,
+          (std::string("embedding size is : ") + std::to_string(embedding_size_))
+              .c_str());
+    }
+    common::TritonJson::Value nnz;
+    if (parameters.Find("max_nnz", &nnz)) {
+      std::string nnz_str;
+      (nnz.MemberAsString(
+          "string_value", &nnz_str));
+      max_nnz_=std::stoi(nnz_str );
+      LOG_MESSAGE(
+          TRITONSERVER_LOG_INFO,
+          (std::string("maxnnz is: ") + std::to_string(max_nnz_))
+              .c_str());
+    }
+    common::TritonJson::Value hugeconfig;
+    if (parameters.Find("config", &hugeconfig)) {
+      std::string config_str;
+      (hugeconfig.MemberAsString(
+          "string_value", &config_str));
+      hugectr_config_=config_str;
+      LOG_MESSAGE(
+          TRITONSERVER_LOG_INFO,
+          (std::string("Hugectr model config path : ") + hugectr_config_)
+              .c_str());
+    }
+    common::TritonJson::Value gpucache;
+    if (parameters.Find("gpucache", &gpucache)) {
+      std::string gpu_cache;
+      (gpucache.MemberAsString(
+          "string_value", &gpu_cache));
+      if (gpu_cache=="true")
+      support_gpu_cache_=true;
+      std::cout<<"support gpu cache is "<<support_gpu_cache_<<std::endl;
+    }
+    common::TritonJson::Value gpucacheper;
+    if (parameters.Find("gpucacheper", &gpucacheper)) {
+      std::string gpu_cache_per;
+      (gpucacheper.MemberAsString(
+          "string_value", &gpu_cache_per));
+      cache_size_per=std::atof(gpu_cache_per.c_str());
+      std::cout<<"gpu cache per is "<<cache_size_per<<std::endl;
+    }
+    
   }
-    //Parse input related configuration
-    model_config_.MemberAsInt("max_batch_size", &max_batch_size_);
-    std::cout<<"max_batch_size is"<<max_batch_size_<<std::endl;
+  model_config_.MemberAsInt("max_batch_size", &max_batch_size_);
+  std::cout<<"max_batch_size is "<<max_batch_size_<<std::endl;
   return nullptr;
 }
 
@@ -544,7 +616,6 @@ ModelInstanceState(
     std::shared_ptr<HugeCTRBuffer<float>> dense_value_buf;
     std::shared_ptr<HugeCTRBuffer<size_t>> cat_column_index_buf;
     std::shared_ptr<HugeCTRBuffer<int>> row_ptr_buf;
-    std::shared_ptr<HugeCTRBuffer<float>> embedding_vector_buf;
     std::shared_ptr<HugeCTRBuffer<float>> prediction_buf;
     
     HugeCTR::embedding_interface* Embedding_cache;
@@ -572,13 +643,16 @@ ModelInstanceState::Create(
   RETURN_IF_ERROR(
       TRITONBACKEND_ModelInstanceKind(triton_model_instance, &instance_kind));
 
+  int32_t device_id;
+  RETURN_IF_ERROR(TRITONBACKEND_ModelInstanceDeviceId(triton_model_instance, &device_id));
+
   int32_t instance_id;
   RETURN_IF_ERROR(
       TRITONBACKEND_ModelInstanceDeviceId(triton_model_instance, &instance_id));
 
   *state = new ModelInstanceState(
       model_state, triton_model_instance, instance_name, instance_kind,
-      instance_id);
+      device_id);
   return nullptr;  // success
 }
 
@@ -622,11 +696,6 @@ ModelInstanceState::ModelInstanceState(
     std::vector<size_t> row_ptrs_dims = {static_cast<size_t>(max_batch_size * slots +1 ) }; 
     row_ptr_buf->reserve(row_ptrs_dims);
     row_ptr_buf->allocate();
-    
-    embedding_vector_buf=HugeCTRBuffer<float>::create();
-    std::vector<size_t> embedding_vector_dims = {static_cast<size_t>(max_batch_size * cat_feature_num * embedding_vector_size*max_nnz) }; 
-    embedding_vector_buf->reserve(embedding_vector_dims);
-    embedding_vector_buf->allocate();
 
     prediction_buf=HugeCTRBuffer<float>::create();
     std::vector<size_t> prediction_dims = {static_cast<size_t>(max_batch_size) }; 
@@ -661,17 +730,13 @@ ModelInstanceState::~ModelInstanceState()
 
 void ModelInstanceState::Create_EmbeddingCache()
 {
-  int cuda_dev_id=0;
-  bool use_gpu_embedding_cache=true;
-  float cache_size_percentage=0.3;
-  const std::string& model_config_path="path";
-  const std::string& model_name="path";
+
   Embedding_cache=HugeCTR::embedding_interface::Create_Embedding_Cache(model_state_->HugeCTRParameterServerInt32(),
-  cuda_dev_id,
-  use_gpu_embedding_cache,
-  cache_size_percentage,
-  model_config_path,
-  model_name);
+  device_id_,
+  model_state_->GPUCache(),
+  model_state_->CacheSizePer(),
+  model_state_->HugeCTRJsonConfig(),
+  name_);
 }
 
 void ModelInstanceState::LoadHugeCTRModel(){
