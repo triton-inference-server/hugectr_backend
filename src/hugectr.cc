@@ -224,6 +224,10 @@ class ModelState {
   
   std::string HugeCTRJsonConfig() {return hugectr_config_;}
 
+  std::vector<std::string> GetAllModelsconfig(){return model_config_path;}
+
+  std::vector<std::string> GetAllModelsmame (){return model_name;}
+
   // Get the handle to the Model Configuration.
   common::TritonJson::Value& ModelConfig() { return model_config_; }
 
@@ -493,9 +497,10 @@ ModelState::GetModelConfigs(std::string path)
   }
  
   while ((dirp = readdir(dp)) != nullptr) {
-    if (dirp->d_type == DT_DIR && strcmp(dirp->d_name, ".") != 0 && strcmp(dirp->d_name, "..") != 0) 
+    if (dirp->d_type == DT_DIR && strcmp(dirp->d_name, ".") != 0 && strcmp(dirp->d_name, "..") != 0 && strcmp(dirp->d_name, "hugectr") != 0 ) 
       {
         model_name.emplace_back(dirp->d_name);
+        GetModelConfigs(p.assign(path).append("\\").append(dirp->d_name));
       }
       if (dirp->d_type == DT_REG && std::string(dirp->d_name).find(".json") != std::string::npos)
       {
@@ -504,14 +509,6 @@ ModelState::GetModelConfigs(std::string path)
   }
  
   closedir(dp);
-  std::cout<<"model config: "<<std::endl;
-  for (auto lin : model_config_path) {
-    std::cout << lin;
-  }
-  std::cout<<"model name: "<<std::endl;
-  for (auto lin : model_name) {
-    std::cout << lin;
-  }
   return nullptr;   
 }
 
@@ -957,6 +954,16 @@ TRITONBACKEND_ModelInitialize(TRITONBACKEND_Model* model)
   //Get all the models configuration and name
   RETURN_IF_ERROR(model_state->GetModelConfigs(clocation));
 
+  
+  std::cout<<"model config: "<<std::endl;
+  for (auto lin : model_state->GetAllModelsconfig()) {
+    std::cout << lin;
+  }
+  std::cout<<"model name: "<<std::endl;
+  for (auto lin : model_state->GetAllModelsmame()) {
+    std::cout << lin;
+  }
+
   //RETURN_IF_ERROR(model_state->HugeCTREmbedding());
 
   // For testing.. Block the thread for certain time period before returning.
@@ -1172,9 +1179,27 @@ TRITONBACKEND_ModelInstanceExecute(
         responses, r,
         TRITONBACKEND_RequestInputName(request, 0 /* index */, &input_name));
 
+    const char* input_name1;
+    GUARDED_RESPOND_IF_ERROR(
+        responses, r,
+        TRITONBACKEND_RequestInputName(request, 1 /* index */, &input_name1));
+
+    const char* input_name2;
+    GUARDED_RESPOND_IF_ERROR(
+        responses, r,
+        TRITONBACKEND_RequestInputName(request, 2 /* index */, &input_name2));
+
     TRITONBACKEND_Input* input = nullptr;
     GUARDED_RESPOND_IF_ERROR(
         responses, r, TRITONBACKEND_RequestInput(request, input_name, &input));
+
+    TRITONBACKEND_Input* input1 = nullptr;
+    GUARDED_RESPOND_IF_ERROR(
+        responses, r, TRITONBACKEND_RequestInput(request, input_name1, &input1));
+    
+    TRITONBACKEND_Input* input2 = nullptr;
+    GUARDED_RESPOND_IF_ERROR(
+        responses, r, TRITONBACKEND_RequestInput(request, input_name2, &input2));
 
     // We also validated that the model configuration specifies only a
     // single output, but the request is not required to request any
@@ -1210,6 +1235,44 @@ TRITONBACKEND_ModelInstanceExecute(
         TRITONBACKEND_InputProperties(
             input, nullptr /* input_name */, &input_datatype, &input_shape,
             &input_dims_count, &input_byte_size, &input_buffer_count));
+    LOG_MESSAGE(
+        TRITONSERVER_LOG_INFO,
+        (std::string("\tinput ") + input_name +
+         ": datatype = " + TRITONSERVER_DataTypeString(input_datatype) +
+         ", shape = " + backend::ShapeToString(input_shape, input_dims_count) +
+         ", byte_size = " + std::to_string(input_byte_size) +
+         ", buffer_count = " + std::to_string(input_buffer_count))
+            .c_str());
+
+    GUARDED_RESPOND_IF_ERROR(
+        responses, r,
+        TRITONBACKEND_InputProperties(
+            input1, nullptr /* input_name */, &input_datatype, &input_shape,
+            &input_dims_count, &input_byte_size, &input_buffer_count));
+     LOG_MESSAGE(
+        TRITONSERVER_LOG_INFO,
+        (std::string("\tinput ") + input_name1 +
+         ": datatype = " + TRITONSERVER_DataTypeString(input_datatype) +
+         ", shape = " + backend::ShapeToString(input_shape, input_dims_count) +
+         ", byte_size = " + std::to_string(input_byte_size) +
+         ", buffer_count = " + std::to_string(input_buffer_count))
+            .c_str());
+
+    GUARDED_RESPOND_IF_ERROR(
+        responses, r,
+        TRITONBACKEND_InputProperties(
+            input2, nullptr /* input_name */, &input_datatype, &input_shape,
+            &input_dims_count, &input_byte_size, &input_buffer_count));
+     LOG_MESSAGE(
+        TRITONSERVER_LOG_INFO,
+        (std::string("\tinput ") + input_name2 +
+         ": datatype = " + TRITONSERVER_DataTypeString(input_datatype) +
+         ", shape = " + backend::ShapeToString(input_shape, input_dims_count) +
+         ", byte_size = " + std::to_string(input_byte_size) +
+         ", buffer_count = " + std::to_string(input_buffer_count))
+            .c_str());
+
+    
     if (responses[r] == nullptr) {
       LOG_MESSAGE(
           TRITONSERVER_LOG_ERROR,
@@ -1219,14 +1282,7 @@ TRITONBACKEND_ModelInstanceExecute(
       continue;
     }
 
-    LOG_MESSAGE(
-        TRITONSERVER_LOG_INFO,
-        (std::string("\tinput ") + input_name +
-         ": datatype = " + TRITONSERVER_DataTypeString(input_datatype) +
-         ", shape = " + backend::ShapeToString(input_shape, input_dims_count) +
-         ", byte_size = " + std::to_string(input_byte_size) +
-         ", buffer_count = " + std::to_string(input_buffer_count))
-            .c_str());
+   
     LOG_MESSAGE(
         TRITONSERVER_LOG_INFO,
         (std::string("\trequested_output ") + requested_output_name).c_str());
