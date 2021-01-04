@@ -44,7 +44,7 @@ namespace triton { namespace backend { namespace hugectr {
 // blocking backend. A blocking backend completes execution of the
 // inference before returning from TRITONBACKED_ModelInstanceExecute.
 //
-// This backend supports any model that has exactly 1 input and
+// This backend supports any model that has exactly 3 input and
 // exactly 1 output. The input and output can have any name, datatype
 // and shape but the shape and datatype of the input and output must
 // match. The backend simply responds with the output tensor equal to
@@ -1230,19 +1230,7 @@ TRITONBACKEND_ModelInstanceExecute(
     uint32_t input_dims_count;
     uint64_t input_byte_size;
     uint32_t input_buffer_count;
-    GUARDED_RESPOND_IF_ERROR(
-        responses, r,
-        TRITONBACKEND_InputProperties(
-            input, nullptr /* input_name */, &input_datatype, &input_shape,
-            &input_dims_count, &input_byte_size, &input_buffer_count));
-    LOG_MESSAGE(
-        TRITONSERVER_LOG_INFO,
-        (std::string("\tinput ") + input_name +
-         ": datatype = " + TRITONSERVER_DataTypeString(input_datatype) +
-         ", shape = " + backend::ShapeToString(input_shape, input_dims_count) +
-         ", byte_size = " + std::to_string(input_byte_size) +
-         ", buffer_count = " + std::to_string(input_buffer_count))
-            .c_str());
+   
 
     GUARDED_RESPOND_IF_ERROR(
         responses, r,
@@ -1251,6 +1239,7 @@ TRITONBACKEND_ModelInstanceExecute(
             &input_dims_count, &input_byte_size, &input_buffer_count));
      LOG_MESSAGE(
         TRITONSERVER_LOG_INFO,
+        
         (std::string("\tinput ") + input_name1 +
          ": datatype = " + TRITONSERVER_DataTypeString(input_datatype) +
          ", shape = " + backend::ShapeToString(input_shape, input_dims_count) +
@@ -1266,6 +1255,19 @@ TRITONBACKEND_ModelInstanceExecute(
      LOG_MESSAGE(
         TRITONSERVER_LOG_INFO,
         (std::string("\tinput ") + input_name2 +
+         ": datatype = " + TRITONSERVER_DataTypeString(input_datatype) +
+         ", shape = " + backend::ShapeToString(input_shape, input_dims_count) +
+         ", byte_size = " + std::to_string(input_byte_size) +
+         ", buffer_count = " + std::to_string(input_buffer_count))
+            .c_str());
+     GUARDED_RESPOND_IF_ERROR(
+        responses, r,
+        TRITONBACKEND_InputProperties(
+            input, nullptr /* input_name */, &input_datatype, &input_shape,
+            &input_dims_count, &input_byte_size, &input_buffer_count));
+    LOG_MESSAGE(
+        TRITONSERVER_LOG_INFO,
+        (std::string("\tinput ") + input_name +
          ": datatype = " + TRITONSERVER_DataTypeString(input_datatype) +
          ", shape = " + backend::ShapeToString(input_shape, input_dims_count) +
          ", byte_size = " + std::to_string(input_byte_size) +
@@ -1333,20 +1335,19 @@ TRITONBACKEND_ModelInstanceExecute(
       // memory but we have to handle any returned type. If we get
       // back a buffer in GPU memory we just fail the request.
       void* output_buffer;
-      TRITONSERVER_MemoryType output_memory_type = TRITONSERVER_MEMORY_CPU;
+      TRITONSERVER_MemoryType output_memory_type = TRITONSERVER_MEMORY_GPU;
       int64_t output_memory_type_id = 0;
       GUARDED_RESPOND_IF_ERROR(
           responses, r,
           TRITONBACKEND_OutputBuffer(
               output, &output_buffer, input_byte_size, &output_memory_type,
               &output_memory_type_id));
-      if ((responses[r] == nullptr) ||
-          (output_memory_type == TRITONSERVER_MEMORY_GPU)) {
+      if ((responses[r] == nullptr) ) {
         GUARDED_RESPOND_IF_ERROR(
             responses, r,
             TRITONSERVER_ErrorNew(
                 TRITONSERVER_ERROR_UNSUPPORTED,
-                "failed to create output buffer in CPU memory"));
+                "failed to create output buffer in GPU memory"));
         LOG_MESSAGE(
             TRITONSERVER_LOG_ERROR,
             (std::string("request ") + std::to_string(r) +
@@ -1362,27 +1363,52 @@ TRITONBACKEND_ModelInstanceExecute(
       for (uint32_t b = 0; b < input_buffer_count; ++b) {
         const void* input_buffer = nullptr;
         uint64_t buffer_byte_size = 0;
-        TRITONSERVER_MemoryType input_memory_type = TRITONSERVER_MEMORY_CPU;
+        TRITONSERVER_MemoryType input_memory_type = TRITONSERVER_MEMORY_GPU;
         int64_t input_memory_type_id = 0;
         GUARDED_RESPOND_IF_ERROR(
             responses, r,
             TRITONBACKEND_InputBuffer(
                 input, b, &input_buffer, &buffer_byte_size, &input_memory_type,
                 &input_memory_type_id));
-        if ((responses[r] == nullptr) ||
-            (input_memory_type == TRITONSERVER_MEMORY_GPU)) {
+        if ((responses[r] == nullptr) ) {
           GUARDED_RESPOND_IF_ERROR(
               responses, r,
               TRITONSERVER_ErrorNew(
                   TRITONSERVER_ERROR_UNSUPPORTED,
-                  "failed to get input buffer in CPU memory"));
+                  "failed to get input buffer in GPU memory"));
         }
+         LOG_MESSAGE(
+            TRITONSERVER_LOG_ERROR,
+            (std::string("copy start"))
+                .c_str());
+        std::cout<<reinterpret_cast<const float*>(input_buffer)<<std::endl;
+        //memcpy(
+        //    reinterpret_cast<float*>(output_buffer) + output_buffer_offset,
+        //    input_buffer, buffer_byte_size);
 
-        memcpy(
-            reinterpret_cast<char*>(output_buffer) + output_buffer_offset,
-            input_buffer, buffer_byte_size);
-        output_buffer_offset += buffer_byte_size;
+    std::shared_ptr<HugeCTRBuffer<float>> dense_value_buf=HugeCTRBuffer<float>::create();
+    std::vector<size_t> dense_value_dims = {static_cast<size_t>(buffer_byte_size+ output_buffer_offset) }; 
+    dense_value_buf->reserve(dense_value_dims);
+    dense_value_buf->allocate();
+     //CK_CUDA_THROW_(cudaMemcpy(dense_value_buf->get_ptr(), input_buffer, buffer_byte_size+ output_buffer_offset, cudaMemcpyDeviceToDevice));
+        
+    output_buffer_offset += buffer_byte_size; 
+    LOG_MESSAGE(
+    TRITONSERVER_LOG_ERROR,
+            (std::string("copy stop"))
+                .c_str());
+        std::cout<<reinterpret_cast<char*>(output_buffer)<<std::endl;
+
+      CK_CUDA_THROW_(cudaMemcpy(output_buffer, dense_value_buf->get_ptr(), buffer_byte_size+ output_buffer_offset, cudaMemcpyDeviceToHost));
+      LOG_MESSAGE(
+            TRITONSERVER_LOG_ERROR,
+            (std::string("test"))
+                .c_str());
+      //void* test=malloc(buffer_byte_size+ output_buffer_offset);
+      //cudaMemcpy(test, output_buffer, buffer_byte_size+ output_buffer_offset, cudaMemcpyDeviceToHost);
+      //std::cout<<reinterpret_cast<char*>(test)<<std::endl;
       }
+      
 
       if (responses[r] == nullptr) {
         LOG_MESSAGE(
@@ -1420,6 +1446,8 @@ TRITONBACKEND_ModelInstanceExecute(
             responses[r], TRITONSERVER_RESPONSE_COMPLETE_FINAL,
             nullptr /* success */),
         "failed sending response");
+    
+
     uint64_t exec_end_ns = 0;
     SET_TIMESTAMP(exec_end_ns);
     max_exec_end_ns = std::max(max_exec_end_ns, exec_end_ns);
