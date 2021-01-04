@@ -39,6 +39,8 @@
 
 namespace triton { namespace backend { namespace hugectr {
 
+enum MEMORY_TYPE { GPU, CPU,PIN};
+
 //
 // Simple backend that demonstrates the TRITONBACKEND API for a
 // blocking backend. A blocking backend completes execution of the
@@ -102,12 +104,27 @@ namespace triton { namespace backend { namespace hugectr {
 
 class CudaAllocator {
  public:
-  void *allocate(size_t size) const {
+  void *allocate(size_t size,MEMORY_TYPE type=MEMORY_TYPE::GPU) const {
     void *ptr;
-    CK_CUDA_THROW_(cudaMalloc(&ptr, size));
+    if (type==MEMORY_TYPE::GPU){
+      std::cerr <<"allocate GPU memory*********************."<<size<<std::endl;
+        CK_CUDA_THROW_(cudaMalloc(&ptr, size));
+    }
+    else{ 
+        CK_CUDA_THROW_(cudaMallocHost(&ptr, size));
+    }
+    
     return ptr;
   }
-  void deallocate(void *ptr) const { CK_CUDA_THROW_(cudaFree(ptr)); }
+  void deallocate(void *ptr,MEMORY_TYPE type=MEMORY_TYPE::GPU) const {
+    if (type==MEMORY_TYPE::GPU){
+        CK_CUDA_THROW_(cudaFree(ptr));;
+    }
+    else
+    { 
+        CK_CUDA_THROW_(cudaFreeHost(ptr));
+    }
+ }
 };
 
 
@@ -119,15 +136,16 @@ private:
     CudaAllocator allocator_;
     void *ptr_=nullptr;
     size_t total_size_in_bytes_=0;
+    MEMORY_TYPE type;
 public:
-    static std::shared_ptr<HugeCTRBuffer> create() {
-        return std::shared_ptr<HugeCTRBuffer>(new HugeCTRBuffer);
+    static std::shared_ptr<HugeCTRBuffer> create(MEMORY_TYPE m_type=MEMORY_TYPE::GPU) {
+        return std::shared_ptr<HugeCTRBuffer>(new HugeCTRBuffer(m_type));
     }
-    HugeCTRBuffer() : ptr_(nullptr), total_size_in_bytes_(0) {}
+    HugeCTRBuffer(MEMORY_TYPE m_type) : ptr_(nullptr), total_size_in_bytes_(0),type(m_type) {}
     ~HugeCTRBuffer() 
     {
         if (allocated()) {
-        allocator_.deallocate(ptr_);
+        allocator_.deallocate(ptr_,type);
         }
     }
     bool allocated() const { return total_size_in_bytes_ != 0 && ptr_ != nullptr; }  
@@ -139,6 +157,7 @@ public:
     }
     size_t offset = 0;
     for (const size_t buffer : reserved_buffers_) {
+      std::cerr <<"eqch buffer"<<buffer<<std::endl;
         size_t size=buffer;
         if (size % 32 != 0) {
             size += (32 - size % 32);
@@ -147,10 +166,11 @@ public:
     }
     reserved_buffers_.clear();
     total_size_in_bytes_ = offset;
+    std::cerr <<"size"<<total_size_in_bytes_<<std::endl;
 
     if (total_size_in_bytes_ != 0) 
     {
-        ptr_ = allocator_.allocate(total_size_in_bytes_);
+        ptr_ = allocator_.allocate(total_size_in_bytes_,type);
     }
     }
 
@@ -209,6 +229,9 @@ class ModelState {
 
   // Get the HUgeCTR model dense size.
   int64_t DeseNum() { return dese_num_; }
+
+  // Get the HUgeCTR model cat feature size.
+  int64_t CatNum() {return cat_num_;}
 
   // Get the HUgeCTR model Embedding size.
   int64_t EmbeddingSize() { return embedding_size_; }
@@ -272,22 +295,22 @@ class ModelState {
   TRITONBACKEND_Model* triton_model_;
   const std::string name_;
   const uint64_t version_;
-  int64_t max_batch_size_;
-  int64_t slot_num_;
-  int64_t dese_num_;
-  int64_t embedding_size_;
-  int64_t max_nnz_;
-  float cache_size_per;
+  int64_t max_batch_size_=64;
+  int64_t slot_num_=10;
+  int64_t dese_num_=50;
+  int64_t cat_num_=50;
+  int64_t embedding_size_=64;
+  int64_t max_nnz_=3;
+  float cache_size_per=0.5;
   std::string hugectr_config_;
   common::TritonJson::Value model_config_;
   std::vector<std::string> model_config_path;
   std::vector<std::string> model_name;
 
-  bool support_int64_key_;
-  bool support_gpu_cache_;
+  bool support_int64_key_=false;
+  bool support_gpu_cache_=false;
   bool supports_batching_initialized_;
   bool supports_batching_;
-  bool supports_int64;
 
   HugeCTR::HugectrUtility<int32_t>* EmbeddingTable_int32;
   HugeCTR::HugectrUtility<int64_t>* EmbeddingTable_int64;
@@ -547,6 +570,19 @@ ModelState::ParseModelConfig()
           (std::string("desene num to : ") + std::to_string(dese_num_))
               .c_str());
     }
+
+    common::TritonJson::Value catfea;
+    if (parameters.Find("cat_feature_num", &catfea)) {
+      std::string cat_str;
+      (catfea.MemberAsString(
+          "string_value", &cat_str));
+      cat_num_=std::stoi(cat_str );
+      LOG_MESSAGE(
+          TRITONSERVER_LOG_INFO,
+          (std::string("cat_feature num to : ") + std::to_string(cat_num_))
+              .c_str());
+    }
+
     common::TritonJson::Value embsize;
     if (parameters.Find("embedding_vector_size", &embsize)) {
       std::string embsize_str;
@@ -651,6 +687,8 @@ class ModelInstanceState {
   //Create Embedding_cache
   void LoadHugeCTRModel();
 
+  std::shared_ptr<HugeCTRBuffer<float>> GetDeseBuffer() {return dense_value_buf;}
+
  private:
 ModelInstanceState(
       ModelState* model_state,
@@ -667,7 +705,8 @@ ModelInstanceState(
     //HugeCTR Model buffer for input and output
     //There buffers will be shared for all the requests
     std::shared_ptr<HugeCTRBuffer<float>> dense_value_buf;
-    std::shared_ptr<HugeCTRBuffer<size_t>> cat_column_index_buf;
+    std::shared_ptr<HugeCTRBuffer<int32_t>> cat_column_index_buf_int32;
+    std::shared_ptr<HugeCTRBuffer<int64_t>> cat_column_index_buf_int64;
     std::shared_ptr<HugeCTRBuffer<int>> row_ptr_buf;
     std::shared_ptr<HugeCTRBuffer<float>> prediction_buf;
     
@@ -716,27 +755,50 @@ ModelInstanceState::ModelInstanceState(
     : model_state_(model_state), triton_model_instance_(triton_model_instance),
       name_(name), kind_(kind), device_id_(device_id)
 {
-  /*
+  
     //Alloc the cuda memory
+    LOG_MESSAGE(
+      TRITONSERVER_LOG_INFO,
+      (std::string("des allocate: ")).c_str());
     dense_value_buf=HugeCTRBuffer<float>::create();
-    std::vector<size_t> dense_value_dims = {static_cast<size_t>(max_batch_size * des_feature_num) }; 
+    std::cout<<"des bat"<<model_state_->BatchSize()<<std::endl;
+    std::cout<<"des num"<<model_state_->DeseNum()<<std::endl;
+    std::vector<size_t> dense_value_dims = {static_cast<size_t>(model_state_->BatchSize() * model_state_->DeseNum()) }; 
     dense_value_buf->reserve(dense_value_dims);
     dense_value_buf->allocate();
 
-    cat_column_index_buf=HugeCTRBuffer<size_t>::create();
-    std::vector<size_t> cat_column_index_dims = {static_cast<size_t>(max_batch_size * cat_feature_num) }; 
-    cat_column_index_buf->reserve(cat_column_index_dims);
-    cat_column_index_buf->allocate();
+    LOG_MESSAGE(
+      TRITONSERVER_LOG_INFO,
+      (std::string("cat allocate: ")).c_str());
+    if(model_state_->SupportLongEmbeddingKey()){
+      cat_column_index_buf_int64=HugeCTRBuffer<int64_t>::create(MEMORY_TYPE::PIN);
+      std::vector<size_t> cat_column_index_dims = {static_cast<size_t>(model_state_->BatchSize()* model_state_->CatNum()) }; 
+      cat_column_index_buf_int64->reserve(cat_column_index_dims);
+      cat_column_index_buf_int64->allocate();
+
+    }
+    else{
+      cat_column_index_buf_int32=HugeCTRBuffer<int32_t>::create(MEMORY_TYPE::PIN);
+      std::vector<size_t> cat_column_index_dims = {static_cast<size_t>(model_state_->BatchSize() * model_state_->CatNum()) }; 
+      cat_column_index_buf_int32->reserve(cat_column_index_dims);
+      cat_column_index_buf_int32->allocate();
+    }
     
+    LOG_MESSAGE(
+      TRITONSERVER_LOG_INFO,
+      (std::string("row allocate: ")).c_str());
     row_ptr_buf=HugeCTRBuffer<int>::create();
-    std::vector<size_t> row_ptrs_dims = {static_cast<size_t>(max_batch_size * slots +1 ) }; 
+    std::vector<size_t> row_ptrs_dims = {static_cast<size_t>(model_state_->BatchSize() * model_state_->SlotNum()+1 ) }; 
     row_ptr_buf->reserve(row_ptrs_dims);
     row_ptr_buf->allocate();
 
+    LOG_MESSAGE(
+      TRITONSERVER_LOG_INFO,
+      (std::string("predict allocate: ")).c_str());
     prediction_buf=HugeCTRBuffer<float>::create();
-    std::vector<size_t> prediction_dims = {static_cast<size_t>(max_batch_size) }; 
+    std::vector<size_t> prediction_dims = {static_cast<size_t>(model_state_->BatchSize()) }; 
     prediction_buf->reserve(prediction_dims);
-    prediction_buf->allocate();*/
+    prediction_buf->allocate();
 
     //Create_EmbeddingCache();
 
@@ -779,18 +841,12 @@ void ModelInstanceState::LoadHugeCTRModel(){
 
 void ModelInstanceState::ProcessRequest(TRITONBACKEND_Request* request, uint32_t* wait_ms)
 {
-  TRITONBACKEND_Input* DES;
-    RESPOND_AND_RETURN_IF_ERROR(
-        request, TRITONBACKEND_RequestInput(request, "DES", &DES));
-  TRITONBACKEND_Input* CAT;
-    RESPOND_AND_RETURN_IF_ERROR(
-        request, TRITONBACKEND_RequestInput(request, "CATCOLUMN", &CAT));
-  TRITONBACKEND_Input* ROW;
-    RESPOND_AND_RETURN_IF_ERROR(
-        request, TRITONBACKEND_RequestInput(request, "ROWINDEX", &ROW));
-
-
-  hugectrmodel_->predict((float*)dense_value_buf->get_ptr(),cat_column_index_buf->get_ptr(),(int*)row_ptr_buf->get_ptr(),(float*)prediction_buf->get_ptr(),50);
+  if(model_state_->SupportLongEmbeddingKey()){
+    hugectrmodel_->predict((float*)dense_value_buf->get_ptr(),cat_column_index_buf_int64->get_ptr(),(int*)row_ptr_buf->get_ptr(),(float*)prediction_buf->get_ptr(),50);
+  }
+  else{
+    hugectrmodel_->predict((float*)dense_value_buf->get_ptr(),cat_column_index_buf_int32->get_ptr(),(int*)row_ptr_buf->get_ptr(),(float*)prediction_buf->get_ptr(),50);
+  }
 }
 
 
@@ -897,6 +953,7 @@ TRITONBACKEND_Finalize(TRITONBACKEND_Backend* backend)
 TRITONSERVER_Error*
 TRITONBACKEND_ModelInitialize(TRITONBACKEND_Model* model)
 {
+  
   const char* cname;
   RETURN_IF_ERROR(TRITONBACKEND_ModelName(model, &cname));
   std::string name(cname);
@@ -1381,35 +1438,15 @@ TRITONBACKEND_ModelInstanceExecute(
             TRITONSERVER_LOG_ERROR,
             (std::string("copy start"))
                 .c_str());
-        std::cout<<reinterpret_cast<const float*>(input_buffer)<<std::endl;
         //memcpy(
         //    reinterpret_cast<float*>(output_buffer) + output_buffer_offset,
         //    input_buffer, buffer_byte_size);
 
-    std::shared_ptr<HugeCTRBuffer<float>> dense_value_buf=HugeCTRBuffer<float>::create();
-    std::vector<size_t> dense_value_dims = {static_cast<size_t>(buffer_byte_size+ output_buffer_offset) }; 
-    dense_value_buf->reserve(dense_value_dims);
-    dense_value_buf->allocate();
-     //CK_CUDA_THROW_(cudaMemcpy(dense_value_buf->get_ptr(), input_buffer, buffer_byte_size+ output_buffer_offset, cudaMemcpyDeviceToDevice));
-        
-    output_buffer_offset += buffer_byte_size; 
-    LOG_MESSAGE(
-    TRITONSERVER_LOG_ERROR,
-            (std::string("copy stop"))
-                .c_str());
-        std::cout<<reinterpret_cast<char*>(output_buffer)<<std::endl;
-
-      CK_CUDA_THROW_(cudaMemcpy(output_buffer, dense_value_buf->get_ptr(), buffer_byte_size+ output_buffer_offset, cudaMemcpyDeviceToHost));
-      LOG_MESSAGE(
-            TRITONSERVER_LOG_ERROR,
-            (std::string("test"))
-                .c_str());
-      //void* test=malloc(buffer_byte_size+ output_buffer_offset);
-      //cudaMemcpy(test, output_buffer, buffer_byte_size+ output_buffer_offset, cudaMemcpyDeviceToHost);
-      //std::cout<<reinterpret_cast<char*>(test)<<std::endl;
+        CK_CUDA_THROW_(cudaMemcpy(instance_state->GetDeseBuffer()->get_ptr(), input_buffer, buffer_byte_size+ output_buffer_offset, cudaMemcpyHostToDevice));
+        output_buffer_offset += buffer_byte_size; 
+        CK_CUDA_THROW_(cudaMemcpy(output_buffer, instance_state->GetDeseBuffer()->get_ptr(), buffer_byte_size+ output_buffer_offset, cudaMemcpyDeviceToHost));
       }
       
-
       if (responses[r] == nullptr) {
         LOG_MESSAGE(
             TRITONSERVER_LOG_ERROR,
