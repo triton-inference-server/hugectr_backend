@@ -107,7 +107,6 @@ class CudaAllocator {
   void *allocate(size_t size,MEMORY_TYPE type=MEMORY_TYPE::GPU) const {
     void *ptr;
     if (type==MEMORY_TYPE::GPU){
-      std::cerr <<"allocate GPU memory*********************."<<size<<std::endl;
         CK_CUDA_THROW_(cudaMalloc(&ptr, size));
     }
     else{ 
@@ -157,7 +156,6 @@ public:
     }
     size_t offset = 0;
     for (const size_t buffer : reserved_buffers_) {
-      std::cerr <<"eqch buffer"<<buffer<<std::endl;
         size_t size=buffer;
         if (size % 32 != 0) {
             size += (32 - size % 32);
@@ -166,12 +164,16 @@ public:
     }
     reserved_buffers_.clear();
     total_size_in_bytes_ = offset;
-    std::cerr <<"size"<<total_size_in_bytes_<<std::endl;
 
     if (total_size_in_bytes_ != 0) 
     {
         ptr_ = allocator_.allocate(total_size_in_bytes_,type);
     }
+    }
+
+    size_t get_buffer_size()
+    {
+      return total_size_in_bytes_;
     }
 
     void *get_ptr()  
@@ -364,14 +366,6 @@ ModelState::ModelState(
       version_(version), model_config_(std::move(model_config)),
       supports_batching_initialized_(false), supports_batching_(false)
 {
-	LOG_MESSAGE(
-        TRITONSERVER_LOG_INFO,+
-                (std::string("Triton Model Initialization ")).c_str());
-    cudaError_t cuerr = cudaSetDevice(0);
-    if (cuerr != cudaSuccess) {
-        std::cerr << "failed to set CUDA device to " << 0 << ": "
-            << cudaGetErrorString(cuerr);
-    }
 
     //model_config_=std::move(model_config);
     //Load HugeCTR Embedding
@@ -689,6 +683,14 @@ class ModelInstanceState {
 
   std::shared_ptr<HugeCTRBuffer<float>> GetDeseBuffer() {return dense_value_buf;}
 
+  std::shared_ptr<HugeCTRBuffer<int32_t>> GetCatColBuffer_int32() {return cat_column_index_buf_int32;}
+
+  std::shared_ptr<HugeCTRBuffer<int64_t>> GetCatColBuffer_int64() {return cat_column_index_buf_int64;}
+
+  std::shared_ptr<HugeCTRBuffer<int>> GetRowBuffer() {return row_ptr_buf;}
+
+  std::shared_ptr<HugeCTRBuffer<float>> GetPredictBuffer() {return prediction_buf;}
+
  private:
 ModelInstanceState(
       ModelState* model_state,
@@ -755,21 +757,24 @@ ModelInstanceState::ModelInstanceState(
     : model_state_(model_state), triton_model_instance_(triton_model_instance),
       name_(name), kind_(kind), device_id_(device_id)
 {
+
+  	LOG_MESSAGE(
+        TRITONSERVER_LOG_INFO,+
+                (std::string("Triton Model Instance Initialization on device ")+std::to_string(device_id)).c_str());
+    cudaError_t cuerr = cudaSetDevice(device_id);
+    if (cuerr != cudaSuccess) {
+        std::cerr << "failed to set CUDA device to " << device_id << ": "
+            << cudaGetErrorString(cuerr);
+    }
   
     //Alloc the cuda memory
-    LOG_MESSAGE(
-      TRITONSERVER_LOG_INFO,
-      (std::string("des allocate: ")).c_str());
+    LOG_MESSAGE(TRITONSERVER_LOG_INFO,(std::string("Dense Feature buffer allocation: ")).c_str());
     dense_value_buf=HugeCTRBuffer<float>::create();
-    std::cout<<"des bat"<<model_state_->BatchSize()<<std::endl;
-    std::cout<<"des num"<<model_state_->DeseNum()<<std::endl;
     std::vector<size_t> dense_value_dims = {static_cast<size_t>(model_state_->BatchSize() * model_state_->DeseNum()) }; 
     dense_value_buf->reserve(dense_value_dims);
     dense_value_buf->allocate();
 
-    LOG_MESSAGE(
-      TRITONSERVER_LOG_INFO,
-      (std::string("cat allocate: ")).c_str());
+    LOG_MESSAGE(TRITONSERVER_LOG_INFO,(std::string("Categorical Feature buffer allocation: ")).c_str());
     if(model_state_->SupportLongEmbeddingKey()){
       cat_column_index_buf_int64=HugeCTRBuffer<int64_t>::create(MEMORY_TYPE::PIN);
       std::vector<size_t> cat_column_index_dims = {static_cast<size_t>(model_state_->BatchSize()* model_state_->CatNum()) }; 
@@ -784,17 +789,13 @@ ModelInstanceState::ModelInstanceState(
       cat_column_index_buf_int32->allocate();
     }
     
-    LOG_MESSAGE(
-      TRITONSERVER_LOG_INFO,
-      (std::string("row allocate: ")).c_str());
+    LOG_MESSAGE(TRITONSERVER_LOG_INFO,(std::string("Categorical Row Index buffer allocation: ")).c_str());
     row_ptr_buf=HugeCTRBuffer<int>::create();
     std::vector<size_t> row_ptrs_dims = {static_cast<size_t>(model_state_->BatchSize() * model_state_->SlotNum()+1 ) }; 
     row_ptr_buf->reserve(row_ptrs_dims);
     row_ptr_buf->allocate();
 
-    LOG_MESSAGE(
-      TRITONSERVER_LOG_INFO,
-      (std::string("predict allocate: ")).c_str());
+    LOG_MESSAGE(TRITONSERVER_LOG_INFO,(std::string("Predict resulte buffer allocation: ")).c_str());
     prediction_buf=HugeCTRBuffer<float>::create();
     std::vector<size_t> prediction_dims = {static_cast<size_t>(model_state_->BatchSize()) }; 
     prediction_buf->reserve(prediction_dims);
@@ -1083,14 +1084,6 @@ TRITONBACKEND_ModelInstanceInitialize(TRITONBACKEND_ModelInstance* instance)
   RETURN_IF_ERROR(TRITONBACKEND_ModelInstanceSetState(
       instance, reinterpret_cast<void*>(instance_state)));
 
-  // Because this backend just copies IN -> OUT and requires that
-  // input and output be in CPU memory, we fail if a GPU instances is
-  // requested.
-  /*RETURN_ERROR_IF_FALSE(
-      instance_state->Kind() == TRITONSERVER_INSTANCEGROUPKIND_CPU,
-      TRITONSERVER_ERROR_INVALID_ARG,
-      std::string("'identity' backend only supports CPU instances"));*/
-
   return nullptr;  // success
 }
 
@@ -1231,32 +1224,32 @@ TRITONBACKEND_ModelInstanceExecute(
          ", requested_output_count = " + std::to_string(requested_output_count))
             .c_str());
 
-    const char* input_name;
+    const char* des_input_name;
     GUARDED_RESPOND_IF_ERROR(
         responses, r,
-        TRITONBACKEND_RequestInputName(request, 0 /* index */, &input_name));
+        TRITONBACKEND_RequestInputName(request, 0 /* index */, &des_input_name));
 
-    const char* input_name1;
+    const char* catcol_input_name;
     GUARDED_RESPOND_IF_ERROR(
         responses, r,
-        TRITONBACKEND_RequestInputName(request, 1 /* index */, &input_name1));
+        TRITONBACKEND_RequestInputName(request, 1 /* index */, &catcol_input_name));
 
-    const char* input_name2;
+    const char* row_input_name;
     GUARDED_RESPOND_IF_ERROR(
         responses, r,
-        TRITONBACKEND_RequestInputName(request, 2 /* index */, &input_name2));
+        TRITONBACKEND_RequestInputName(request, 2 /* index */, &row_input_name));
 
-    TRITONBACKEND_Input* input = nullptr;
+    TRITONBACKEND_Input* des_input = nullptr;
     GUARDED_RESPOND_IF_ERROR(
-        responses, r, TRITONBACKEND_RequestInput(request, input_name, &input));
+        responses, r, TRITONBACKEND_RequestInput(request, des_input_name, &des_input));
 
-    TRITONBACKEND_Input* input1 = nullptr;
+    TRITONBACKEND_Input* catcol_input = nullptr;
     GUARDED_RESPOND_IF_ERROR(
-        responses, r, TRITONBACKEND_RequestInput(request, input_name1, &input1));
+        responses, r, TRITONBACKEND_RequestInput(request, catcol_input_name, &catcol_input));
     
-    TRITONBACKEND_Input* input2 = nullptr;
+    TRITONBACKEND_Input* row_input = nullptr;
     GUARDED_RESPOND_IF_ERROR(
-        responses, r, TRITONBACKEND_RequestInput(request, input_name2, &input2));
+        responses, r, TRITONBACKEND_RequestInput(request, row_input_name, &row_input));
 
     // We also validated that the model configuration specifies only a
     // single output, but the request is not required to request any
@@ -1292,12 +1285,12 @@ TRITONBACKEND_ModelInstanceExecute(
     GUARDED_RESPOND_IF_ERROR(
         responses, r,
         TRITONBACKEND_InputProperties(
-            input1, nullptr /* input_name */, &input_datatype, &input_shape,
+            catcol_input, nullptr /* input_name */, &input_datatype, &input_shape,
             &input_dims_count, &input_byte_size, &input_buffer_count));
      LOG_MESSAGE(
         TRITONSERVER_LOG_INFO,
         
-        (std::string("\tinput ") + input_name1 +
+        (std::string("\tinput ") + catcol_input_name +
          ": datatype = " + TRITONSERVER_DataTypeString(input_datatype) +
          ", shape = " + backend::ShapeToString(input_shape, input_dims_count) +
          ", byte_size = " + std::to_string(input_byte_size) +
@@ -1307,24 +1300,25 @@ TRITONBACKEND_ModelInstanceExecute(
     GUARDED_RESPOND_IF_ERROR(
         responses, r,
         TRITONBACKEND_InputProperties(
-            input2, nullptr /* input_name */, &input_datatype, &input_shape,
+            row_input, nullptr /* input_name */, &input_datatype, &input_shape,
             &input_dims_count, &input_byte_size, &input_buffer_count));
      LOG_MESSAGE(
         TRITONSERVER_LOG_INFO,
-        (std::string("\tinput ") + input_name2 +
+        (std::string("\tinput ") + row_input_name +
          ": datatype = " + TRITONSERVER_DataTypeString(input_datatype) +
          ", shape = " + backend::ShapeToString(input_shape, input_dims_count) +
          ", byte_size = " + std::to_string(input_byte_size) +
          ", buffer_count = " + std::to_string(input_buffer_count))
             .c_str());
+     
      GUARDED_RESPOND_IF_ERROR(
         responses, r,
         TRITONBACKEND_InputProperties(
-            input, nullptr /* input_name */, &input_datatype, &input_shape,
+            des_input, nullptr /* input_name */, &input_datatype, &input_shape,
             &input_dims_count, &input_byte_size, &input_buffer_count));
     LOG_MESSAGE(
         TRITONSERVER_LOG_INFO,
-        (std::string("\tinput ") + input_name +
+        (std::string("\tinput ") + des_input_name +
          ": datatype = " + TRITONSERVER_DataTypeString(input_datatype) +
          ", shape = " + backend::ShapeToString(input_shape, input_dims_count) +
          ", byte_size = " + std::to_string(input_byte_size) +
@@ -1418,14 +1412,14 @@ TRITONBACKEND_ModelInstanceExecute(
       // buffers are on CPU so fail otherwise.
       size_t output_buffer_offset = 0;
       for (uint32_t b = 0; b < input_buffer_count; ++b) {
-        const void* input_buffer = nullptr;
-        uint64_t buffer_byte_size = 0;
+        const void* input_buffer=nullptr;
+        uint64_t buffer_byte_size = input_byte_size;
         TRITONSERVER_MemoryType input_memory_type = TRITONSERVER_MEMORY_GPU;
         int64_t input_memory_type_id = 0;
         GUARDED_RESPOND_IF_ERROR(
             responses, r,
             TRITONBACKEND_InputBuffer(
-                input, b, &input_buffer, &buffer_byte_size, &input_memory_type,
+                des_input, b, &input_buffer, &buffer_byte_size, &input_memory_type,
                 &input_memory_type_id));
         if ((responses[r] == nullptr) ) {
           GUARDED_RESPOND_IF_ERROR(
@@ -1438,10 +1432,9 @@ TRITONBACKEND_ModelInstanceExecute(
             TRITONSERVER_LOG_ERROR,
             (std::string("copy start"))
                 .c_str());
-        //memcpy(
-        //    reinterpret_cast<float*>(output_buffer) + output_buffer_offset,
-        //    input_buffer, buffer_byte_size);
-
+        /*memcpy(
+            reinterpret_cast<float*>(output_buffer) + output_buffer_offset,
+            input_buffer, buffer_byte_size);*/
         CK_CUDA_THROW_(cudaMemcpy(instance_state->GetDeseBuffer()->get_ptr(), input_buffer, buffer_byte_size+ output_buffer_offset, cudaMemcpyHostToDevice));
         output_buffer_offset += buffer_byte_size; 
         CK_CUDA_THROW_(cudaMemcpy(output_buffer, instance_state->GetDeseBuffer()->get_ptr(), buffer_byte_size+ output_buffer_offset, cudaMemcpyDeviceToHost));
