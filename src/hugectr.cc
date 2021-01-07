@@ -282,10 +282,10 @@ class ModelState {
   TRITONSERVER_Error* GetModelConfigs(std::string path);
 
   //HugeCTR Int32 PS
-  HugeCTR::HugectrUtility<int32_t>* HugeCTRParameterServerInt32(){return EmbeddingTable_int32;}
+  HugeCTR::HugectrUtility<unsigned int>* HugeCTRParameterServerInt32(){return EmbeddingTable_int32;}
 
   //HugeCTR Int64 PS
-  HugeCTR::HugectrUtility<int64_t>* HugeCTRParameterServerInt64(){return EmbeddingTable_int64;}
+  HugeCTR::HugectrUtility<long long>* HugeCTRParameterServerInt64(){return EmbeddingTable_int64;}
 
  private:
   ModelState(
@@ -314,8 +314,8 @@ class ModelState {
   bool supports_batching_initialized_;
   bool supports_batching_;
 
-  HugeCTR::HugectrUtility<int32_t>* EmbeddingTable_int32;
-  HugeCTR::HugectrUtility<int64_t>* EmbeddingTable_int64;
+  HugeCTR::HugectrUtility<unsigned int>* EmbeddingTable_int32;
+  HugeCTR::HugectrUtility<long long>* EmbeddingTable_int64;
 
 };
 
@@ -398,11 +398,11 @@ ModelState::HugeCTREmbedding(){
     HugeCTR::INFER_TYPE type= HugeCTR::INFER_TYPE::TRITON;
     if (support_int64_key_)
     {
-      EmbeddingTable_int64=HugeCTR::HugectrUtility<int64_t>::Create_Parameter_Server(type,model_config_path,model_name);
+      EmbeddingTable_int64=HugeCTR::HugectrUtility<long long>::Create_Parameter_Server(type,model_config_path,model_name);
     }
     else
     {
-      EmbeddingTable_int32 =HugeCTR::HugectrUtility<int32_t>::Create_Parameter_Server(type,model_config_path,model_name);
+      EmbeddingTable_int32 =HugeCTR::HugectrUtility<unsigned int>::Create_Parameter_Server(type,model_config_path,model_name);
     }
     return nullptr;
 }
@@ -837,7 +837,7 @@ void ModelInstanceState::Create_EmbeddingCache()
 void ModelInstanceState::LoadHugeCTRModel(){
   std::string modelname;
   HugeCTR::INFER_TYPE type=HugeCTR::INFER_TYPE::TRITON;
-  hugectrmodel_=HugeCTR::HugeCTRModel::load_model(type,modelname);
+  hugectrmodel_=HugeCTR::HugeCTRModel::load_model(type,model_state_->HugeCTRJsonConfig(),device_id_,Embedding_cache);
 }
 
 void ModelInstanceState::ProcessRequest(TRITONBACKEND_Request* request, uint32_t* wait_ms)
@@ -917,6 +917,26 @@ TRITONBACKEND_Initialize(TRITONBACKEND_Backend* backend)
   LOG_MESSAGE(
       TRITONSERVER_LOG_INFO,
       (std::string("backend configuration:\n") + buffer).c_str());
+
+  common::TritonJson::Value backend_config;
+  TRITONSERVER_Error* err = backend_config.Parse(buffer, byte_size);
+  RETURN_IF_ERROR(err);
+  common::TritonJson::Value cmdline;;
+  if (backend_config.Find("cmdline", &cmdline)) {
+  std::vector<std::string> param_values;
+  std::vector<std::string> param_keys;
+  RETURN_IF_ERROR(cmdline.Members(&param_keys));
+  for (const auto& param_key : param_keys){
+    std::cout<<"key is "<<param_key<<std::endl;
+    std::string value_string;
+    RETURN_IF_ERROR(cmdline.MemberAsString(
+                        param_key.c_str(), &value_string));
+    param_values.push_back(value_string);
+    std::cout<<"value is "<<value_string<<std::endl;
+  }
+
+  }
+
 
   // If we have any global backend state we create and set it here. We
   // don't need anything for this backend but for demonstration

@@ -21,6 +21,7 @@
 #include <vector>
 
 namespace HugeCTR {
+enum INFER_TYPE { TRITON, OTHER };
 
 struct parameter_server_config{
   std::map<std::string, size_t> model_name_id_map_;
@@ -30,6 +31,7 @@ struct parameter_server_config{
   std::vector<std::vector<size_t>> embedding_vec_size_; // The emb_vec_size per embedding table per model
   std::vector<std::vector<float>> default_emb_vec_value_; // The defualt emb_vec value when emb_id cannot be found, per embedding table per model
 };
+
 
 // Base interface class for parameter_server
 // 1 instance per HugeCTR backend(1 instance per all models per all embedding tables)
@@ -44,4 +46,5 @@ class HugectrUtility {
 };
 
 }  // namespace HugeCTR
+
 
