@@ -118,7 +118,7 @@ target_link_libraries(
     triton-backend-utils    # from repo-backend
     triton-core-serverstub  # from repo-core
     #huge_ctr_inference
-    #${PROJECT_SOURCE_DIR}/lib/libhuge_ctr_inference.so
+    ${PROJECT_SOURCE_DIR}/lib/libhugectr_inference.so
 )
 
 set_target_properties(
