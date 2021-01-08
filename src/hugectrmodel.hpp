@@ -16,17 +16,17 @@
 #pragma once
 #include <string>
 #include <thread>
+#include <utility>
+#include "embedding_interface.hpp"
 
 namespace HugeCTR {
-enum INFER_TYPE { TRITON, OTHER };
 
 class HugeCTRModel {
  public:
   HugeCTRModel();
   virtual ~HugeCTRModel();
-  virtual void predict(float* dense, int* row, float* embeddingvector, float* output,
-                       int numofsamples) = 0;
-  static HugeCTRModel* load_model(INFER_TYPE Infer_type, std::string& config);
+  virtual void predict(float *d_dense, void *embeddingcolumns_ptr, int *row_ptr, float* d_output, int num_samples) = 0;
+  static HugeCTRModel* load_model(INFER_TYPE Infer_type, const std::string& config_file, int device_id, embedding_interface* embedding_ptr);
 };
 
 }  // namespace HugeCTR

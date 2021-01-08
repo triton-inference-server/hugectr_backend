@@ -30,6 +30,7 @@
 #include "map"
 #include "cstdlib"
 #include "dlfcn.h"
+#include "dirent.h"
 #include "cuda_runtime_api.h"
 #include "triton/backend/backend_common.h"
 #include "hugectrmodel.hpp"
@@ -38,12 +39,14 @@
 
 namespace triton { namespace backend { namespace hugectr {
 
+enum MEMORY_TYPE { GPU, CPU,PIN};
+
 //
 // Simple backend that demonstrates the TRITONBACKEND API for a
 // blocking backend. A blocking backend completes execution of the
 // inference before returning from TRITONBACKED_ModelInstanceExecute.
 //
-// This backend supports any model that has exactly 1 input and
+// This backend supports any model that has exactly 3 input and
 // exactly 1 output. The input and output can have any name, datatype
 // and shape but the shape and datatype of the input and output must
 // match. The backend simply responds with the output tensor equal to
@@ -101,12 +104,26 @@ namespace triton { namespace backend { namespace hugectr {
 
 class CudaAllocator {
  public:
-  void *allocate(size_t size) const {
+  void *allocate(size_t size,MEMORY_TYPE type=MEMORY_TYPE::GPU) const {
     void *ptr;
-    CK_CUDA_THROW_(cudaMalloc(&ptr, size));
+    if (type==MEMORY_TYPE::GPU){
+        CK_CUDA_THROW_(cudaMalloc(&ptr, size));
+    }
+    else{ 
+        CK_CUDA_THROW_(cudaMallocHost(&ptr, size));
+    }
+    
     return ptr;
   }
-  void deallocate(void *ptr) const { CK_CUDA_THROW_(cudaFree(ptr)); }
+  void deallocate(void *ptr,MEMORY_TYPE type=MEMORY_TYPE::GPU) const {
+    if (type==MEMORY_TYPE::GPU){
+        CK_CUDA_THROW_(cudaFree(ptr));;
+    }
+    else
+    { 
+        CK_CUDA_THROW_(cudaFreeHost(ptr));
+    }
+ }
 };
 
 
@@ -118,15 +135,16 @@ private:
     CudaAllocator allocator_;
     void *ptr_=nullptr;
     size_t total_size_in_bytes_=0;
+    MEMORY_TYPE type;
 public:
-    static std::shared_ptr<HugeCTRBuffer> create() {
-        return std::shared_ptr<HugeCTRBuffer>(new HugeCTRBuffer);
+    static std::shared_ptr<HugeCTRBuffer> create(MEMORY_TYPE m_type=MEMORY_TYPE::GPU) {
+        return std::shared_ptr<HugeCTRBuffer>(new HugeCTRBuffer(m_type));
     }
-    HugeCTRBuffer() : ptr_(nullptr), total_size_in_bytes_(0) {}
+    HugeCTRBuffer(MEMORY_TYPE m_type) : ptr_(nullptr), total_size_in_bytes_(0),type(m_type) {}
     ~HugeCTRBuffer() 
     {
         if (allocated()) {
-        allocator_.deallocate(ptr_);
+        allocator_.deallocate(ptr_,type);
         }
     }
     bool allocated() const { return total_size_in_bytes_ != 0 && ptr_ != nullptr; }  
@@ -149,8 +167,13 @@ public:
 
     if (total_size_in_bytes_ != 0) 
     {
-        ptr_ = allocator_.allocate(total_size_in_bytes_);
+        ptr_ = allocator_.allocate(total_size_in_bytes_,type);
     }
+    }
+
+    size_t get_buffer_size()
+    {
+      return total_size_in_bytes_;
     }
 
     void *get_ptr()  
@@ -192,7 +215,7 @@ public:
 class ModelState {
  public:
   static TRITONSERVER_Error* Create(
-      TRITONBACKEND_Model* triton_model, ModelState** state);
+      TRITONBACKEND_Model* triton_model, ModelState** state,std::vector<std::string>modelnames,std::vector<std::string>modelconfigs);
 
   // Get the handle to the TRITONBACKEND model.
   TRITONBACKEND_Model* TritonModel() { return triton_model_; }
@@ -209,6 +232,9 @@ class ModelState {
   // Get the HUgeCTR model dense size.
   int64_t DeseNum() { return dese_num_; }
 
+  // Get the HUgeCTR model cat feature size.
+  int64_t CatNum() {return cat_num_;}
+
   // Get the HUgeCTR model Embedding size.
   int64_t EmbeddingSize() { return embedding_size_; }
 
@@ -217,8 +243,15 @@ class ModelState {
 
   // Support GPU cache for embedding.
   bool GPUCache() { return support_gpu_cache_; }
+
+  //Support int64 embedding key
+  bool SupportLongEmbeddingKey() { return support_int64_key_; }
   
   std::string HugeCTRJsonConfig() {return hugectr_config_;}
+
+  std::vector<std::string> GetAllModelsconfig(){return model_config_path;}
+
+  std::vector<std::string> GetAllModelsmame (){return model_name;}
 
   // Get the handle to the Model Configuration.
   common::TritonJson::Value& ModelConfig() { return model_config_; }
@@ -244,46 +277,51 @@ class ModelState {
 
   //HugeCTR EmbeddingTable
   TRITONSERVER_Error* HugeCTREmbedding();
-
-    //HugeCTR Int32 PS
-  HugeCTR::HugectrUtility<int32_t>* HugeCTRParameterServerInt32(){return EmbeddingTable_int32;}
-
   
+  //Get HugeCTR configuration files 
+  TRITONSERVER_Error* GetModelConfigs(std::string path);
 
+  //HugeCTR Int32 PS
+  HugeCTR::HugectrUtility<unsigned int>* HugeCTRParameterServerInt32(){return EmbeddingTable_int32;}
 
+  //HugeCTR Int64 PS
+  HugeCTR::HugectrUtility<long long>* HugeCTRParameterServerInt64(){return EmbeddingTable_int64;}
 
  private:
   ModelState(
       TRITONSERVER_Server* triton_server, TRITONBACKEND_Model* triton_model,
       const char* name, const uint64_t version,
-      common::TritonJson::Value&& model_config);
+      common::TritonJson::Value&& model_config,
+      std::vector<std::string>modelnames,std::vector<std::string>modelconfigs );
 
   TRITONSERVER_Server* triton_server_;
   TRITONBACKEND_Model* triton_model_;
   const std::string name_;
   const uint64_t version_;
-  int64_t max_batch_size_;
-  int64_t slot_num_;
-  int64_t dese_num_;
-  int64_t embedding_size_;
-  int64_t max_nnz_;
-  float cache_size_per;
+  int64_t max_batch_size_=64;
+  int64_t slot_num_=10;
+  int64_t dese_num_=50;
+  int64_t cat_num_=50;
+  int64_t embedding_size_=64;
+  int64_t max_nnz_=3;
+  float cache_size_per=0.5;
   std::string hugectr_config_;
   common::TritonJson::Value model_config_;
+  std::vector<std::string> model_config_path;
+  std::vector<std::string> model_name;
 
-  bool support_gpu_cache_;
+  bool support_int64_key_=false;
+  bool support_gpu_cache_=false;
   bool supports_batching_initialized_;
   bool supports_batching_;
-  bool supports_int64;
 
-  HugeCTR::HugectrUtility<int32_t>* EmbeddingTable_int32;
-  HugeCTR::HugectrUtility<int64_t>* EmbeddingTable_int64;
-
+  HugeCTR::HugectrUtility<unsigned int>* EmbeddingTable_int32;
+  HugeCTR::HugectrUtility<long long>* EmbeddingTable_int64;
 
 };
 
 TRITONSERVER_Error*
-ModelState::Create(TRITONBACKEND_Model* triton_model, ModelState** state)
+ModelState::Create(TRITONBACKEND_Model* triton_model, ModelState** state,std::vector<std::string>modelnames,std::vector<std::string>modelconfigs )
 {
   TRITONSERVER_Message* config_message;
   RETURN_IF_ERROR(TRITONBACKEND_ModelConfig(
@@ -317,26 +355,19 @@ ModelState::Create(TRITONBACKEND_Model* triton_model, ModelState** state)
 
   *state = new ModelState(
       triton_server, triton_model, model_name, model_version,
-      std::move(model_config));
+      std::move(model_config),modelconfigs, modelnames);
   return nullptr;  // success
 }
 
 ModelState::ModelState(
     TRITONSERVER_Server* triton_server, TRITONBACKEND_Model* triton_model,
     const char* name, const uint64_t version,
-    common::TritonJson::Value&& model_config)
+    common::TritonJson::Value&& model_config, std::vector<std::string>modelnames, std::vector<std::string>modelconfigs )
     : triton_server_(triton_server), triton_model_(triton_model), name_(name),
       version_(version), model_config_(std::move(model_config)),
+      model_config_path(modelconfigs),model_name(modelnames),
       supports_batching_initialized_(false), supports_batching_(false)
 {
-	LOG_MESSAGE(
-        TRITONSERVER_LOG_INFO,+
-                (std::string("Triton Model Initialization ")).c_str());
-    cudaError_t cuerr = cudaSetDevice(0);
-    if (cuerr != cudaSuccess) {
-        std::cerr << "failed to set CUDA device to " << 0 << ": "
-            << cudaGetErrorString(cuerr);
-    }
 
     //model_config_=std::move(model_config);
     //Load HugeCTR Embedding
@@ -360,18 +391,30 @@ ModelState::ModelState(
 
 
 //HugeCTR EmbeddingTable
-TRITONSERVER_Error* ModelState::HugeCTREmbedding(){
+TRITONSERVER_Error* 
+ModelState::HugeCTREmbedding(){
      LOG_MESSAGE(
           TRITONSERVER_LOG_INFO,
-          (std::string("enter into ebediing create ") )
+          (std::string("enter into Parameter Server create ") )
               .c_str());
     HugeCTR::INFER_TYPE type= HugeCTR::INFER_TYPE::TRITON;
-    std::vector<std::string> model_config_path;
-    std::vector<std::string> model_name;
-    EmbeddingTable_int32 =HugeCTR::HugectrUtility<int32_t>::Create_Parameter_Server(type,model_config_path,model_name);
+    if (support_int64_key_)
+    {
+      LOG_MESSAGE(TRITONSERVER_LOG_INFO,(std::string("Create Long Long type key Parameter Server create ") ).c_str());
+       for (auto iter = model_config_path.cbegin(); iter != model_config_path.cend(); iter++)
+    {
+        std::cout <<"configpath: "<< (*iter) << std::endl;
+    }
+      EmbeddingTable_int64=HugeCTR::HugectrUtility<long long>::Create_Parameter_Server(type,model_config_path,model_name);
+    }
+    else
+    {
+      LOG_MESSAGE(TRITONSERVER_LOG_INFO,(std::string("Create int type key Parameter Server create ") ).c_str());
+      EmbeddingTable_int32 =HugeCTR::HugectrUtility<unsigned int>::Create_Parameter_Server(type,model_config_path,model_name);
+    }
+    LOG_MESSAGE(TRITONSERVER_LOG_INFO,(std::string("Create Parameter Server sucessully ") ).c_str());
     return nullptr;
 }
-
 
 TRITONSERVER_Error*
 ModelState::SupportsFirstDimBatching(bool* supports)
@@ -469,6 +512,33 @@ ModelState::ValidateModelConfig()
 }
 
 TRITONSERVER_Error*
+ModelState::GetModelConfigs(std::string path)
+{
+
+  DIR* dp = nullptr;
+  struct dirent* dirp = nullptr;
+  std::string p;
+  if ((dp = opendir(path.c_str())) == nullptr) {
+    return nullptr;
+  }
+ 
+  while ((dirp = readdir(dp)) != nullptr) {
+    if (dirp->d_type == DT_DIR && strcmp(dirp->d_name, ".") != 0 && strcmp(dirp->d_name, "..") != 0 && strcmp(dirp->d_name, "hugectr") != 0 ) 
+      {
+        model_name.emplace_back(dirp->d_name);
+        GetModelConfigs(p.assign(path).append("\\").append(dirp->d_name));
+      }
+      if (dirp->d_type == DT_REG && std::string(dirp->d_name).find(".json") != std::string::npos)
+      {
+         model_config_path.emplace_back( p.assign(path).append("//").append(dirp->d_name));
+      }
+  }
+ 
+  closedir(dp);
+  return nullptr;   
+}
+
+TRITONSERVER_Error*
 ModelState::ParseModelConfig()
 {
   common::TritonJson::WriteBuffer buffer;
@@ -503,6 +573,19 @@ ModelState::ParseModelConfig()
           (std::string("desene num to : ") + std::to_string(dese_num_))
               .c_str());
     }
+
+    common::TritonJson::Value catfea;
+    if (parameters.Find("cat_feature_num", &catfea)) {
+      std::string cat_str;
+      (catfea.MemberAsString(
+          "string_value", &cat_str));
+      cat_num_=std::stoi(cat_str );
+      LOG_MESSAGE(
+          TRITONSERVER_LOG_INFO,
+          (std::string("cat_feature num to : ") + std::to_string(cat_num_))
+              .c_str());
+    }
+
     common::TritonJson::Value embsize;
     if (parameters.Find("embedding_vector_size", &embsize)) {
       std::string embsize_str;
@@ -541,7 +624,7 @@ ModelState::ParseModelConfig()
       std::string gpu_cache;
       (gpucache.MemberAsString(
           "string_value", &gpu_cache));
-      if (gpu_cache=="true")
+      if ((gpu_cache)=="true")
       support_gpu_cache_=true;
       std::cout<<"support gpu cache is "<<support_gpu_cache_<<std::endl;
     }
@@ -554,6 +637,15 @@ ModelState::ParseModelConfig()
       std::cout<<"gpu cache per is "<<cache_size_per<<std::endl;
     }
     
+    common::TritonJson::Value embeddingkey;
+    if (parameters.Find("embeddingkey_long_type", &embeddingkey)) {
+      std::string embeddingkey_str;
+      (embeddingkey.MemberAsString(
+          "string_value", &embeddingkey_str));
+      if ((embeddingkey_str)=="true")
+      support_int64_key_=true;
+      std::cout<<"Support long embedding key "<<support_int64_key_<<std::endl;
+    }
   }
   model_config_.MemberAsInt("max_batch_size", &max_batch_size_);
   std::cout<<"max_batch_size is "<<max_batch_size_<<std::endl;
@@ -590,13 +682,23 @@ class ModelInstanceState {
   ModelState* StateForModel() const { return model_state_; }
 
   // Get the prediction result  that corresponds to this instance.
-  void ProcessRequest(TRITONBACKEND_Request* request, uint32_t* wait_ms);
+  void ProcessRequest();
 
   //Create Embedding_cache
   void Create_EmbeddingCache();
 
   //Create Embedding_cache
   void LoadHugeCTRModel();
+
+  std::shared_ptr<HugeCTRBuffer<float>> GetDeseBuffer() {return dense_value_buf;}
+
+  std::shared_ptr<HugeCTRBuffer<unsigned int>> GetCatColBuffer_int32() {return cat_column_index_buf_int32;}
+
+  std::shared_ptr<HugeCTRBuffer<long long>> GetCatColBuffer_int64() {return cat_column_index_buf_int64;}
+
+  std::shared_ptr<HugeCTRBuffer<int>> GetRowBuffer() {return row_ptr_buf;}
+
+  std::shared_ptr<HugeCTRBuffer<float>> GetPredictBuffer() {return prediction_buf;}
 
  private:
 ModelInstanceState(
@@ -614,7 +716,8 @@ ModelInstanceState(
     //HugeCTR Model buffer for input and output
     //There buffers will be shared for all the requests
     std::shared_ptr<HugeCTRBuffer<float>> dense_value_buf;
-    std::shared_ptr<HugeCTRBuffer<size_t>> cat_column_index_buf;
+    std::shared_ptr<HugeCTRBuffer<unsigned int>> cat_column_index_buf_int32;
+    std::shared_ptr<HugeCTRBuffer<long long>> cat_column_index_buf_int64;
     std::shared_ptr<HugeCTRBuffer<int>> row_ptr_buf;
     std::shared_ptr<HugeCTRBuffer<float>> prediction_buf;
     
@@ -664,61 +767,51 @@ ModelInstanceState::ModelInstanceState(
       name_(name), kind_(kind), device_id_(device_id)
 {
 
-
-    /*int64_t slots=26;
-    model_config_.MemberAsInt("slots", &slots);
-    std::cout<<"slots is"<<slots<<std::endl;
-    int64_t cat_feature_num=26;
-    model_config_.MemberAsInt("cat_feature_num", &cat_feature_num);
-    std::cout<<"cat_feature_num is"<<cat_feature_num<<std::endl;
-    int64_t des_feature_num=13;
-    model_config_.MemberAsInt("des_feature_num", &des_feature_num);
-    std::cout<<"des_feature_num is"<<des_feature_num<<std::endl;
-    int64_t max_nnz=3;
-    model_config_.MemberAsInt("max_nnz", &max_nnz);
-    std::cout<<"max_nnz is"<<max_nnz<<std::endl;
-    int64_t embedding_vector_size=32;
-    model_config_.MemberAsInt("embedding_vector_size", &embedding_vector_size);
-    std::cout<<"embedding_vector_size is"<<embedding_vector_size<<std::endl;
-
+  	LOG_MESSAGE(
+        TRITONSERVER_LOG_INFO,+
+                (std::string("Triton Model Instance Initialization on device ")+std::to_string(device_id)).c_str());
+    cudaError_t cuerr = cudaSetDevice(device_id);
+    if (cuerr != cudaSuccess) {
+        std::cerr << "failed to set CUDA device to " << device_id << ": "
+            << cudaGetErrorString(cuerr);
+    }
+  
     //Alloc the cuda memory
+    LOG_MESSAGE(TRITONSERVER_LOG_INFO,(std::string("Dense Feature buffer allocation: ")).c_str());
     dense_value_buf=HugeCTRBuffer<float>::create();
-    std::vector<size_t> dense_value_dims = {static_cast<size_t>(max_batch_size * des_feature_num) }; 
+    std::vector<size_t> dense_value_dims = {static_cast<size_t>(model_state_->BatchSize() * model_state_->DeseNum()) }; 
     dense_value_buf->reserve(dense_value_dims);
     dense_value_buf->allocate();
 
-    cat_column_index_buf=HugeCTRBuffer<size_t>::create();
-    std::vector<size_t> cat_column_index_dims = {static_cast<size_t>(max_batch_size * cat_feature_num) }; 
-    cat_column_index_buf->reserve(cat_column_index_dims);
-    cat_column_index_buf->allocate();
+    LOG_MESSAGE(TRITONSERVER_LOG_INFO,(std::string("Categorical Feature buffer allocation: ")).c_str());
+    if(model_state_->SupportLongEmbeddingKey()){
+      cat_column_index_buf_int64=HugeCTRBuffer<long long>::create(MEMORY_TYPE::PIN);
+      std::vector<size_t> cat_column_index_dims = {static_cast<size_t>(model_state_->BatchSize()* model_state_->CatNum()) }; 
+      cat_column_index_buf_int64->reserve(cat_column_index_dims);
+      cat_column_index_buf_int64->allocate();
+
+    }
+    else{
+      cat_column_index_buf_int32=HugeCTRBuffer<unsigned int>::create(MEMORY_TYPE::PIN);
+      std::vector<size_t> cat_column_index_dims = {static_cast<size_t>(model_state_->BatchSize() * model_state_->CatNum()) }; 
+      cat_column_index_buf_int32->reserve(cat_column_index_dims);
+      cat_column_index_buf_int32->allocate();
+    }
     
+    LOG_MESSAGE(TRITONSERVER_LOG_INFO,(std::string("Categorical Row Index buffer allocation: ")).c_str());
     row_ptr_buf=HugeCTRBuffer<int>::create();
-    std::vector<size_t> row_ptrs_dims = {static_cast<size_t>(max_batch_size * slots +1 ) }; 
+    std::vector<size_t> row_ptrs_dims = {static_cast<size_t>(model_state_->BatchSize() * model_state_->SlotNum()+1 ) }; 
     row_ptr_buf->reserve(row_ptrs_dims);
     row_ptr_buf->allocate();
 
+    LOG_MESSAGE(TRITONSERVER_LOG_INFO,(std::string("Predict resulte buffer allocation: ")).c_str());
     prediction_buf=HugeCTRBuffer<float>::create();
-    std::vector<size_t> prediction_dims = {static_cast<size_t>(max_batch_size) }; 
+    std::vector<size_t> prediction_dims = {static_cast<size_t>(model_state_->BatchSize()) }; 
     prediction_buf->reserve(prediction_dims);
-    prediction_buf->allocate();*/
-
-    //Load HugeCTR Model
-    //*handle = LoadLibrary(path.c_str());
-    /* 
-    *handle = dlopen(path.c_str(), RTLD_NOW | RTLD_LOCAL);
-    if (*handle == nullptr) {
-      return Status(Status::Code::NOT_FOUND,
-        "unable to load custom library: " + std::string(dlerror())
-    }
-    RETURN_IF_ERROR(GetEntrypoint(
-      handle, "CreateHugeCTRModel", false ,
-      reinterpret_cast<void**>(&model)));
-    RETURN_IF_ERROR(GetEntrypoint(
-      handle, "predict", false ,
-      reinterpret_cast<void**>(&predict)));
-    */
-    //Create_EmbeddingCache();
-
+    prediction_buf->allocate();
+    LOG_MESSAGE(TRITONSERVER_LOG_INFO,(std::string("Creat Embedding Cache ")).c_str());
+    Create_EmbeddingCache();
+    LOG_MESSAGE(TRITONSERVER_LOG_INFO,(std::string("Loading Hugectr Model ")).c_str());
     //LoadHugeCTRModel();
 
 }
@@ -730,50 +823,41 @@ ModelInstanceState::~ModelInstanceState()
 
 void ModelInstanceState::Create_EmbeddingCache()
 {
-
-  Embedding_cache=HugeCTR::embedding_interface::Create_Embedding_Cache(model_state_->HugeCTRParameterServerInt32(),
-  device_id_,
-  model_state_->GPUCache(),
-  model_state_->CacheSizePer(),
-  model_state_->HugeCTRJsonConfig(),
-  name_);
+  LOG_MESSAGE(TRITONSERVER_LOG_INFO,(std::string("******Creating Embedding Cache ")).c_str());
+  if(model_state_->SupportLongEmbeddingKey())
+  {
+    Embedding_cache=HugeCTR::embedding_interface::Create_Embedding_Cache(model_state_->HugeCTRParameterServerInt64(),
+    device_id_,
+    model_state_->GPUCache(),
+    model_state_->CacheSizePer(),
+    model_state_->HugeCTRJsonConfig(),
+    name_);
+  }
+  else
+  {
+    Embedding_cache=HugeCTR::embedding_interface::Create_Embedding_Cache(model_state_->HugeCTRParameterServerInt32(),
+      device_id_,
+      model_state_->GPUCache(),
+      model_state_->CacheSizePer(),
+      model_state_->HugeCTRJsonConfig(),
+      name_);
+  }
+  LOG_MESSAGE(TRITONSERVER_LOG_INFO,(std::string("******Creating Embedding Cache successfully")).c_str());
 }
 
 void ModelInstanceState::LoadHugeCTRModel(){
-  std::string modelname;
   HugeCTR::INFER_TYPE type=HugeCTR::INFER_TYPE::TRITON;
-  hugectrmodel_=HugeCTR::HugeCTRModel::load_model(type,modelname);
+  hugectrmodel_=HugeCTR::HugeCTRModel::load_model(type,model_state_->HugeCTRJsonConfig(),device_id_,Embedding_cache);
 }
 
-void ModelInstanceState::ProcessRequest(TRITONBACKEND_Request* request, uint32_t* wait_ms)
+void ModelInstanceState::ProcessRequest()
 {
-  TRITONBACKEND_Input* DES;
-    RESPOND_AND_RETURN_IF_ERROR(
-        request, TRITONBACKEND_RequestInput(request, "DES", &DES));
-  TRITONBACKEND_Input* CAT;
-    RESPOND_AND_RETURN_IF_ERROR(
-        request, TRITONBACKEND_RequestInput(request, "CATCOLUMN", &CAT));
-  TRITONBACKEND_Input* ROW;
-    RESPOND_AND_RETURN_IF_ERROR(
-        request, TRITONBACKEND_RequestInput(request, "ROWINDEX", &ROW));
-
-  const int64_t* in_shape_arr;
-  uint32_t in_dims_count;
-  uint64_t in_byte_size;
-  RESPOND_AND_RETURN_IF_ERROR(
-      request, TRITONBACKEND_InputProperties(
-                   CAT, nullptr, nullptr, &in_shape_arr, &in_dims_count,
-                   &in_byte_size, nullptr));
-  std::vector<int64_t> in_shape(in_shape_arr, in_shape_arr + in_dims_count);
-  const uint32_t element_count = in_byte_size / sizeof(int32_t);
-  
-  std::unique_ptr<int32_t> in_buffer(new int32_t[element_count]);
-  RESPOND_AND_RETURN_IF_ERROR(
-      request, backend::ReadInputTensor(
-                   request, "IN", reinterpret_cast<char*>(in_buffer.get()),
-                   &in_byte_size));
-
-  //predict()
+  if(model_state_->SupportLongEmbeddingKey()){
+    hugectrmodel_->predict((float*)dense_value_buf->get_ptr(),cat_column_index_buf_int64->get_ptr(),(int*)row_ptr_buf->get_ptr(),(float*)prediction_buf->get_ptr(),50);
+  }
+  else{
+    hugectrmodel_->predict((float*)dense_value_buf->get_ptr(),cat_column_index_buf_int32->get_ptr(),(int*)row_ptr_buf->get_ptr(),(float*)prediction_buf->get_ptr(),50);
+  }
 }
 
 
@@ -828,6 +912,14 @@ TRITONBACKEND_Initialize(TRITONBACKEND_Backend* backend)
   RETURN_IF_ERROR(
       TRITONBACKEND_BackendConfig(backend, &backend_config_message));
 
+  TRITONBACKEND_ArtifactType artifact_type;
+  const char* clocation;
+  RETURN_IF_ERROR(
+      TRITONBACKEND_BackendArtifacts(backend, &artifact_type, &clocation));
+  LOG_MESSAGE(
+      TRITONSERVER_LOG_INFO,
+      (std::string("backedn Repository location: ") + clocation).c_str());
+
   const char* buffer;
   size_t byte_size;
   RETURN_IF_ERROR(TRITONSERVER_MessageSerializeToJson(
@@ -872,6 +964,7 @@ TRITONBACKEND_Finalize(TRITONBACKEND_Backend* backend)
 TRITONSERVER_Error*
 TRITONBACKEND_ModelInitialize(TRITONBACKEND_Model* model)
 {
+  
   const char* cname;
   RETURN_IF_ERROR(TRITONBACKEND_ModelName(model, &cname));
   std::string name(cname);
@@ -903,6 +996,35 @@ TRITONBACKEND_ModelInitialize(TRITONBACKEND_Model* model)
   TRITONBACKEND_Backend* backend;
   RETURN_IF_ERROR(TRITONBACKEND_ModelBackend(model, &backend));
 
+  TRITONSERVER_Message* backend_config_message;
+  RETURN_IF_ERROR(
+      TRITONBACKEND_BackendConfig(backend, &backend_config_message));
+
+  const char* buffer;
+  size_t byte_size;
+  RETURN_IF_ERROR(TRITONSERVER_MessageSerializeToJson(
+      backend_config_message, &buffer, &byte_size));
+  LOG_MESSAGE(
+      TRITONSERVER_LOG_INFO,
+      (std::string("backend configuration in mode:\n") + buffer).c_str());
+
+  common::TritonJson::Value backend_config;
+  TRITONSERVER_Error* err = backend_config.Parse(buffer, byte_size);
+  RETURN_IF_ERROR(err);
+  common::TritonJson::Value cmdline;;
+  std::vector<std::string> param_values;
+  std::vector<std::string> param_keys;
+  if (backend_config.Find("cmdline", &cmdline)) {
+    RETURN_IF_ERROR(cmdline.Members(&param_keys));
+    for (const auto& param_key : param_keys){
+      std::string value_string;
+      RETURN_IF_ERROR(cmdline.MemberAsString(
+                        param_key.c_str(), &value_string));
+      param_values.push_back(value_string);
+    }
+  }
+
+
   void* vbackendstate;
   RETURN_IF_ERROR(TRITONBACKEND_BackendState(backend, &vbackendstate));
   std::string* backend_state = reinterpret_cast<std::string*>(vbackendstate);
@@ -914,7 +1036,7 @@ TRITONBACKEND_ModelInitialize(TRITONBACKEND_Model* model)
   // With each model we create a ModelState object and associate it
   // with the TRITONBACKEND_Model.
   ModelState* model_state;
-  RETURN_IF_ERROR(ModelState::Create(model, &model_state));
+  RETURN_IF_ERROR(ModelState::Create(model, &model_state,param_values,param_keys));
   RETURN_IF_ERROR(
       TRITONBACKEND_ModelSetState(model, reinterpret_cast<void*>(model_state)));
 
@@ -922,13 +1044,11 @@ TRITONBACKEND_ModelInitialize(TRITONBACKEND_Model* model)
   // the model configuration to ensure that it is something that this
   // backend can support. If not, returning an error from this
   // function will prevent the model from loading.
-  RETURN_IF_ERROR(model_state->ValidateModelConfig());
+  //RETURN_IF_ERROR(model_state->ValidateModelConfig());
 
   RETURN_IF_ERROR(model_state->ParseModelConfig());
-  LOG_MESSAGE(
-      TRITONSERVER_LOG_INFO, "begin create CTRembedding");
 
-  //RETURN_IF_ERROR(model_state->HugeCTREmbedding());
+  RETURN_IF_ERROR(model_state->HugeCTREmbedding());
 
   // For testing.. Block the thread for certain time period before returning.
   RETURN_IF_ERROR(model_state->CreationDelay());
@@ -989,14 +1109,6 @@ TRITONBACKEND_ModelInstanceInitialize(TRITONBACKEND_ModelInstance* instance)
       ModelInstanceState::Create(model_state, instance, &instance_state));
   RETURN_IF_ERROR(TRITONBACKEND_ModelInstanceSetState(
       instance, reinterpret_cast<void*>(instance_state)));
-
-  // Because this backend just copies IN -> OUT and requires that
-  // input and output be in CPU memory, we fail if a GPU instances is
-  // requested.
-  /*RETURN_ERROR_IF_FALSE(
-      instance_state->Kind() == TRITONSERVER_INSTANCEGROUPKIND_CPU,
-      TRITONSERVER_ERROR_INVALID_ARG,
-      std::string("'identity' backend only supports CPU instances"));*/
 
   return nullptr;  // success
 }
@@ -1138,14 +1250,32 @@ TRITONBACKEND_ModelInstanceExecute(
          ", requested_output_count = " + std::to_string(requested_output_count))
             .c_str());
 
-    const char* input_name;
+    const char* des_input_name;
     GUARDED_RESPOND_IF_ERROR(
         responses, r,
-        TRITONBACKEND_RequestInputName(request, 0 /* index */, &input_name));
+        TRITONBACKEND_RequestInputName(request, 0 /* index */, &des_input_name));
 
-    TRITONBACKEND_Input* input = nullptr;
+    const char* catcol_input_name;
     GUARDED_RESPOND_IF_ERROR(
-        responses, r, TRITONBACKEND_RequestInput(request, input_name, &input));
+        responses, r,
+        TRITONBACKEND_RequestInputName(request, 1 /* index */, &catcol_input_name));
+
+    const char* row_input_name;
+    GUARDED_RESPOND_IF_ERROR(
+        responses, r,
+        TRITONBACKEND_RequestInputName(request, 2 /* index */, &row_input_name));
+
+    TRITONBACKEND_Input* des_input = nullptr;
+    GUARDED_RESPOND_IF_ERROR(
+        responses, r, TRITONBACKEND_RequestInput(request, des_input_name, &des_input));
+
+    TRITONBACKEND_Input* catcol_input = nullptr;
+    GUARDED_RESPOND_IF_ERROR(
+        responses, r, TRITONBACKEND_RequestInput(request, catcol_input_name, &catcol_input));
+    
+    TRITONBACKEND_Input* row_input = nullptr;
+    GUARDED_RESPOND_IF_ERROR(
+        responses, r, TRITONBACKEND_RequestInput(request, row_input_name, &row_input));
 
     // We also validated that the model configuration specifies only a
     // single output, but the request is not required to request any
@@ -1171,16 +1301,64 @@ TRITONBACKEND_ModelInstanceExecute(
       continue;
     }
 
-    TRITONSERVER_DataType input_datatype;
+    TRITONSERVER_DataType des_datatype;
+    TRITONSERVER_DataType cat_datatype;
+    TRITONSERVER_DataType row_datatype;
+
     const int64_t* input_shape;
-    uint32_t input_dims_count;
-    uint64_t input_byte_size;
+    uint32_t des_dims_count;
+    uint32_t cat_dims_count;
+    uint32_t row_dims_count;
+    uint64_t des_byte_size;
+    uint64_t cat_byte_size;
+    uint64_t row_byte_size;
     uint32_t input_buffer_count;
+   
+
     GUARDED_RESPOND_IF_ERROR(
         responses, r,
         TRITONBACKEND_InputProperties(
-            input, nullptr /* input_name */, &input_datatype, &input_shape,
-            &input_dims_count, &input_byte_size, &input_buffer_count));
+            catcol_input, nullptr /* input_name */, &cat_datatype, &input_shape,
+            &cat_dims_count, &cat_byte_size, &input_buffer_count));
+     LOG_MESSAGE(
+        TRITONSERVER_LOG_INFO,
+        
+        (std::string("\tinput ") + catcol_input_name +
+         ": datatype = " + TRITONSERVER_DataTypeString(cat_datatype) +
+         ", shape = " + backend::ShapeToString(input_shape, cat_dims_count) +
+         ", byte_size = " + std::to_string(cat_byte_size) +
+         ", buffer_count = " + std::to_string(input_buffer_count))
+            .c_str());
+
+    GUARDED_RESPOND_IF_ERROR(
+        responses, r,
+        TRITONBACKEND_InputProperties(
+            row_input, nullptr /* input_name */, &row_datatype, &input_shape,
+            &row_dims_count, &row_byte_size, &input_buffer_count));
+     LOG_MESSAGE(
+        TRITONSERVER_LOG_INFO,
+        (std::string("\tinput ") + row_input_name +
+         ": datatype = " + TRITONSERVER_DataTypeString(row_datatype) +
+         ", shape = " + backend::ShapeToString(input_shape, row_dims_count) +
+         ", byte_size = " + std::to_string(row_byte_size) +
+         ", buffer_count = " + std::to_string(input_buffer_count))
+            .c_str());
+     
+     GUARDED_RESPOND_IF_ERROR(
+        responses, r,
+        TRITONBACKEND_InputProperties(
+            des_input, nullptr /* input_name */, &des_datatype, &input_shape,
+            &des_dims_count, &des_byte_size, &input_buffer_count));
+    LOG_MESSAGE(
+        TRITONSERVER_LOG_INFO,
+        (std::string("\tinput ") + des_input_name +
+         ": datatype = " + TRITONSERVER_DataTypeString(des_datatype) +
+         ", shape = " + backend::ShapeToString(input_shape, des_dims_count) +
+         ", byte_size = " + std::to_string(des_byte_size) +
+         ", buffer_count = " + std::to_string(input_buffer_count))
+            .c_str());
+
+    
     if (responses[r] == nullptr) {
       LOG_MESSAGE(
           TRITONSERVER_LOG_ERROR,
@@ -1190,14 +1368,7 @@ TRITONBACKEND_ModelInstanceExecute(
       continue;
     }
 
-    LOG_MESSAGE(
-        TRITONSERVER_LOG_INFO,
-        (std::string("\tinput ") + input_name +
-         ": datatype = " + TRITONSERVER_DataTypeString(input_datatype) +
-         ", shape = " + backend::ShapeToString(input_shape, input_dims_count) +
-         ", byte_size = " + std::to_string(input_byte_size) +
-         ", buffer_count = " + std::to_string(input_buffer_count))
-            .c_str());
+   
     LOG_MESSAGE(
         TRITONSERVER_LOG_INFO,
         (std::string("\trequested_output ") + requested_output_name).c_str());
@@ -1207,7 +1378,7 @@ TRITONBACKEND_ModelInstanceExecute(
     // request is necessarily batch-size 1. If the model does support
     // batching then the first dimension of the shape is the batch
     // size.
-    if (supports_batching && (input_dims_count > 0)) {
+    if (supports_batching && (des_dims_count > 0)) {
       total_batch_size += input_shape[0];
     } else {
       total_batch_size++;
@@ -1233,8 +1404,8 @@ TRITONBACKEND_ModelInstanceExecute(
       GUARDED_RESPOND_IF_ERROR(
           responses, r,
           TRITONBACKEND_ResponseOutput(
-              response, &output, requested_output_name, input_datatype,
-              input_shape, input_dims_count));
+              response, &output, requested_output_name, cat_datatype,
+              input_shape, 1));
       if (responses[r] == nullptr) {
         LOG_MESSAGE(
             TRITONSERVER_LOG_ERROR,
@@ -1248,20 +1419,19 @@ TRITONBACKEND_ModelInstanceExecute(
       // memory but we have to handle any returned type. If we get
       // back a buffer in GPU memory we just fail the request.
       void* output_buffer;
-      TRITONSERVER_MemoryType output_memory_type = TRITONSERVER_MEMORY_CPU;
+      TRITONSERVER_MemoryType output_memory_type = TRITONSERVER_MEMORY_GPU;
       int64_t output_memory_type_id = 0;
       GUARDED_RESPOND_IF_ERROR(
           responses, r,
           TRITONBACKEND_OutputBuffer(
-              output, &output_buffer, input_byte_size, &output_memory_type,
+              output, &output_buffer, instance_state->GetPredictBuffer()->get_buffer_size(), &output_memory_type,
               &output_memory_type_id));
-      if ((responses[r] == nullptr) ||
-          (output_memory_type == TRITONSERVER_MEMORY_GPU)) {
+      if ((responses[r] == nullptr) ) {
         GUARDED_RESPOND_IF_ERROR(
             responses, r,
             TRITONSERVER_ErrorNew(
                 TRITONSERVER_ERROR_UNSUPPORTED,
-                "failed to create output buffer in CPU memory"));
+                "failed to create output buffer in GPU memory"));
         LOG_MESSAGE(
             TRITONSERVER_LOG_ERROR,
             (std::string("request ") + std::to_string(r) +
@@ -1275,30 +1445,54 @@ TRITONBACKEND_ModelInstanceExecute(
       // buffers are on CPU so fail otherwise.
       size_t output_buffer_offset = 0;
       for (uint32_t b = 0; b < input_buffer_count; ++b) {
-        const void* input_buffer = nullptr;
-        uint64_t buffer_byte_size = 0;
-        TRITONSERVER_MemoryType input_memory_type = TRITONSERVER_MEMORY_CPU;
+
+        const void* des_buffer=nullptr;
+        uint64_t buffer_byte_size = des_byte_size;
+        TRITONSERVER_MemoryType input_memory_type = TRITONSERVER_MEMORY_GPU;
         int64_t input_memory_type_id = 0;
         GUARDED_RESPOND_IF_ERROR(
             responses, r,
             TRITONBACKEND_InputBuffer(
-                input, b, &input_buffer, &buffer_byte_size, &input_memory_type,
+                des_input, b, &des_buffer, &buffer_byte_size, &input_memory_type,
                 &input_memory_type_id));
-        if ((responses[r] == nullptr) ||
-            (input_memory_type == TRITONSERVER_MEMORY_GPU)) {
+        CK_CUDA_THROW_(cudaMemcpy(instance_state->GetDeseBuffer()->get_ptr(), des_buffer, buffer_byte_size+ output_buffer_offset, cudaMemcpyHostToDevice));
+
+        const void* cat_buffer=nullptr;
+        GUARDED_RESPOND_IF_ERROR(
+            responses, r,
+            TRITONBACKEND_InputBuffer(
+                catcol_input, b, &cat_buffer, &cat_byte_size, &input_memory_type,
+                &input_memory_type_id));
+        if (instance_state->StateForModel()->SupportLongEmbeddingKey())
+        {
+          CK_CUDA_THROW_(cudaMemcpy(instance_state->GetCatColBuffer_int64()->get_ptr(), cat_buffer, cat_byte_size, cudaMemcpyHostToHost));
+        }
+        else{
+          CK_CUDA_THROW_(cudaMemcpy(instance_state->GetCatColBuffer_int32()->get_ptr(), cat_buffer, cat_byte_size, cudaMemcpyHostToHost));
+        }
+        
+        const void* row_buffer=nullptr;
+        GUARDED_RESPOND_IF_ERROR(
+            responses, r,
+            TRITONBACKEND_InputBuffer(
+                row_input, b, &row_buffer, &row_byte_size, &input_memory_type,
+                &input_memory_type_id));
+                std::cout<<"row size: "<<row_byte_size <<std::endl;
+        CK_CUDA_THROW_(cudaMemcpy(instance_state->GetRowBuffer()->get_ptr(), row_buffer, row_byte_size, cudaMemcpyHostToDevice));
+        
+
+        if ((responses[r] == nullptr) ) {
           GUARDED_RESPOND_IF_ERROR(
               responses, r,
               TRITONSERVER_ErrorNew(
                   TRITONSERVER_ERROR_UNSUPPORTED,
-                  "failed to get input buffer in CPU memory"));
+                  "failed to get input buffer in GPU memory"));
         }
-
-        memcpy(
-            reinterpret_cast<char*>(output_buffer) + output_buffer_offset,
-            input_buffer, buffer_byte_size);
-        output_buffer_offset += buffer_byte_size;
+        //instance_state->ProcessRequest();
+        output_buffer_offset += buffer_byte_size; 
+        CK_CUDA_THROW_(cudaMemcpy(output_buffer, instance_state->GetCatColBuffer_int32()->get_ptr(), instance_state->GetPredictBuffer()->get_buffer_size(), cudaMemcpyDeviceToHost));
       }
-
+      
       if (responses[r] == nullptr) {
         LOG_MESSAGE(
             TRITONSERVER_LOG_ERROR,
@@ -1335,6 +1529,8 @@ TRITONBACKEND_ModelInstanceExecute(
             responses[r], TRITONSERVER_RESPONSE_COMPLETE_FINAL,
             nullptr /* success */),
         "failed sending response");
+    
+
     uint64_t exec_end_ns = 0;
     SET_TIMESTAMP(exec_end_ns);
     max_exec_end_ns = std::max(max_exec_end_ns, exec_end_ns);
