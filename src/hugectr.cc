@@ -682,7 +682,7 @@ class ModelInstanceState {
   ModelState* StateForModel() const { return model_state_; }
 
   // Get the prediction result  that corresponds to this instance.
-  void ProcessRequest();
+  void ProcessRequest(int64_t numofsamples);
 
   //Create Embedding_cache
   void Create_EmbeddingCache();
