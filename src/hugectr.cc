@@ -725,12 +725,6 @@ ModelInstanceState(
 
     HugeCTR::HugeCTRModel* hugectrmodel_;
 
-    //HugeCTR Model
-    //*hugectrmodel;
-    /* typedef void* (*HugeCTRModel)(std::string configuration);*/
-    /* typedef void* (*Predict)(
-      void* dense_value_buf, void*row_ptr_buf,void* embedding_vector_buf,void* prediction_buf,);
-    */
 };
 
 TRITONSERVER_Error*
@@ -764,7 +758,7 @@ ModelInstanceState::ModelInstanceState(
     const char* name, const TRITONSERVER_InstanceGroupKind kind,
     const int32_t device_id)
     : model_state_(model_state), triton_model_instance_(triton_model_instance),
-      name_(name), kind_(kind), device_id_(device_id)
+      name_(model_state->Name()), kind_(kind), device_id_(device_id)
 {
 
   	LOG_MESSAGE(
@@ -847,17 +841,18 @@ void ModelInstanceState::Create_EmbeddingCache()
 
 void ModelInstanceState::LoadHugeCTRModel(){
   HugeCTR::INFER_TYPE type=HugeCTR::INFER_TYPE::TRITON;
+  std::cout<<"model config is "<<model_state_->HugeCTRJsonConfig()<<std::endl;
   hugectrmodel_=HugeCTR::HugeCTRModel::load_model(type,model_state_->HugeCTRJsonConfig(),device_id_,Embedding_cache);
   LOG_MESSAGE(TRITONSERVER_LOG_INFO,(std::string("******Loading Hugectr model successfully")).c_str());
 }
 
-void ModelInstanceState::ProcessRequest()
+void ModelInstanceState::ProcessRequest(int64_t numofsamples)
 {
   if(model_state_->SupportLongEmbeddingKey()){
-    hugectrmodel_->predict((float*)dense_value_buf->get_ptr(),cat_column_index_buf_int64->get_ptr(),(int*)row_ptr_buf->get_ptr(),(float*)prediction_buf->get_ptr(),1);
+    hugectrmodel_->predict((float*)dense_value_buf->get_ptr(),cat_column_index_buf_int64->get_ptr(),(int*)row_ptr_buf->get_ptr(),(float*)prediction_buf->get_ptr(),numofsamples);
   }
   else{
-    hugectrmodel_->predict((float*)dense_value_buf->get_ptr(),cat_column_index_buf_int32->get_ptr(),(int*)row_ptr_buf->get_ptr(),(float*)prediction_buf->get_ptr(),1);
+    hugectrmodel_->predict((float*)dense_value_buf->get_ptr(),cat_column_index_buf_int32->get_ptr(),(int*)row_ptr_buf->get_ptr(),(float*)prediction_buf->get_ptr(),numofsamples);
   }
 }
 
@@ -1402,8 +1397,10 @@ TRITONBACKEND_ModelInstanceExecute(
 
       // Step 1. Input and output have same datatype and shape...
       TRITONBACKEND_Output* output;
-      int64_t shape=instance_state->StateForModel()->BatchSize();
-      int64_t* out_putshape=&shape;
+      int64_t numofdes=(des_byte_size/sizeof(float));
+      int64_t numofsample=numofdes/(instance_state->StateForModel()->DeseNum());
+      std::cout<<"******num of samples is "<<numofsample;
+      int64_t* out_putshape=&numofsample;
       GUARDED_RESPOND_IF_ERROR(
           responses, r,
           TRITONBACKEND_ResponseOutput(
@@ -1491,10 +1488,10 @@ TRITONBACKEND_ModelInstanceExecute(
                   "failed to get input buffer in GPU memory"));
         }
         LOG_MESSAGE(TRITONSERVER_LOG_INFO,(std::string("******process request")).c_str());
-        instance_state->ProcessRequest();
+        instance_state->ProcessRequest(numofsample);
         LOG_MESSAGE(TRITONSERVER_LOG_INFO,(std::string("******process request finished")).c_str());
         output_buffer_offset += buffer_byte_size; 
-        CK_CUDA_THROW_(cudaMemcpy(output_buffer, instance_state->GetPredictBuffer()->get_ptr(), instance_state->StateForModel()->BatchSize()*sizeof(float), cudaMemcpyDeviceToHost));
+        CK_CUDA_THROW_(cudaMemcpy(output_buffer, instance_state->GetPredictBuffer()->get_ptr(), numofsample*sizeof(float), cudaMemcpyDeviceToHost));
       }
       
       if (responses[r] == nullptr) {
