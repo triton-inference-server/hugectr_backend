@@ -364,10 +364,7 @@ ModelState::ModelState(
 //HugeCTR EmbeddingTable
 TRITONSERVER_Error* 
 ModelState::HugeCTREmbedding(){
-     LOG_MESSAGE(
-          TRITONSERVER_LOG_INFO,
-          (std::string("Parameter Server creating ") )
-              .c_str());
+     LOG_MESSAGE(TRITONSERVER_LOG_INFO,(std::string("**********Parameter Server creating ") ).c_str());
     HugeCTR::INFER_TYPE type= HugeCTR::INFER_TYPE::TRITON;
     if (support_int64_key_)
     {
@@ -383,7 +380,7 @@ ModelState::HugeCTREmbedding(){
       LOG_MESSAGE(TRITONSERVER_LOG_INFO,(std::string("regular int key type Parameter Server creating ") ).c_str());
       EmbeddingTable_int32 =HugeCTR::HugectrUtility<unsigned int>::Create_Parameter_Server(type,model_config_path,model_name);
     }
-    LOG_MESSAGE(TRITONSERVER_LOG_INFO,(std::string("Create Parameter Server sucessully ") ).c_str());
+    LOG_MESSAGE(TRITONSERVER_LOG_INFO,(std::string("**********Create Parameter Server sucessully ") ).c_str());
     return nullptr;
 }
 
