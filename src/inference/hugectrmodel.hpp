@@ -17,7 +17,7 @@
 #include <string>
 #include <thread>
 #include <utility>
-#include "embedding_interface.hpp"
+#include "inference/embedding_interface.hpp"
 
 namespace HugeCTR {
 
