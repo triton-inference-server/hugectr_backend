@@ -201,7 +201,75 @@ public:
 
 };
 
+class ModelBackend{
+  public:
+  static TRITONSERVER_Error* Create(
+      TRITONBACKEND_Backend* triton_backend_, ModelBackend** backend,std::vector<std::string>modelnames,std::vector<std::string>modelconfigs,bool supportlonglongkey);
 
+  // Get the handle to the TRITONBACKEND model.
+  TRITONBACKEND_Backend* TritonBackend() { return triton_backend_; }
+
+  //HugeCTR Int32 PS
+  HugeCTR::HugectrUtility<unsigned int>* HugeCTRParameterServerInt32(){return EmbeddingTable_int32;}
+
+  //HugeCTR Int64 PS
+  HugeCTR::HugectrUtility<long long>* HugeCTRParameterServerInt64(){return EmbeddingTable_int64;}
+
+    //HugeCTR EmbeddingTable
+  TRITONSERVER_Error* HugeCTREmbedding_backend();
+ private:
+  TRITONBACKEND_Backend* triton_backend_;
+  std::vector<std::string> model_config_path;
+  std::vector<std::string> model_name;
+  HugeCTR::HugectrUtility<unsigned int>* EmbeddingTable_int32;
+  HugeCTR::HugectrUtility<long long>* EmbeddingTable_int64;
+  bool support_int64_key_=false;
+  ModelBackend(
+       TRITONBACKEND_Backend* triton_backend_,
+      std::vector<std::string>modelnames,std::vector<std::string>modelconfigs,bool supportlonglongkey );
+
+
+};
+
+TRITONSERVER_Error*
+ModelBackend::Create(TRITONBACKEND_Backend* triton_backend_, ModelBackend** backend,std::vector<std::string>modelnames,std::vector<std::string>modelconfigs,bool supportlonglongkey)
+{
+
+  *backend = new ModelBackend(
+       triton_backend_,modelconfigs, modelnames,supportlonglongkey);
+  return nullptr;  // success
+}
+
+ModelBackend::ModelBackend(
+   TRITONBACKEND_Backend* triton_backend,
+   std::vector<std::string>modelnames, std::vector<std::string>modelconfigs,bool supportlonglongkey )
+    : triton_backend_(triton_backend),
+      model_config_path(modelconfigs),model_name(modelnames),support_int64_key_(supportlonglongkey)
+    
+{
+
+    //current much model initialization work handled by TritonModel
+}
+
+
+//HugeCTR EmbeddingTable
+TRITONSERVER_Error* 
+ModelBackend::HugeCTREmbedding_backend(){
+     LOG_MESSAGE(TRITONSERVER_LOG_INFO,(std::string("**********Backend Parameter Server creating ") ).c_str());
+    HugeCTR::INFER_TYPE type= HugeCTR::INFER_TYPE::TRITON;
+    if (support_int64_key_)
+    {
+      LOG_MESSAGE(TRITONSERVER_LOG_INFO,(std::string("Backend Long Long type key Parameter Server creating... ") ).c_str());
+      EmbeddingTable_int64=HugeCTR::HugectrUtility<long long>::Create_Parameter_Server(type,model_config_path,model_name);
+    }
+    else
+    {
+      LOG_MESSAGE(TRITONSERVER_LOG_INFO,(std::string("Backend regular int key type Parameter Server creating ") ).c_str());
+      EmbeddingTable_int32 =HugeCTR::HugectrUtility<unsigned int>::Create_Parameter_Server(type,model_config_path,model_name);
+    }
+    LOG_MESSAGE(TRITONSERVER_LOG_INFO,(std::string("**********Backend Create Parameter Server sucessully ") ).c_str());
+    return nullptr;
+}
 
 //
 // ModelState
@@ -213,7 +281,7 @@ public:
 class ModelState {
  public:
   static TRITONSERVER_Error* Create(
-      TRITONBACKEND_Model* triton_model, ModelState** state,std::vector<std::string>modelnames,std::vector<std::string>modelconfigs);
+      TRITONBACKEND_Model* triton_model, ModelState** state,HugeCTR::HugectrUtility<unsigned int>* EmbeddingTable_int32, HugeCTR::HugectrUtility<long long>* EmbeddingTable_int64);
 
   // Get the handle to the TRITONBACKEND model.
   TRITONBACKEND_Model* TritonModel() { return triton_model_; }
@@ -280,7 +348,7 @@ class ModelState {
       TRITONSERVER_Server* triton_server, TRITONBACKEND_Model* triton_model,
       const char* name, const uint64_t version,
       common::TritonJson::Value&& model_config,
-      std::vector<std::string>modelnames,std::vector<std::string>modelconfigs );
+      HugeCTR::HugectrUtility<unsigned int>* EmbeddingTable_int32,HugeCTR::HugectrUtility<long long>* EmbeddingTable_int64 );
 
   TRITONSERVER_Server* triton_server_;
   TRITONBACKEND_Model* triton_model_;
@@ -309,7 +377,7 @@ class ModelState {
 };
 
 TRITONSERVER_Error*
-ModelState::Create(TRITONBACKEND_Model* triton_model, ModelState** state,std::vector<std::string>modelnames,std::vector<std::string>modelconfigs )
+ModelState::Create(TRITONBACKEND_Model* triton_model, ModelState** state, HugeCTR::HugectrUtility<unsigned int>* EmbeddingTable_int32, HugeCTR::HugectrUtility<long long>* EmbeddingTable_int64 )
 {
   TRITONSERVER_Message* config_message;
   RETURN_IF_ERROR(TRITONBACKEND_ModelConfig(
@@ -343,18 +411,18 @@ ModelState::Create(TRITONBACKEND_Model* triton_model, ModelState** state,std::ve
 
   *state = new ModelState(
       triton_server, triton_model, model_name, model_version,
-      std::move(model_config),modelconfigs, modelnames);
+      std::move(model_config),EmbeddingTable_int32, EmbeddingTable_int64);
   return nullptr;  // success
 }
 
 ModelState::ModelState(
     TRITONSERVER_Server* triton_server, TRITONBACKEND_Model* triton_model,
     const char* name, const uint64_t version,
-    common::TritonJson::Value&& model_config, std::vector<std::string>modelnames, std::vector<std::string>modelconfigs )
+    common::TritonJson::Value&& model_config, HugeCTR::HugectrUtility<unsigned int>* EmbeddingTable_int32,HugeCTR::HugectrUtility<long long>* EmbeddingTable_int64 )
     : triton_server_(triton_server), triton_model_(triton_model), name_(name),
       version_(version), model_config_(std::move(model_config)),
-      model_config_path(modelconfigs),model_name(modelnames),
-      supports_batching_initialized_(false), supports_batching_(false)
+      supports_batching_initialized_(false), supports_batching_(false),
+      EmbeddingTable_int32(EmbeddingTable_int32),EmbeddingTable_int64(EmbeddingTable_int64)
 {
 
     //current much model initialization work handled by TritonModel
@@ -369,10 +437,6 @@ ModelState::HugeCTREmbedding(){
     if (support_int64_key_)
     {
       LOG_MESSAGE(TRITONSERVER_LOG_INFO,(std::string("Long Long type key Parameter Server creating... ") ).c_str());
-       for (auto iter = model_config_path.cbegin(); iter != model_config_path.cend(); iter++)
-    {
-        std::cout <<"configpath: "<< (*iter) << std::endl;
-    }
       EmbeddingTable_int64=HugeCTR::HugectrUtility<long long>::Create_Parameter_Server(type,model_config_path,model_name);
     }
     else
@@ -847,6 +911,55 @@ TRITONBACKEND_Initialize(TRITONBACKEND_Backend* backend)
   RETURN_IF_ERROR(
       TRITONBACKEND_BackendSetState(backend, reinterpret_cast<void*>(state)));
 
+
+  common::TritonJson::Value backend_config;
+  TRITONSERVER_Error* err = backend_config.Parse(buffer, byte_size);
+  RETURN_IF_ERROR(err);
+  common::TritonJson::Value cmdline;;
+  std::vector<std::string> param_values;
+  std::vector<std::string> param_keys;
+  bool supportlonglongkey=false;
+  if (backend_config.Find("cmdline", &cmdline)) {
+    RETURN_IF_ERROR(cmdline.Members(&param_keys));
+    for (const auto& param_key : param_keys){
+      std::string value_string;
+      if(param_key!="supportlonglong")
+      {
+      RETURN_IF_ERROR(cmdline.MemberAsString(
+                        param_key.c_str(), &value_string));
+      param_values.push_back(value_string);
+      }
+      else{
+        supportlonglongkey=true;
+      }
+    }
+  }
+  std::vector<std::string>::iterator it;
+   for(it=param_keys.begin();it!=param_keys.end();)
+    {
+        if(*it =="supportlonglong")
+        {
+            it=param_keys.erase(it);
+        }
+        else
+        { ++it;}
+           
+    }
+
+  ModelBackend* model_backend;
+  RETURN_IF_ERROR(ModelBackend::Create(backend,&model_backend,param_values,param_keys,supportlonglongkey));
+  RETURN_IF_ERROR(
+      TRITONBACKEND_BackendSetState(backend, reinterpret_cast<void*>(model_backend)));
+
+  // One of the primary things to do in ModelInitialize is to examine
+  // the model configuration to ensure that it is something that this
+  // backend can support. If not, returning an error from this
+  // function will prevent the model from loading.
+  //RETURN_IF_ERROR(model_state->ValidateModelConfig());
+
+  RETURN_IF_ERROR(model_backend->HugeCTREmbedding_backend());
+
+
   return nullptr;  // success
 }
 
@@ -920,35 +1033,18 @@ TRITONBACKEND_ModelInitialize(TRITONBACKEND_Model* model)
       TRITONSERVER_LOG_INFO,
       (std::string("backend configuration in mode:\n") + buffer).c_str());
 
-  common::TritonJson::Value backend_config;
-  TRITONSERVER_Error* err = backend_config.Parse(buffer, byte_size);
-  RETURN_IF_ERROR(err);
-  common::TritonJson::Value cmdline;;
-  std::vector<std::string> param_values;
-  std::vector<std::string> param_keys;
-  if (backend_config.Find("cmdline", &cmdline)) {
-    RETURN_IF_ERROR(cmdline.Members(&param_keys));
-    for (const auto& param_key : param_keys){
-      std::string value_string;
-      RETURN_IF_ERROR(cmdline.MemberAsString(
-                        param_key.c_str(), &value_string));
-      param_values.push_back(value_string);
-    }
-  }
-
-
   void* vbackendstate;
   RETURN_IF_ERROR(TRITONBACKEND_BackendState(backend, &vbackendstate));
-  std::string* backend_state = reinterpret_cast<std::string*>(vbackendstate);
+  ModelBackend* backend_state = reinterpret_cast<ModelBackend*>(vbackendstate);
 
-  LOG_MESSAGE(
+  /*LOG_MESSAGE(
       TRITONSERVER_LOG_INFO,
-      (std::string("backend state is '") + *backend_state + "'").c_str());
+      (std::string("backend state is '") + *backend_state + "'").c_str());*/
 
   // With each model we create a ModelState object and associate it
   // with the TRITONBACKEND_Model.
   ModelState* model_state;
-  RETURN_IF_ERROR(ModelState::Create(model, &model_state,param_values,param_keys));
+  ModelState::Create(model, &model_state,backend_state->HugeCTRParameterServerInt32(),backend_state->HugeCTRParameterServerInt64());
   RETURN_IF_ERROR(
       TRITONBACKEND_ModelSetState(model, reinterpret_cast<void*>(model_state)));
 
@@ -960,7 +1056,7 @@ TRITONBACKEND_ModelInitialize(TRITONBACKEND_Model* model)
 
   RETURN_IF_ERROR(model_state->ParseModelConfig());
 
-  RETURN_IF_ERROR(model_state->HugeCTREmbedding());
+  //RETURN_IF_ERROR(model_state->HugeCTREmbedding());
 
   return nullptr;  // success
 }
