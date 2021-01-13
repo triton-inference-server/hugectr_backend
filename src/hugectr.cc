@@ -46,12 +46,12 @@ enum MEMORY_TYPE { GPU, CPU,PIN};
 // blocking backend. A blocking backend completes execution of the
 // inference before returning from TRITONBACKED_ModelInstanceExecute.
 //
-// This backend supports any model that has exactly 3 input and
-// exactly 1 output. The input and output can have any name, datatype
-// and shape but the shape and datatype of the input and output must
-// match. The backend simply responds with the output tensor equal to
-// the input tensor.
-//
+// HugeCTR Backend supports any model that tranined by HugeCTR, which
+// has exactly 3 input and exactly 1 output. The input and output should 
+// define the name as "DES","CATCOLUMN" and "ROWINDEX", datatype as FP32, 
+// UINT32  and INT32, the shape and datatype of the input and output must
+// match. The backend  responds with the output tensor contains the prediction result
+// 
 
 #define GUARDED_RESPOND_IF_ERROR(RESPONSES, IDX, X)                     \
   do {                                                                  \
@@ -98,8 +98,6 @@ enum MEMORY_TYPE { GPU, CPU,PIN};
       return;                                                           \
     }                                                                   \
   } while (false)
-
-
 
 
 class CudaAllocator {
@@ -220,25 +218,25 @@ class ModelState {
   // Get the handle to the TRITONBACKEND model.
   TRITONBACKEND_Model* TritonModel() { return triton_model_; }
 
-  // Get the handle to the TRITONBACKEND model.
+  // Get the HugeCTR model batch size.
   int64_t BatchSize() { return max_batch_size_; }
 
-  // Get the HUgeCTR model slots size.
+  // Get the HugeCTR model slots size.
   int64_t SlotNum() { return slot_num_; }
 
-  // Get the HUgeCTR model max nnz.
+  // Get the HugeCTR model max nnz.
   int64_t MaxNNZ() { return max_nnz_; }
 
-  // Get the HUgeCTR model dense size.
+  // Get the HugeCTR model dense size.
   int64_t DeseNum() { return dese_num_; }
 
-  // Get the HUgeCTR model cat feature size.
+  // Get the HugeCTR model cat feature size.
   int64_t CatNum() {return cat_num_;}
 
-  // Get the HUgeCTR model Embedding size.
+  // Get the HugeCTR model Embedding size.
   int64_t EmbeddingSize() { return embedding_size_; }
 
-  // Get the HUgeCTR cache size per.
+  // Get the HugeCTR cache size per.
   float CacheSizePer() {return cache_size_per;}
 
   // Support GPU cache for embedding.
@@ -247,13 +245,10 @@ class ModelState {
   //Support int64 embedding key
   bool SupportLongEmbeddingKey() { return support_int64_key_; }
   
+  // Get the current HugeCTR model json config.
   std::string HugeCTRJsonConfig() {return hugectr_config_;}
 
-  std::vector<std::string> GetAllModelsconfig(){return model_config_path;}
-
-  std::vector<std::string> GetAllModelsmame (){return model_name;}
-
-  // Get the handle to the Model Configuration.
+  // Get the handle to the Hugectr_backend  Configuration.
   common::TritonJson::Value& ModelConfig() { return model_config_; }
 
   // Get the name and version of the model.
@@ -271,15 +266,8 @@ class ModelState {
   // Parse that model configuration is supported by this backend.
   TRITONSERVER_Error* ParseModelConfig();
 
-  // Block the thread for seconds specified in 'creation_delay_sec' parameter.
-  // This function is used for testing.
-  TRITONSERVER_Error* CreationDelay();
-
   //HugeCTR EmbeddingTable
   TRITONSERVER_Error* HugeCTREmbedding();
-  
-  //Get HugeCTR configuration files 
-  TRITONSERVER_Error* GetModelConfigs(std::string path);
 
   //HugeCTR Int32 PS
   HugeCTR::HugectrUtility<unsigned int>* HugeCTRParameterServerInt32(){return EmbeddingTable_int32;}
@@ -369,24 +357,7 @@ ModelState::ModelState(
       supports_batching_initialized_(false), supports_batching_(false)
 {
 
-    //model_config_=std::move(model_config);
-    //Load HugeCTR Embedding
-    //*handle = LoadLibrary(path.c_str());
-    /* 
-    *handle = dlopen(path.c_str(), RTLD_NOW | RTLD_LOCAL);
-    if (*handle == nullptr) {
-      return Status(Status::Code::NOT_FOUND,
-        "unable to load custom library: " + std::string(dlerror())
-    }
-    RETURN_IF_ERROR(GetEntrypoint(
-      handle, "CreateHugeCTREmbedding", false ,
-      reinterpret_cast<void**>(&Embedding)));
-    RETURN_IF_ERROR(GetEntrypoint(
-      handle, "look_up", false ,
-      reinterpret_cast<void**>(&look_up)));
-    */
-
-   
+    //current much model initialization work handled by TritonModel
 }
 
 
@@ -395,12 +366,12 @@ TRITONSERVER_Error*
 ModelState::HugeCTREmbedding(){
      LOG_MESSAGE(
           TRITONSERVER_LOG_INFO,
-          (std::string("enter into Parameter Server create ") )
+          (std::string("Parameter Server creating ") )
               .c_str());
     HugeCTR::INFER_TYPE type= HugeCTR::INFER_TYPE::TRITON;
     if (support_int64_key_)
     {
-      LOG_MESSAGE(TRITONSERVER_LOG_INFO,(std::string("Create Long Long type key Parameter Server create ") ).c_str());
+      LOG_MESSAGE(TRITONSERVER_LOG_INFO,(std::string("Long Long type key Parameter Server creating... ") ).c_str());
        for (auto iter = model_config_path.cbegin(); iter != model_config_path.cend(); iter++)
     {
         std::cout <<"configpath: "<< (*iter) << std::endl;
@@ -409,7 +380,7 @@ ModelState::HugeCTREmbedding(){
     }
     else
     {
-      LOG_MESSAGE(TRITONSERVER_LOG_INFO,(std::string("Create int type key Parameter Server create ") ).c_str());
+      LOG_MESSAGE(TRITONSERVER_LOG_INFO,(std::string("regular int key type Parameter Server creating ") ).c_str());
       EmbeddingTable_int32 =HugeCTR::HugectrUtility<unsigned int>::Create_Parameter_Server(type,model_config_path,model_name);
     }
     LOG_MESSAGE(TRITONSERVER_LOG_INFO,(std::string("Create Parameter Server sucessully ") ).c_str());
@@ -431,30 +402,6 @@ ModelState::SupportsFirstDimBatching(bool* supports)
   }
 
   *supports = supports_batching_;
-  return nullptr;  // success
-}
-
-TRITONSERVER_Error*
-ModelState::CreationDelay()
-{
-  // Feature for testing purpose...
-  // look for parameter 'creation_delay_sec' in model config
-  // and sleep for the value specified
-  common::TritonJson::Value parameters;
-  if (model_config_.Find("parameters", &parameters)) {
-    common::TritonJson::Value creation_delay_sec;
-    if (parameters.Find("creation_delay_sec", &creation_delay_sec)) {
-      std::string creation_delay_sec_str;
-      RETURN_IF_ERROR(creation_delay_sec.MemberAsString(
-          "string_value", &creation_delay_sec_str));
-      LOG_MESSAGE(
-          TRITONSERVER_LOG_INFO,
-          (std::string("Creation delay is set to : ") + creation_delay_sec_str)
-              .c_str());
-      std::this_thread::sleep_for(
-          std::chrono::seconds(std::stoi(creation_delay_sec_str)));
-    }
-  }
   return nullptr;  // success
 }
 
@@ -509,33 +456,6 @@ ModelState::ValidateModelConfig()
           backend::ShapeToString(output_shape));
 
   return nullptr;  // success
-}
-
-TRITONSERVER_Error*
-ModelState::GetModelConfigs(std::string path)
-{
-
-  DIR* dp = nullptr;
-  struct dirent* dirp = nullptr;
-  std::string p;
-  if ((dp = opendir(path.c_str())) == nullptr) {
-    return nullptr;
-  }
- 
-  while ((dirp = readdir(dp)) != nullptr) {
-    if (dirp->d_type == DT_DIR && strcmp(dirp->d_name, ".") != 0 && strcmp(dirp->d_name, "..") != 0 && strcmp(dirp->d_name, "hugectr") != 0 ) 
-      {
-        model_name.emplace_back(dirp->d_name);
-        GetModelConfigs(p.assign(path).append("\\").append(dirp->d_name));
-      }
-      if (dirp->d_type == DT_REG && std::string(dirp->d_name).find(".json") != std::string::npos)
-      {
-         model_config_path.emplace_back( p.assign(path).append("//").append(dirp->d_name));
-      }
-  }
- 
-  closedir(dp);
-  return nullptr;   
 }
 
 TRITONSERVER_Error*
@@ -681,7 +601,7 @@ class ModelInstanceState {
   // Get the state of the model that corresponds to this instance.
   ModelState* StateForModel() const { return model_state_; }
 
-  // Get the prediction result  that corresponds to this instance.
+  // Get the prediction result that corresponds to this instance.
   void ProcessRequest(int64_t numofsamples);
 
   //Create Embedding_cache
@@ -803,9 +723,9 @@ ModelInstanceState::ModelInstanceState(
     std::vector<size_t> prediction_dims = {static_cast<size_t>(model_state_->BatchSize()) }; 
     prediction_buf->reserve(prediction_dims);
     prediction_buf->allocate();
-    LOG_MESSAGE(TRITONSERVER_LOG_INFO,(std::string("Creat Embedding Cache ")).c_str());
+     LOG_MESSAGE(TRITONSERVER_LOG_INFO,(std::string("******Creating Embedding Cache ")).c_str());
     Create_EmbeddingCache();
-    LOG_MESSAGE(TRITONSERVER_LOG_INFO,(std::string("Loading Hugectr Model ")).c_str());
+    LOG_MESSAGE(TRITONSERVER_LOG_INFO,(std::string("******Loading Hugectr Model ")).c_str());
     LoadHugeCTRModel();
 
 }
@@ -817,7 +737,6 @@ ModelInstanceState::~ModelInstanceState()
 
 void ModelInstanceState::Create_EmbeddingCache()
 {
-  LOG_MESSAGE(TRITONSERVER_LOG_INFO,(std::string("******Creating Embedding Cache ")).c_str());
   if(model_state_->SupportLongEmbeddingKey())
   {
     Embedding_cache=HugeCTR::embedding_interface::Create_Embedding_Cache(model_state_->HugeCTRParameterServerInt64(),
@@ -1045,9 +964,6 @@ TRITONBACKEND_ModelInitialize(TRITONBACKEND_Model* model)
   RETURN_IF_ERROR(model_state->ParseModelConfig());
 
   RETURN_IF_ERROR(model_state->HugeCTREmbedding());
-
-  // For testing.. Block the thread for certain time period before returning.
-  RETURN_IF_ERROR(model_state->CreationDelay());
 
   return nullptr;  // success
 }
@@ -1391,15 +1307,14 @@ TRITONBACKEND_ModelInstanceExecute(
       //   2. Allocate appropriately sized buffer in the output
       //      tensor.
       //
-      //   3. Iterate over the input tensor buffers and copy the
-      //      contents into the output buffer.
+      //   3. Iterate over the input tensor buffers, pass to the HugeCTR predict and copy the
+      //      result into the output buffer.
       TRITONBACKEND_Response* response = responses[r];
 
       // Step 1. Input and output have same datatype and shape...
       TRITONBACKEND_Output* output;
       int64_t numofdes=(des_byte_size/sizeof(float));
       int64_t numofsample=numofdes/(instance_state->StateForModel()->DeseNum());
-      std::cout<<"******num of samples is "<<numofsample;
       int64_t* out_putshape=&numofsample;
       GUARDED_RESPOND_IF_ERROR(
           responses, r,
@@ -1415,9 +1330,8 @@ TRITONBACKEND_ModelInstanceExecute(
         continue;
       }
 
-      // Step 2. Get the output buffer. We request a buffer in CPU
-      // memory but we have to handle any returned type. If we get
-      // back a buffer in GPU memory we just fail the request.
+      // Step 2. Get the output buffer. We request a buffer in GPU
+      // memory but we have to handle any returned type. 
       void* output_buffer;
       TRITONSERVER_MemoryType output_memory_type = TRITONSERVER_MEMORY_GPU;
       int64_t output_memory_type_id = 0;
@@ -1441,8 +1355,7 @@ TRITONBACKEND_ModelInstanceExecute(
         continue;
       }
 
-      // Step 3. Copy input -> output. We can only handle if the input
-      // buffers are on CPU so fail otherwise.
+      // Step 3. Copy input -> DEvice Buffer. 
       size_t output_buffer_offset = 0;
       for (uint32_t b = 0; b < input_buffer_count; ++b) {
 
@@ -1487,9 +1400,10 @@ TRITONBACKEND_ModelInstanceExecute(
                   TRITONSERVER_ERROR_UNSUPPORTED,
                   "failed to get input buffer in GPU memory"));
         }
-        LOG_MESSAGE(TRITONSERVER_LOG_INFO,(std::string("******process request")).c_str());
+         // Step 3. Pass device buffer to Predict  
+        LOG_MESSAGE(TRITONSERVER_LOG_INFO,(std::string("******Process request")).c_str());
         instance_state->ProcessRequest(numofsample);
-        LOG_MESSAGE(TRITONSERVER_LOG_INFO,(std::string("******process request finished")).c_str());
+        LOG_MESSAGE(TRITONSERVER_LOG_INFO,(std::string("******process request finish")).c_str());
         output_buffer_offset += buffer_byte_size; 
         CK_CUDA_THROW_(cudaMemcpy(output_buffer, instance_state->GetPredictBuffer()->get_ptr(), numofsample*sizeof(float), cudaMemcpyDeviceToHost));
       }
