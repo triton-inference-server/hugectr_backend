@@ -1315,6 +1315,13 @@ TRITONBACKEND_ModelInstanceExecute(
       TRITONBACKEND_Output* output;
       int64_t numofdes=(des_byte_size/sizeof(float));
       int64_t numofsample=numofdes/(instance_state->StateForModel()->DeseNum());
+      if ((numofsample>instance_state->StateForModel()->BatchSize()) ) {
+          GUARDED_RESPOND_IF_ERROR(
+              responses, r,
+              TRITONSERVER_ErrorNew(
+                  TRITONSERVER_ERROR_UNSUPPORTED,
+                  "The number of Input sample greater than max batch size"));
+        }
       int64_t* out_putshape=&numofsample;
       GUARDED_RESPOND_IF_ERROR(
           responses, r,
