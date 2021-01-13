@@ -33,9 +33,9 @@
 #include "dirent.h"
 #include "cuda_runtime_api.h"
 #include "triton/backend/backend_common.h"
-#include "hugectrmodel.hpp"
-#include "inference_utils.hpp"
-#include "embedding_interface.hpp"
+#include "inference/hugectrmodel.hpp"
+#include "inference/inference_utils.hpp"
+#include "inference/embedding_interface.hpp"
 
 namespace triton { namespace backend { namespace hugectr {
 

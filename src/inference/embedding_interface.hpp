@@ -20,7 +20,8 @@
 #include <thread>
 #include <utility>
 #include <vector>
-#include <inference_utils.hpp>
+#include <cuda_runtime_api.h>
+#include <inference/inference_utils.hpp>
 
 namespace HugeCTR {
 
@@ -85,3 +86,4 @@ class embedding_interface{
 };
 
 }  // namespace HugeCTR
+
