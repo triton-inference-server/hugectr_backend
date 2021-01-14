@@ -918,33 +918,25 @@ TRITONBACKEND_Initialize(TRITONBACKEND_Backend* backend)
   common::TritonJson::Value cmdline;;
   std::vector<std::string> param_values;
   std::vector<std::string> param_keys;
+  std::vector<std::string> cmd_keys;
   bool supportlonglongkey=false;
   if (backend_config.Find("cmdline", &cmdline)) {
-    RETURN_IF_ERROR(cmdline.Members(&param_keys));
-    for (const auto& param_key : param_keys){
+    RETURN_IF_ERROR(cmdline.Members(&cmd_keys));
+    for (const auto& param_key : cmd_keys){
       std::string value_string;
       if(param_key!="supportlonglong")
       {
       RETURN_IF_ERROR(cmdline.MemberAsString(
                         param_key.c_str(), &value_string));
       param_values.push_back(value_string);
+      param_keys.push_back(param_key);
       }
       else{
         supportlonglongkey=true;
       }
     }
   }
-  std::vector<std::string>::iterator it;
-   for(it=param_keys.begin();it!=param_keys.end();)
-    {
-        if(*it =="supportlonglong")
-        {
-            it=param_keys.erase(it);
-        }
-        else
-        { ++it;}
-           
-    }
+  
 
   ModelBackend* model_backend;
   RETURN_IF_ERROR(ModelBackend::Create(backend,&model_backend,param_values,param_keys,supportlonglongkey));
@@ -1501,9 +1493,11 @@ TRITONBACKEND_ModelInstanceExecute(
                   "failed to get input buffer in GPU memory"));
         }
          // Step 3. Pass device buffer to Predict  
-        LOG_MESSAGE(TRITONSERVER_LOG_INFO,(std::string("******Process request")).c_str());
+        LOG_MESSAGE(TRITONSERVER_LOG_INFO,(std::string("******Process request on device ")+ 
+        std::to_string(instance_state->DeviceId())+std::string(" for model ")+
+        std::string(instance_state->Name())).c_str());
         instance_state->ProcessRequest(numofsample);
-        LOG_MESSAGE(TRITONSERVER_LOG_INFO,(std::string("******process request finish")).c_str());
+        LOG_MESSAGE(TRITONSERVER_LOG_INFO,(std::string("******Process request finish")).c_str());
         output_buffer_offset += buffer_byte_size; 
         CK_CUDA_THROW_(cudaMemcpy(output_buffer, instance_state->GetPredictBuffer()->get_ptr(), numofsample*sizeof(float), cudaMemcpyDeviceToHost));
       }
