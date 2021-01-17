@@ -334,8 +334,8 @@ class ModelState {
   // Parse that model configuration is supported by this backend.
   TRITONSERVER_Error* ParseModelConfig();
 
-  //HugeCTR EmbeddingTable
-  TRITONSERVER_Error* HugeCTREmbedding();
+  //Create Embedding_cache
+  void Create_EmbeddingCache();
 
   //HugeCTR Int32 PS
   HugeCTR::HugectrUtility<unsigned int>* HugeCTRParameterServerInt32(){return EmbeddingTable_int32;}
@@ -428,25 +428,6 @@ ModelState::ModelState(
     //current much model initialization work handled by TritonModel
 }
 
-
-//HugeCTR EmbeddingTable
-TRITONSERVER_Error* 
-ModelState::HugeCTREmbedding(){
-     LOG_MESSAGE(TRITONSERVER_LOG_INFO,(std::string("**********Parameter Server creating ") ).c_str());
-    HugeCTR::INFER_TYPE type= HugeCTR::INFER_TYPE::TRITON;
-    if (support_int64_key_)
-    {
-      LOG_MESSAGE(TRITONSERVER_LOG_INFO,(std::string("Long Long type key Parameter Server creating... ") ).c_str());
-      EmbeddingTable_int64=HugeCTR::HugectrUtility<long long>::Create_Parameter_Server(type,model_config_path,model_name);
-    }
-    else
-    {
-      LOG_MESSAGE(TRITONSERVER_LOG_INFO,(std::string("regular int key type Parameter Server creating ") ).c_str());
-      EmbeddingTable_int32 =HugeCTR::HugectrUtility<unsigned int>::Create_Parameter_Server(type,model_config_path,model_name);
-    }
-    LOG_MESSAGE(TRITONSERVER_LOG_INFO,(std::string("**********Create Parameter Server sucessully ") ).c_str());
-    return nullptr;
-}
 
 TRITONSERVER_Error*
 ModelState::SupportsFirstDimBatching(bool* supports)
@@ -1047,8 +1028,6 @@ TRITONBACKEND_ModelInitialize(TRITONBACKEND_Model* model)
   //RETURN_IF_ERROR(model_state->ValidateModelConfig());
 
   RETURN_IF_ERROR(model_state->ParseModelConfig());
-
-  //RETURN_IF_ERROR(model_state->HugeCTREmbedding());
 
   return nullptr;  // success
 }
