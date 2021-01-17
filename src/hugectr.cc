@@ -304,6 +304,9 @@ class ModelState {
   // Get the HugeCTR model Embedding size.
   int64_t EmbeddingSize() { return embedding_size_; }
 
+  //Get Embeding Cache
+  HugeCTR::embedding_interface* GetEmbeddingCache(int64_t device_id){return embedding_cache_map[device_id];}
+
   // Get the HugeCTR cache size per.
   float CacheSizePer() {return cache_size_per;}
 
@@ -335,7 +338,7 @@ class ModelState {
   TRITONSERVER_Error* ParseModelConfig();
 
   //Create Embedding_cache
-  void Create_EmbeddingCache();
+  TRITONSERVER_Error* Create_EmbeddingCache();
 
   //HugeCTR Int32 PS
   HugeCTR::HugectrUtility<unsigned int>* HugeCTRParameterServerInt32(){return EmbeddingTable_int32;}
@@ -365,6 +368,7 @@ class ModelState {
   common::TritonJson::Value model_config_;
   std::vector<std::string> model_config_path;
   std::vector<std::string> model_name;
+  std::vector<int64_t> gpu_shape;
 
   bool support_int64_key_=false;
   bool support_gpu_cache_=false;
@@ -373,6 +377,10 @@ class ModelState {
 
   HugeCTR::HugectrUtility<unsigned int>* EmbeddingTable_int32;
   HugeCTR::HugectrUtility<long long>* EmbeddingTable_int64;
+
+  HugeCTR::embedding_interface* Embedding_cache;
+
+  std::map<int64_t, HugeCTR::embedding_interface*> embedding_cache_map;
 
 };
 
@@ -511,6 +519,13 @@ ModelState::ParseModelConfig()
 
       //Get HugeCTR model configuration
   
+  common::TritonJson::Value instance_group;
+  RETURN_IF_ERROR(model_config_.MemberAsArray("instance_group", &instance_group));
+  common::TritonJson::Value instance;
+  RETURN_IF_ERROR(instance_group.IndexAsObject(0, &instance));
+  RETURN_IF_ERROR(backend::ParseShape(instance, "gpus", &gpu_shape));
+
+
   common::TritonJson::Value parameters; 
   if (model_config_.Find("parameters", &parameters)) {
     common::TritonJson::Value slots;
@@ -614,6 +629,37 @@ ModelState::ParseModelConfig()
   return nullptr;
 }
 
+TRITONSERVER_Error*
+ModelState::Create_EmbeddingCache()
+{
+  int64_t count = gpu_shape.size();
+  for (int i = 0; i < count;i++)
+  {
+    LOG_MESSAGE(TRITONSERVER_LOG_INFO,(std::string("******Creating Embedding Cache for model ") + 
+    std::string(name_)+ std::string(" in device ")+ std::to_string(gpu_shape[i])).c_str());
+    if(support_int64_key_)
+    {
+      embedding_cache_map[gpu_shape[i]]= HugeCTR::embedding_interface::Create_Embedding_Cache(EmbeddingTable_int64,
+      gpu_shape[i],
+      support_gpu_cache_,
+      cache_size_per,
+      hugectr_config_,
+      name_);
+    }
+    else
+    {
+      embedding_cache_map[gpu_shape[i]]=HugeCTR::embedding_interface::Create_Embedding_Cache(EmbeddingTable_int32,
+      gpu_shape[i],
+      support_gpu_cache_,
+      cache_size_per,
+      hugectr_config_,
+      name_);
+    }  
+  }
+  LOG_MESSAGE(TRITONSERVER_LOG_INFO,(std::string("******Creating Embedding Cache for model ") + std::string(name_)+std::string(" successfully")).c_str());
+  return nullptr;
+}
+
 //
 // ModelInstanceState
 //
@@ -645,9 +691,6 @@ class ModelInstanceState {
 
   // Get the prediction result that corresponds to this instance.
   void ProcessRequest(int64_t numofsamples);
-
-  //Create Embedding_cache
-  void Create_EmbeddingCache();
 
   //Create Embedding_cache
   void LoadHugeCTRModel();
@@ -765,8 +808,7 @@ ModelInstanceState::ModelInstanceState(
     std::vector<size_t> prediction_dims = {static_cast<size_t>(model_state_->BatchSize()) }; 
     prediction_buf->reserve(prediction_dims);
     prediction_buf->allocate();
-     LOG_MESSAGE(TRITONSERVER_LOG_INFO,(std::string("******Creating Embedding Cache ")).c_str());
-    Create_EmbeddingCache();
+
     LOG_MESSAGE(TRITONSERVER_LOG_INFO,(std::string("******Loading Hugectr Model ")).c_str());
     LoadHugeCTRModel();
 
@@ -777,33 +819,10 @@ ModelInstanceState::~ModelInstanceState()
   // release all the buffers
 }
 
-void ModelInstanceState::Create_EmbeddingCache()
-{
-  if(model_state_->SupportLongEmbeddingKey())
-  {
-    Embedding_cache=HugeCTR::embedding_interface::Create_Embedding_Cache(model_state_->HugeCTRParameterServerInt64(),
-    device_id_,
-    model_state_->GPUCache(),
-    model_state_->CacheSizePer(),
-    model_state_->HugeCTRJsonConfig(),
-    name_);
-  }
-  else
-  {
-    Embedding_cache=HugeCTR::embedding_interface::Create_Embedding_Cache(model_state_->HugeCTRParameterServerInt32(),
-      device_id_,
-      model_state_->GPUCache(),
-      model_state_->CacheSizePer(),
-      model_state_->HugeCTRJsonConfig(),
-      name_);
-  }
-  LOG_MESSAGE(TRITONSERVER_LOG_INFO,(std::string("******Creating Embedding Cache successfully")).c_str());
-}
-
 void ModelInstanceState::LoadHugeCTRModel(){
   HugeCTR::INFER_TYPE type=HugeCTR::INFER_TYPE::TRITON;
   std::cout<<"model config is "<<model_state_->HugeCTRJsonConfig()<<std::endl;
-  hugectrmodel_=HugeCTR::HugeCTRModel::load_model(type,model_state_->HugeCTRJsonConfig(),device_id_,Embedding_cache);
+  hugectrmodel_=HugeCTR::HugeCTRModel::load_model(type,model_state_->HugeCTRJsonConfig(),device_id_,model_state_->GetEmbeddingCache(device_id_));
   LOG_MESSAGE(TRITONSERVER_LOG_INFO,(std::string("******Loading Hugectr model successfully")).c_str());
 }
 
@@ -1028,6 +1047,8 @@ TRITONBACKEND_ModelInitialize(TRITONBACKEND_Model* model)
   //RETURN_IF_ERROR(model_state->ValidateModelConfig());
 
   RETURN_IF_ERROR(model_state->ParseModelConfig());
+  LOG_MESSAGE(TRITONSERVER_LOG_INFO,(std::string("******Creating Embedding Cache for model ")+std::string(cname)).c_str());
+  RETURN_IF_ERROR(model_state->Create_EmbeddingCache());
 
   return nullptr;  // success
 }
