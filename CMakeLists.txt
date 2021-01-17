@@ -87,9 +87,9 @@ FetchContent_MakeAvailable(repo-common repo-core repo-backend)
 add_library(
   triton-hugectr-backend SHARED
   src/hugectr.cc
-  src/hugectrmodel.hpp
-  src/inference_utils.hpp
-  src/embedding_interface.hpp
+  src/inference/hugectrmodel.hpp
+  src/inference/inference_utils.hpp
+  src/inference/embedding_interface.hpp
 )
 
 add_library(
