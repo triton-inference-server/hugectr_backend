@@ -305,7 +305,7 @@ class ModelState {
   int64_t EmbeddingSize() { return embedding_size_; }
 
   //Get Embeding Cache
-  HugeCTR::embedding_interface* GetEmbeddingCache(int64_t device_id){return embedding_cache_map[device_id];}
+  std::shared_ptr<HugeCTR::embedding_interface> GetEmbeddingCache(int64_t device_id){return embedding_cache_map[device_id];}
 
   // Get the HugeCTR cache size per.
   float CacheSizePer() {return cache_size_per;}
@@ -380,7 +380,8 @@ class ModelState {
 
   HugeCTR::embedding_interface* Embedding_cache;
 
-  std::map<int64_t, HugeCTR::embedding_interface*> embedding_cache_map;
+   std::map<int64_t, std::shared_ptr<HugeCTR::embedding_interface>> embedding_cache_map;
+
 
 };
 
@@ -639,21 +640,21 @@ ModelState::Create_EmbeddingCache()
     std::string(name_)+ std::string(" in device ")+ std::to_string(gpu_shape[i])).c_str());
     if(support_int64_key_)
     {
-      embedding_cache_map[gpu_shape[i]]= HugeCTR::embedding_interface::Create_Embedding_Cache(EmbeddingTable_int64,
+      embedding_cache_map[gpu_shape[i]] = std::shared_ptr<HugeCTR::embedding_interface>(HugeCTR::embedding_interface::Create_Embedding_Cache(EmbeddingTable_int64,
       gpu_shape[i],
       support_gpu_cache_,
       cache_size_per,
       hugectr_config_,
-      name_);
+      name_));
     }
     else
     {
-      embedding_cache_map[gpu_shape[i]]=HugeCTR::embedding_interface::Create_Embedding_Cache(EmbeddingTable_int32,
+      embedding_cache_map[gpu_shape[i]] = std::shared_ptr<HugeCTR::embedding_interface>(HugeCTR::embedding_interface::Create_Embedding_Cache(EmbeddingTable_int32,
       gpu_shape[i],
       support_gpu_cache_,
       cache_size_per,
       hugectr_config_,
-      name_);
+      name_));
     }  
   }
   LOG_MESSAGE(TRITONSERVER_LOG_INFO,(std::string("******Creating Embedding Cache for model ") + std::string(name_)+std::string(" successfully")).c_str());
@@ -822,7 +823,8 @@ ModelInstanceState::~ModelInstanceState()
 void ModelInstanceState::LoadHugeCTRModel(){
   HugeCTR::INFER_TYPE type=HugeCTR::INFER_TYPE::TRITON;
   std::cout<<"model config is "<<model_state_->HugeCTRJsonConfig()<<std::endl;
-  hugectrmodel_=HugeCTR::HugeCTRModel::load_model(type,model_state_->HugeCTRJsonConfig(),device_id_,model_state_->GetEmbeddingCache(device_id_));
+  std::shared_ptr<HugeCTR::embedding_interface> embedding_cache = model_state_->GetEmbeddingCache(device_id_);
+  hugectrmodel_=HugeCTR::HugeCTRModel::load_model(type,model_state_->HugeCTRJsonConfig(),device_id_,embedding_cache);
   LOG_MESSAGE(TRITONSERVER_LOG_INFO,(std::string("******Loading Hugectr model successfully")).c_str());
 }
 
@@ -1202,8 +1204,8 @@ TRITONBACKEND_ModelInstanceExecute(
   // requests at the same time for improved performance.
   for (uint32_t r = 0; r < request_count; ++r) {
     uint64_t exec_start_ns = 0;
-    SET_TIMESTAMP(exec_start_ns);
-    min_exec_start_ns = std::min(min_exec_start_ns, exec_start_ns);
+    //SET_TIMESTAMP(exec_start_ns);
+    //min_exec_start_ns = std::min(min_exec_start_ns, exec_start_ns);
 
     TRITONBACKEND_Request* request = requests[r];
     const char* request_id = "";
@@ -1496,10 +1498,29 @@ TRITONBACKEND_ModelInstanceExecute(
         LOG_MESSAGE(TRITONSERVER_LOG_INFO,(std::string("******Process request on device ")+ 
         std::to_string(instance_state->DeviceId())+std::string(" for model ")+
         std::string(instance_state->Name())).c_str());
+
+        SET_TIMESTAMP(exec_start_ns);
+        min_exec_start_ns = std::min(min_exec_start_ns, exec_start_ns);
+
         instance_state->ProcessRequest(numofsample);
         LOG_MESSAGE(TRITONSERVER_LOG_INFO,(std::string("******Process request finish")).c_str());
         output_buffer_offset += buffer_byte_size; 
         CK_CUDA_THROW_(cudaMemcpy(output_buffer, instance_state->GetPredictBuffer()->get_ptr(), numofsample*sizeof(float), cudaMemcpyDeviceToHost));
+
+        uint64_t exec_end_ns = 0;
+        SET_TIMESTAMP(exec_end_ns);
+        max_exec_end_ns = std::max(max_exec_end_ns, exec_end_ns);
+
+        LOG_MESSAGE(
+            TRITONSERVER_LOG_ERROR,
+            (std::string("min_exec_start_ns ") + std::to_string(min_exec_start_ns) +
+             std::string("max_exec_end_ns ") + std::to_string(max_exec_end_ns) )
+                .c_str());
+        int64_t exe_time=(max_exec_end_ns-min_exec_start_ns);
+        LOG_MESSAGE(
+            TRITONSERVER_LOG_ERROR,
+            (std::string("exe_time ") + std::to_string(exe_time) )
+                .c_str());
       }
       
       if (responses[r] == nullptr) {
