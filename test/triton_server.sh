@@ -35,8 +35,8 @@ function StopContainer(){
 
 function StartContainer(){
 nohup docker run --gpus=2 --rm  -p 8005:8000 -p 8004:8001 -p 8003:8002  \
--v $mode_repo:/model -v $backend_repo:/hugectr_backend -v /gpfs/fs1/yingcanw/:/yingcan $dockername \
-tritonserver --model-repository=/model/ --backend-directory=/hugectr_backend/ \
+-v $mode_repo:/model $dockername \
+tritonserver --model-repository=/model/ --backend-directory=/usr/local/hugectr/backends/ \
 --backend-config=hugectr,hugectr_model1=/model/hugectr_model1/1/simple_inference_config.json  \
 --backend-config=hugectr,identity=/model/identity/1/simple_inference_config.json &
 
