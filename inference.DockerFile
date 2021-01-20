@@ -11,7 +11,7 @@ RUN git clone -b $HUGECTR_BRANCH https://github.com/NVIDIA/HugeCTR.git HugeCTR &
     cd HugeCTR && \
     git submodule update --init --recursive && \
     mkdir build && cd build &&\
-    cmake -DENABLE_INFERENCE=$INFERENCE_MODE -DENABLE_TRAIN=$TRAIN_MODE .. && \
+    cmake -DENABLE_INFERENCE=$INFERENCE_MODE .. && \
     make -j$(nproc) && \
     mkdir /usr/local/hugectr &&\
     make install && \
@@ -26,7 +26,6 @@ ENV PYTHONPATH /usr/local/hugectr/lib:$PYTHONPATH
 # HugeCTR_backend
 RUN git clone -b $INFERENCE_BRANCH https://gitlab-master.nvidia.com/dl/hugectr/hugectr_inference_backend.git hugectr_inference_backend &&\
     cd hugectr_inference_backend && \
-    cp -r /usr/local/hugectr/include/inference src/ && \
     mkdir build && cd build &&\
     cmake -DCMAKE_INSTALL_PREFIX:PATH=/usr/local/hugectr .. && \
     make  &&\
