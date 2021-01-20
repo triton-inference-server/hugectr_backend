@@ -23,8 +23,8 @@ ENV LD_LIBRARY_PATH=/usr/local/hugectr/lib:$LD_LIBRARY_PATH
 ENV PATH /usr/local/hugectr/bin:$PATH
 ENV PYTHONPATH /usr/local/hugectr/lib:$PYTHONPATH
 
-# HugeCTR
-RUN git clone -b $INFERENCE_BRANCH https://github.com/NVIDIA/hugectr_inference_backend.git hugectr_inference_backend &&\
+# HugeCTR_backend
+RUN git clone -b $INFERENCE_BRANCH https://gitlab-master.nvidia.com/dl/hugectr/hugectr_inference_backend.git hugectr_inference_backend &&\
     cd hugectr_inference_backend && \
     cp -r /usr/local/hugectr/include/inference src/ && \
     mkdir build && cd build &&\
