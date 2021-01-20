@@ -1249,20 +1249,11 @@ TRITONBACKEND_ModelInstanceExecute(
          ", requested_output_count = " + std::to_string(requested_output_count))
             .c_str());
 
-    const char* des_input_name;
-    GUARDED_RESPOND_IF_ERROR(
-        responses, r,
-        TRITONBACKEND_RequestInputName(request, 0 /* index */, &des_input_name));
+    const char* des_input_name="DES";
 
-    const char* catcol_input_name;
-    GUARDED_RESPOND_IF_ERROR(
-        responses, r,
-        TRITONBACKEND_RequestInputName(request, 1 /* index */, &catcol_input_name));
+    const char* catcol_input_name="CATCOLUMN";
 
-    const char* row_input_name;
-    GUARDED_RESPOND_IF_ERROR(
-        responses, r,
-        TRITONBACKEND_RequestInputName(request, 2 /* index */, &row_input_name));
+    const char* row_input_name="ROWINDEX";
 
     TRITONBACKEND_Input* des_input = nullptr;
     GUARDED_RESPOND_IF_ERROR(
