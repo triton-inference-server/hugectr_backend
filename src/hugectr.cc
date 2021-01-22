@@ -541,12 +541,29 @@ ModelState::ParseModelConfig()
       (std::string("model configuration:\n") + buffer.Contents()).c_str());
 
       //Get HugeCTR model configuration
-  
+
+
   common::TritonJson::Value instance_group;
   RETURN_IF_ERROR(model_config_.MemberAsArray("instance_group", &instance_group));
-  common::TritonJson::Value instance;
-  RETURN_IF_ERROR(instance_group.IndexAsObject(0, &instance));
-  RETURN_IF_ERROR(backend::ParseShape(instance, "gpus", &gpu_shape));
+  RETURN_ERROR_IF_FALSE(
+      instance_group.ArraySize() >0, TRITONSERVER_ERROR_INVALID_ARG,
+      std::string("expected at least one instance config  in instance group , got ") +
+          std::to_string(instance_group.ArraySize()));
+  for(unsigned int i=0;i<instance_group.ArraySize();i++){
+    common::TritonJson::Value instance;
+    std::string kind;
+    std::vector<int64_t> gpu_list;
+    RETURN_IF_ERROR(instance_group.IndexAsObject(i, &instance));
+    RETURN_IF_ERROR(instance.MemberAsString("kind", &kind));
+    RETURN_ERROR_IF_FALSE(kind=="KIND_GPU", TRITONSERVER_ERROR_INVALID_ARG,
+    std::string("expected GPU kind instance in instance group , got ")+kind);
+    RETURN_IF_ERROR(backend::ParseShape(instance, "gpus", &gpu_list));
+    for (auto id : gpu_list) {
+        gpu_shape.push_back(id);
+    }
+
+  }
+  
 
 
   common::TritonJson::Value parameters; 
@@ -658,26 +675,28 @@ ModelState::Create_EmbeddingCache()
   int64_t count = gpu_shape.size();
   for (int i = 0; i < count;i++)
   {
-    LOG_MESSAGE(TRITONSERVER_LOG_INFO,(std::string("******Creating Embedding Cache for model ") + 
-    std::string(name_)+ std::string(" in device ")+ std::to_string(gpu_shape[i])).c_str());
-    if(support_int64_key_)
-    {
-      embedding_cache_map[gpu_shape[i]] = std::shared_ptr<HugeCTR::embedding_interface>(HugeCTR::embedding_interface::Create_Embedding_Cache(EmbeddingTable_int64,
-      gpu_shape[i],
-      support_gpu_cache_,
-      cache_size_per,
-      hugectr_config_,
-      name_));
-    }
-    else
-    {
-      embedding_cache_map[gpu_shape[i]] = std::shared_ptr<HugeCTR::embedding_interface>(HugeCTR::embedding_interface::Create_Embedding_Cache(EmbeddingTable_int32,
-      gpu_shape[i],
-      support_gpu_cache_,
-      cache_size_per,
-      hugectr_config_,
-      name_));
-    }  
+    if (embedding_cache_map.find(gpu_shape[i]) == embedding_cache_map.end()){
+      LOG_MESSAGE(TRITONSERVER_LOG_INFO,(std::string("******Creating Embedding Cache for model ") + 
+      std::string(name_)+ std::string(" in device ")+ std::to_string(gpu_shape[i])).c_str());
+      if(support_int64_key_)
+      {
+        embedding_cache_map[gpu_shape[i]] = std::shared_ptr<HugeCTR::embedding_interface>(HugeCTR::embedding_interface::Create_Embedding_Cache(EmbeddingTable_int64,
+        gpu_shape[i],
+        support_gpu_cache_,
+        cache_size_per,
+        hugectr_config_,
+        name_));
+      }
+      else
+      {
+        embedding_cache_map[gpu_shape[i]] = std::shared_ptr<HugeCTR::embedding_interface>(HugeCTR::embedding_interface::Create_Embedding_Cache(EmbeddingTable_int32,
+        gpu_shape[i],
+        support_gpu_cache_,
+        cache_size_per,
+        hugectr_config_,
+        name_));
+      }  
+    } 
   }
   LOG_MESSAGE(TRITONSERVER_LOG_INFO,(std::string("******Creating Embedding Cache for model ") + std::string(name_)+std::string(" successfully")).c_str());
   return nullptr;
