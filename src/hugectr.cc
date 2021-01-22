@@ -1502,15 +1502,10 @@ TRITONBACKEND_ModelInstanceExecute(
         SET_TIMESTAMP(exec_end_ns);
         max_exec_end_ns = std::max(max_exec_end_ns, exec_end_ns);
 
+        int64_t exe_time=(max_exec_end_ns-min_exec_start_ns)/1000000;
         LOG_MESSAGE(
             TRITONSERVER_LOG_ERROR,
-            (std::string("min_exec_start_ns ") + std::to_string(min_exec_start_ns) +
-             std::string("max_exec_end_ns ") + std::to_string(max_exec_end_ns) )
-                .c_str());
-        int64_t exe_time=(max_exec_end_ns-min_exec_start_ns);
-        LOG_MESSAGE(
-            TRITONSERVER_LOG_ERROR,
-            (std::string("exe_time ") + std::to_string(exe_time) )
+            (std::string("Prediction exe_time is ") + std::to_string(exe_time) + " ms" )
                 .c_str());
       }
       
