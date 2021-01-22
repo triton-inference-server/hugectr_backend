@@ -1,0 +1,61 @@
+include:
+  - project: 'dl/devops/gitlab-ci-slurm'
+    ref: master
+    file: '/.gitlab-ci.yml'
+
+stages:
+  - build
+  - test
+
+variables:
+  IMAGE_LATEST: "${CI_REGISTRY}/dl/hugectr/hugectr_inference_backend:${CI_COMMIT_BRANCH}.latest"
+
+.cluster_test_job:
+  extends: .dlcluster_job
+  allow_failure: false
+  stage: test
+  dependencies: 
+    - build
+  # only:
+  #   - merge_requests
+  #   - web
+  
+### Stage: build
+build:
+  tags:
+    - 1GPU
+  stage: build
+  script:
+    - export IMAGE_VERSIONED="${CI_REGISTRY}/dl/hugectr/hugectr_inference_backend:${CI_COMMIT_BRANCH}.${CI_PIPELINE_ID}"
+    - docker login -u ${CI_PRIVATE_USER} -p "${CI_PRIVATE_KEY}" "${CI_REGISTRY}"
+    - export JOB_DOCKERFILE="Dockerfile.${CI_JOB_NAME%%--*}.${CI_PIPELINE_ID}" && echo ${JOB_DOCKERFILE}
+    - cat ./inference.DockerFile > ${JOB_DOCKERFILE}
+    - sed -i "s/https\:\/\/github.com\/NVIDIA\/HugeCTR.git/https:\/\/gitlab-ci-token:${CI_JOB_TOKEN}@gitlab-master.nvidia.com\/dl\/hugectr\/hugectr.git/g" ${JOB_DOCKERFILE}
+    - sed -i "s/https:\/\/gitlab-master.nvidia.com\/dl\/hugectr\/hugectr_inference_backend.git/https:\/\/gitlab-ci-token:${CI_JOB_TOKEN}@gitlab-master.nvidia.com\/dl\/hugectr\/hugectr_inference_backend.git/g" ${JOB_DOCKERFILE}
+    - sed -i "s/HUGECTR_BRANCH=main/HUGECTR_BRANCH=yingcan\/inference_makeinstall/g" ${JOB_DOCKERFILE}
+    - sed -i "s/INFERENCE_BRANCH=yingcan_integration/INFERENCE_BRANCH=${CI_COMMIT_BRANCH}/g" ${JOB_DOCKERFILE}
+    - cat ${JOB_DOCKERFILE}
+    - docker build --pull
+        -t "${IMAGE_VERSIONED}"
+        -f ${JOB_DOCKERFILE}
+        ${PWD}
+    - docker push "${IMAGE_VERSIONED}"
+    - docker tag ${IMAGE_VERSIONED} ${IMAGE_LATEST}
+    - docker push ${IMAGE_LATEST}
+  only:
+  #   - pushes
+  #   - merge_requests
+  #   - web
+
+test:
+  extends: .cluster_test_job
+  script:
+    - export IMAGE_LATEST_CORRECTE=$(echo $IMAGE_LATEST | sed 's/https:\/\///g')
+    - srun -N 1 -p dgx1v,dgx1v16g,dgx1v32g bash -cx "
+      echo $(pwd);
+      cd ./test;
+      docker login -u ${CI_PRIVATE_USER} -p "${CI_PRIVATE_KEY}" "${CI_REGISTRY}";
+      bash ./triton_server.sh ${IMAGE_LATEST_CORRECTE} /mnt/nvdl/usr/aleliu/test/model_repository;
+      docker run --rm --net=host -v /mnt/nvdl/usr/aleliu/test/inference_demo:/demo nvcr.io/nvidia/tritonserver:20.10-py3-clientsdk python3 /demo/hugectr_model1_request.py;
+      docker run --rm --net=host -v /mnt/nvdl/usr/aleliu/test/inference_demo:/demo nvcr.io/nvidia/tritonserver:20.10-py3-clientsdk python3 /demo/identity_request.py;
+      "

@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/bin/sh
 
 containerid=""
 statusLived="Live"
