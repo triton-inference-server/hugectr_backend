@@ -2,7 +2,6 @@ FROM  xiaoleishi/hugectr:infer
 
 ARG HUGECTR_BRANCH=main
 ARG INFERENCE_BRANCH=yingcan_integration
-ARG TRAIN_MODE=OFF
 ARG INFERENCE_MODE=ON
 
 
@@ -15,7 +14,6 @@ RUN git clone -b $HUGECTR_BRANCH https://github.com/NVIDIA/HugeCTR.git HugeCTR &
     make -j$(nproc) && \
     mkdir /usr/local/hugectr &&\
     make install && \
-    chmod +x /usr/local/hugectr/bin/* &&\
     chmod +x /usr/local/hugectr/lib/* &&\
     chmod +x /usr/local/hugectr/include/* &&\
     rm -rf HugeCTR
