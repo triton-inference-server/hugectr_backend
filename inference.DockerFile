@@ -20,6 +20,8 @@ RUN git clone -b $HUGECTR_BRANCH https://github.com/NVIDIA/HugeCTR.git HugeCTR &
     chmod +x /usr/local/hugectr/include/* &&\
     rm -rf HugeCTR
 ENV LD_LIBRARY_PATH=/usr/local/hugectr/lib:$LD_LIBRARY_PATH
+ENV LIBRARY_PATH=/usr/local/hugectr/lib:$LIBRARY_PATH
+ENV CPATH=/usr/local/hugectr/include:$CPATH
 ENV PATH /usr/local/hugectr/bin:$PATH
 ENV PYTHONPATH /usr/local/hugectr/lib:$PYTHONPATH
 

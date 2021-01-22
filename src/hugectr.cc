@@ -39,13 +39,16 @@
 
 namespace triton { namespace backend { namespace hugectr {
 
-enum MEMORY_TYPE { GPU, CPU,PIN};
-
 //
-// Simple backend that demonstrates the TRITONBACKEND API for a
-// blocking backend. A blocking backend completes execution of the
+// HugeCTR Inference backend that demonstrates the TRITONBACKEND API for 
+// models that trained by HugeCTR(https://github.com/NVIDIA/HugeCTR). 
+//A general backend completes execution of the
 // inference before returning from TRITONBACKED_ModelInstanceExecute.
-//
+
+//Memory type that HugeCTR model support for buffer
+enum MEMORY_TYPE { GPU,CPU,PIN};
+
+
 // HugeCTR Backend supports any model that tranined by HugeCTR, which
 // has exactly 3 input and exactly 1 output. The input and output should 
 // define the name as "DES","CATCOLUMN" and "ROWINDEX", datatype as FP32, 
@@ -99,7 +102,7 @@ enum MEMORY_TYPE { GPU, CPU,PIN};
     }                                                                   \
   } while (false)
 
-
+//An internal abstration for cuda memory allocation
 class CudaAllocator {
  public:
   void *allocate(size_t size,MEMORY_TYPE type=MEMORY_TYPE::GPU) const {
@@ -124,7 +127,13 @@ class CudaAllocator {
  }
 };
 
-
+//
+//HugeCTRBUffer
+//
+//Hugectr Buffer 
+// Hugectr Buffer associated with a model instance that is using this backend. An object
+// of this class is created and associated with each TRITONBACKEND_Instance 
+//for storing input data from client request
 template <typename T>
 class HugeCTRBuffer:public std::enable_shared_from_this<HugeCTRBuffer<T>>  {
 private:
@@ -201,6 +210,13 @@ public:
 
 };
 
+//
+// ModelBackend
+//
+// ModelBackend associated with a Backend that is shared by all the models. An object
+// of this class is created and associated with each
+// TRITONBACKEND_Backend.
+//
 class ModelBackend{
   public:
   static TRITONSERVER_Error* Create(
@@ -209,13 +225,13 @@ class ModelBackend{
   // Get the handle to the TRITONBACKEND model.
   TRITONBACKEND_Backend* TritonBackend() { return triton_backend_; }
 
-  //HugeCTR Int32 PS
+  //HugeCTR unint type Paramerter Server
   HugeCTR::HugectrUtility<unsigned int>* HugeCTRParameterServerInt32(){return EmbeddingTable_int32;}
 
-  //HugeCTR Int64 PS
+  //HugeCTR long long type Paramerter Server
   HugeCTR::HugectrUtility<long long>* HugeCTRParameterServerInt64(){return EmbeddingTable_int64;}
 
-    //HugeCTR EmbeddingTable
+  //Initilize HugeCTR EmbeddingTable 
   TRITONSERVER_Error* HugeCTREmbedding_backend();
  private:
   TRITONBACKEND_Backend* triton_backend_;
@@ -248,26 +264,26 @@ ModelBackend::ModelBackend(
     
 {
 
-    //current much model initialization work handled by TritonModel
+    //current much Model Backend initialization handled by TritonBackend_Backend
 }
 
 
 //HugeCTR EmbeddingTable
 TRITONSERVER_Error* 
 ModelBackend::HugeCTREmbedding_backend(){
-     LOG_MESSAGE(TRITONSERVER_LOG_INFO,(std::string("**********Backend Parameter Server creating ") ).c_str());
+     LOG_MESSAGE(TRITONSERVER_LOG_INFO,(std::string("*****Backend Parameter Server creating...*****") ).c_str());
     HugeCTR::INFER_TYPE type= HugeCTR::INFER_TYPE::TRITON;
     if (support_int64_key_)
     {
-      LOG_MESSAGE(TRITONSERVER_LOG_INFO,(std::string("Backend Long Long type key Parameter Server creating... ") ).c_str());
+      LOG_MESSAGE(TRITONSERVER_LOG_INFO,(std::string("*****Backend Long Long type key Parameter Server creating...***** ") ).c_str());
       EmbeddingTable_int64=HugeCTR::HugectrUtility<long long>::Create_Parameter_Server(type,model_config_path,model_name);
     }
     else
     {
-      LOG_MESSAGE(TRITONSERVER_LOG_INFO,(std::string("Backend regular int key type Parameter Server creating ") ).c_str());
+      LOG_MESSAGE(TRITONSERVER_LOG_INFO,(std::string("*****Backend regular int key type Parameter Server creating...***** ") ).c_str());
       EmbeddingTable_int32 =HugeCTR::HugectrUtility<unsigned int>::Create_Parameter_Server(type,model_config_path,model_name);
     }
-    LOG_MESSAGE(TRITONSERVER_LOG_INFO,(std::string("**********Backend Create Parameter Server sucessully ") ).c_str());
+    LOG_MESSAGE(TRITONSERVER_LOG_INFO,(std::string("*****Backend Create Parameter Server sucessully!*****") ).c_str());
     return nullptr;
 }
 
@@ -307,16 +323,16 @@ class ModelState {
   //Get Embeding Cache
   std::shared_ptr<HugeCTR::embedding_interface> GetEmbeddingCache(int64_t device_id){return embedding_cache_map[device_id];}
 
-  // Get the HugeCTR cache size per.
+  // Get the HugeCTR cache size percentage.
   float CacheSizePer() {return cache_size_per;}
 
-  // Support GPU cache for embedding.
+  // Support GPU cache for embedding table.
   bool GPUCache() { return support_gpu_cache_; }
 
   //Support int64 embedding key
   bool SupportLongEmbeddingKey() { return support_int64_key_; }
   
-  // Get the current HugeCTR model json config.
+  // Get the current HugeCTR model original json config.
   std::string HugeCTRJsonConfig() {return hugectr_config_;}
 
   // Get the handle to the Hugectr_backend  Configuration.
@@ -325,11 +341,6 @@ class ModelState {
   // Get the name and version of the model.
   const std::string& Name() const { return name_; }
   uint64_t Version() const { return version_; }
-
-  // Does this model support batching in the first dimension. This
-  // function should not be called until after the model is completely
-  // loaded.
-  TRITONSERVER_Error* SupportsFirstDimBatching(bool* supports);
 
   // Validate that model configuration is supported by this backend.
   TRITONSERVER_Error* ValidateModelConfig();
@@ -340,10 +351,10 @@ class ModelState {
   //Create Embedding_cache
   TRITONSERVER_Error* Create_EmbeddingCache();
 
-  //HugeCTR Int32 PS
+  //HugeCTR unint PS
   HugeCTR::HugectrUtility<unsigned int>* HugeCTRParameterServerInt32(){return EmbeddingTable_int32;}
 
-  //HugeCTR Int64 PS
+  //HugeCTR long long PS
   HugeCTR::HugectrUtility<long long>* HugeCTRParameterServerInt64(){return EmbeddingTable_int64;}
 
  private:
@@ -372,15 +383,13 @@ class ModelState {
 
   bool support_int64_key_=false;
   bool support_gpu_cache_=false;
-  bool supports_batching_initialized_;
-  bool supports_batching_;
 
   HugeCTR::HugectrUtility<unsigned int>* EmbeddingTable_int32;
   HugeCTR::HugectrUtility<long long>* EmbeddingTable_int64;
 
   HugeCTR::embedding_interface* Embedding_cache;
 
-   std::map<int64_t, std::shared_ptr<HugeCTR::embedding_interface>> embedding_cache_map;
+  std::map<int64_t, std::shared_ptr<HugeCTR::embedding_interface>> embedding_cache_map;
 
 
 };
@@ -430,31 +439,12 @@ ModelState::ModelState(
     common::TritonJson::Value&& model_config, HugeCTR::HugectrUtility<unsigned int>* EmbeddingTable_int32,HugeCTR::HugectrUtility<long long>* EmbeddingTable_int64 )
     : triton_server_(triton_server), triton_model_(triton_model), name_(name),
       version_(version), model_config_(std::move(model_config)),
-      supports_batching_initialized_(false), supports_batching_(false),
       EmbeddingTable_int32(EmbeddingTable_int32),EmbeddingTable_int64(EmbeddingTable_int64)
 {
 
-    //current much model initialization work handled by TritonModel
+    //current much model initialization work handled by TritonBackend_Model
 }
 
-
-TRITONSERVER_Error*
-ModelState::SupportsFirstDimBatching(bool* supports)
-{
-  // We can't determine this during model initialization because
-  // TRITONSERVER_ServerModelBatchProperties can't be called until the
-  // model is loaded. So we just cache it here.
-  if (!supports_batching_initialized_) {
-    uint32_t flags = 0;
-    RETURN_IF_ERROR(TRITONSERVER_ServerModelBatchProperties(
-        triton_server_, name_.c_str(), version_, &flags, nullptr /* voidp */));
-    supports_batching_ = ((flags & TRITONSERVER_BATCH_FIRST_DIM) != 0);
-    supports_batching_initialized_ = true;
-  }
-
-  *supports = supports_batching_;
-  return nullptr;  // success
-}
 
 TRITONSERVER_Error*
 ModelState::ValidateModelConfig()
@@ -465,7 +455,7 @@ ModelState::ValidateModelConfig()
   RETURN_IF_ERROR(model_config_.PrettyWrite(&buffer));
   LOG_MESSAGE(
       TRITONSERVER_LOG_INFO,
-      (std::string("model configuration:\n") + buffer.Contents()).c_str());
+      (std::string("validation model configuration:\n") + buffer.Contents()).c_str());
 
   common::TritonJson::Value inputs, outputs;
   RETURN_IF_ERROR(model_config_.MemberAsArray("input", &inputs));
@@ -474,36 +464,68 @@ ModelState::ValidateModelConfig()
   // There must be 3 input and 1 output.
   RETURN_ERROR_IF_FALSE(
       inputs.ArraySize() == 3, TRITONSERVER_ERROR_INVALID_ARG,
-      std::string("expected 1 input, got ") +
+      std::string("expected 3 input , got ") +
           std::to_string(inputs.ArraySize()));
   RETURN_ERROR_IF_FALSE(
       outputs.ArraySize() == 1, TRITONSERVER_ERROR_INVALID_ARG,
       std::string("expected 1 output, got ") +
           std::to_string(outputs.ArraySize()));
+  for (int i=0; i<3; i++){
+    common::TritonJson::Value input;
+    RETURN_IF_ERROR(inputs.IndexAsObject(i, &input));
+    //Checkout input data_type
+    std::string input_dtype;
+    RETURN_IF_ERROR(input.MemberAsString("data_type", &input_dtype));
+     
 
-  common::TritonJson::Value input, output;
-  RETURN_IF_ERROR(inputs.IndexAsObject(0, &input));
+    std::string input_name;
+    RETURN_IF_ERROR(input.MemberAsString("name", &input_name));
+    if (input_name=="DES")
+    {
+      RETURN_ERROR_IF_FALSE(
+      input_dtype == "TYPE_FP32", TRITONSERVER_ERROR_INVALID_ARG,
+      std::string("expected DES input datatype as TYPE_FP32, got ") + input_dtype );
+    }
+    
+     if (input_name=="CATCOLUMN")
+    {
+      RETURN_ERROR_IF_FALSE(
+      (input_dtype == "TYPE_UINT32" || input_dtype == "TYPE_INT64"), TRITONSERVER_ERROR_INVALID_ARG,
+      std::string("expected CATCOLUMN input datatype as TYPE_UINT32 or TYPE_INT64, got ") + input_dtype );
+    }
+
+     if (input_name=="ROWINDEX")
+    {
+      RETURN_ERROR_IF_FALSE(
+      input_dtype == "TYPE_INT32", TRITONSERVER_ERROR_INVALID_ARG,
+      std::string("expected ROWINDEX input datatype as TYPE_FP32, got ") + input_dtype );
+    }
+    
+    std::vector<int64_t> input_shape;
+    RETURN_IF_ERROR(backend::ParseShape(input, "dims", &input_shape));
+
+    RETURN_ERROR_IF_FALSE(
+      input_shape[0] == -1, TRITONSERVER_ERROR_INVALID_ARG,
+      std::string("expected input shape equal -1, got ") +
+          backend::ShapeToString(input_shape));
+  }
+
+  common::TritonJson::Value output;
   RETURN_IF_ERROR(outputs.IndexAsObject(0, &output));
-
-  // Input and output must have same datatype
-  std::string input_dtype, output_dtype;
-  RETURN_IF_ERROR(input.MemberAsString("data_type", &input_dtype));
+  std::string  output_dtype;
   RETURN_IF_ERROR(output.MemberAsString("data_type", &output_dtype));
+   RETURN_ERROR_IF_FALSE(
+      output_dtype=="TYPE_FP32", TRITONSERVER_ERROR_INVALID_ARG,
+      std::string("expected  output datatype as TYPE_FP32, got ") +
+      output_dtype);
 
-  RETURN_ERROR_IF_FALSE(
-      input_dtype == output_dtype, TRITONSERVER_ERROR_INVALID_ARG,
-      std::string("expected input and output datatype to match, got ") +
-          input_dtype + " and " + output_dtype);
-
-  // Input and output must have same shape
-  std::vector<int64_t> input_shape, output_shape;
-  RETURN_IF_ERROR(backend::ParseShape(input, "dims", &input_shape));
+  //  output must have -1 shape
+  std::vector<int64_t> output_shape;
   RETURN_IF_ERROR(backend::ParseShape(output, "dims", &output_shape));
 
   RETURN_ERROR_IF_FALSE(
-      input_shape == output_shape, TRITONSERVER_ERROR_INVALID_ARG,
-      std::string("expected input and output shape to match, got ") +
-          backend::ShapeToString(input_shape) + " and " +
+      output_shape[0]==-1, TRITONSERVER_ERROR_INVALID_ARG,
+      std::string("expected  output shape equal -1, got ") +
           backend::ShapeToString(output_shape));
 
   return nullptr;  // success
@@ -537,7 +559,7 @@ ModelState::ParseModelConfig()
       slot_num_=std::stoi(slots_str );
       LOG_MESSAGE(
           TRITONSERVER_LOG_INFO,
-          (std::string("slots set to : ") + std::to_string(slot_num_))
+          (std::string("slots set is : ") + std::to_string(slot_num_))
               .c_str());
     }
     common::TritonJson::Value dense;
@@ -548,7 +570,7 @@ ModelState::ParseModelConfig()
       dese_num_=std::stoi(dese_str );
       LOG_MESSAGE(
           TRITONSERVER_LOG_INFO,
-          (std::string("desene num to : ") + std::to_string(dese_num_))
+          (std::string("desene num is : ") + std::to_string(dese_num_))
               .c_str());
     }
 
@@ -560,7 +582,7 @@ ModelState::ParseModelConfig()
       cat_num_=std::stoi(cat_str );
       LOG_MESSAGE(
           TRITONSERVER_LOG_INFO,
-          (std::string("cat_feature num to : ") + std::to_string(cat_num_))
+          (std::string("cat_feature num is : ") + std::to_string(cat_num_))
               .c_str());
     }
 
@@ -572,7 +594,7 @@ ModelState::ParseModelConfig()
       embedding_size_=std::stoi(embsize_str );
       LOG_MESSAGE(
           TRITONSERVER_LOG_INFO,
-          (std::string("embedding size is : ") + std::to_string(embedding_size_))
+          (std::string("embedding size is  ") + std::to_string(embedding_size_))
               .c_str());
     }
     common::TritonJson::Value nnz;
@@ -583,7 +605,7 @@ ModelState::ParseModelConfig()
       max_nnz_=std::stoi(nnz_str );
       LOG_MESSAGE(
           TRITONSERVER_LOG_INFO,
-          (std::string("maxnnz is: ") + std::to_string(max_nnz_))
+          (std::string("maxnnz is ") + std::to_string(max_nnz_))
               .c_str());
     }
     common::TritonJson::Value hugeconfig;
@@ -594,7 +616,7 @@ ModelState::ParseModelConfig()
       hugectr_config_=config_str;
       LOG_MESSAGE(
           TRITONSERVER_LOG_INFO,
-          (std::string("Hugectr model config path : ") + hugectr_config_)
+          (std::string("Hugectr model config path is ") + hugectr_config_)
               .c_str());
     }
     common::TritonJson::Value gpucache;
@@ -621,7 +643,7 @@ ModelState::ParseModelConfig()
       (embeddingkey.MemberAsString(
           "string_value", &embeddingkey_str));
       if ((embeddingkey_str)=="true")
-      support_int64_key_=true;
+        support_int64_key_=true;
       std::cout<<"Support long embedding key "<<support_int64_key_<<std::endl;
     }
   }
@@ -945,11 +967,6 @@ TRITONBACKEND_Initialize(TRITONBACKEND_Backend* backend)
   RETURN_IF_ERROR(
       TRITONBACKEND_BackendSetState(backend, reinterpret_cast<void*>(model_backend)));
 
-  // One of the primary things to do in ModelInitialize is to examine
-  // the model configuration to ensure that it is something that this
-  // backend can support. If not, returning an error from this
-  // function will prevent the model from loading.
-  //RETURN_IF_ERROR(model_state->ValidateModelConfig());
 
   RETURN_IF_ERROR(model_backend->HugeCTREmbedding_backend());
 
@@ -1046,10 +1063,10 @@ TRITONBACKEND_ModelInitialize(TRITONBACKEND_Model* model)
   // the model configuration to ensure that it is something that this
   // backend can support. If not, returning an error from this
   // function will prevent the model from loading.
-  //RETURN_IF_ERROR(model_state->ValidateModelConfig());
+  RETURN_IF_ERROR(model_state->ValidateModelConfig());
 
   RETURN_IF_ERROR(model_state->ParseModelConfig());
-  LOG_MESSAGE(TRITONSERVER_LOG_INFO,(std::string("******Creating Embedding Cache for model ")+std::string(cname)).c_str());
+  
   RETURN_IF_ERROR(model_state->Create_EmbeddingCache());
 
   return nullptr;  // success
@@ -1163,8 +1180,6 @@ TRITONBACKEND_ModelInstanceExecute(
        " requests")
           .c_str());
 
-  bool supports_batching = false;
-  RETURN_IF_ERROR(model_state->SupportsFirstDimBatching(&supports_batching));
 
   // 'responses' is initialized with the response objects below and
   // if/when an error response is sent the corresponding entry in
@@ -1368,7 +1383,7 @@ TRITONBACKEND_ModelInstanceExecute(
     // request is necessarily batch-size 1. If the model does support
     // batching then the first dimension of the shape is the batch
     // size.
-    if (supports_batching && (des_dims_count > 0)) {
+    if ( (des_dims_count > 0)) {
       total_batch_size += input_shape[0];
     } else {
       total_batch_size++;
