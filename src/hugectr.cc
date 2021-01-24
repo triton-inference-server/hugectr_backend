@@ -323,6 +323,9 @@ class ModelState {
   //Get Embeding Cache
   std::shared_ptr<HugeCTR::embedding_interface> GetEmbeddingCache(int64_t device_id){return embedding_cache_map[device_id];}
 
+  //Get input data entry map
+  std::map<std::string,size_t> GetInputmap(){return input_map_;}
+
   // Get the HugeCTR cache size percentage.
   float CacheSizePer() {return cache_size_per;}
 
@@ -390,6 +393,8 @@ class ModelState {
   HugeCTR::embedding_interface* Embedding_cache;
 
   std::map<int64_t, std::shared_ptr<HugeCTR::embedding_interface>> embedding_cache_map;
+
+  std::map<std::string, size_t> input_map_ {{"DES",0}, {"CATCOLUMN", 1}, {"ROWINDEX", 2}};
 
 
 };
@@ -480,6 +485,10 @@ ModelState::ValidateModelConfig()
 
     std::string input_name;
     RETURN_IF_ERROR(input.MemberAsString("name", &input_name));
+    RETURN_ERROR_IF_FALSE(
+      GetInputmap().count(input_name)>0, TRITONSERVER_ERROR_INVALID_ARG,
+      std::string("expected input name as DES,CATCOLUMN and ROWINDEX, but got ") + input_name );
+    
     if (input_name=="DES")
     {
       RETURN_ERROR_IF_FALSE(
@@ -1288,6 +1297,30 @@ TRITONBACKEND_ModelInstanceExecute(
          ", input_count = " + std::to_string(input_count) +
          ", requested_output_count = " + std::to_string(requested_output_count))
             .c_str());
+    
+    const char* input_name;
+    GUARDED_RESPOND_IF_ERROR(
+        responses, r,
+        TRITONBACKEND_RequestInputName(request, 0 /* index */, &input_name));
+    RETURN_ERROR_IF_FALSE(
+      instance_state->StateForModel()->GetInputmap().count(input_name)>0, TRITONSERVER_ERROR_INVALID_ARG,
+      std::string("expected input name as DES,CATCOLUMN and ROWINDEX in request, but got ") + input_name );
+  
+    GUARDED_RESPOND_IF_ERROR(
+        responses, r,
+        TRITONBACKEND_RequestInputName(request, 1 /* index */, &input_name));
+    RETURN_ERROR_IF_FALSE(
+      instance_state->StateForModel()->GetInputmap().count(input_name)>0, TRITONSERVER_ERROR_INVALID_ARG,
+      std::string("expected input name as DES,CATCOLUMN and ROWINDEX in request, but got ") + input_name );
+    
+    GUARDED_RESPOND_IF_ERROR(
+        responses, r,
+        TRITONBACKEND_RequestInputName(request, 2 /* index */, &input_name));
+    RETURN_ERROR_IF_FALSE(
+      instance_state->StateForModel()->GetInputmap().count(input_name)>00, TRITONSERVER_ERROR_INVALID_ARG,
+      std::string("expected input name as DES,CATCOLUMN and ROWINDEX in request, but got ") + input_name );
+    
+    
 
     const char* des_input_name="DES";
 
@@ -1360,6 +1393,7 @@ TRITONBACKEND_ModelInstanceExecute(
          ", byte_size = " + std::to_string(cat_byte_size) +
          ", buffer_count = " + std::to_string(input_buffer_count))
             .c_str());
+    
 
     GUARDED_RESPOND_IF_ERROR(
         responses, r,
