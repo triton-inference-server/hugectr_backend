@@ -563,9 +563,8 @@ ModelState::ParseModelConfig()
     }
 
   }
-  
 
-
+  // Paring Hugect Model customized configuration
   common::TritonJson::Value parameters; 
   if (model_config_.Find("parameters", &parameters)) {
     common::TritonJson::Value slots;
@@ -732,10 +731,10 @@ class ModelInstanceState {
   ModelState* StateForModel() const { return model_state_; }
 
   // Get the prediction result that corresponds to this instance.
-  void ProcessRequest(int64_t numofsamples);
+  TRITONSERVER_Error* ProcessRequest(int64_t numofsamples);
 
   //Create Embedding_cache
-  void LoadHugeCTRModel();
+  TRITONSERVER_Error* LoadHugeCTRModel();
 
   std::shared_ptr<HugeCTRBuffer<float>> GetDeseBuffer() {return dense_value_buf;}
 
@@ -747,7 +746,7 @@ class ModelInstanceState {
 
   std::shared_ptr<HugeCTRBuffer<float>> GetPredictBuffer() {return prediction_buf;}
 
- private:
+private:
 ModelInstanceState(
       ModelState* model_state,
       TRITONBACKEND_ModelInstance* triton_model_instance, const char* name,
@@ -797,6 +796,7 @@ ModelInstanceState::Create(
   *state = new ModelInstanceState(
       model_state, triton_model_instance, instance_name, instance_kind,
       device_id);
+
   return nullptr;  // success
 }
 
@@ -851,9 +851,6 @@ ModelInstanceState::ModelInstanceState(
     prediction_buf->reserve(prediction_dims);
     prediction_buf->allocate();
 
-    LOG_MESSAGE(TRITONSERVER_LOG_INFO,(std::string("******Loading Hugectr Model ")).c_str());
-    LoadHugeCTRModel();
-
 }
 
 ModelInstanceState::~ModelInstanceState()
@@ -861,15 +858,16 @@ ModelInstanceState::~ModelInstanceState()
   // release all the buffers
 }
 
-void ModelInstanceState::LoadHugeCTRModel(){
+TRITONSERVER_Error* ModelInstanceState::LoadHugeCTRModel(){
   HugeCTR::INFER_TYPE type=HugeCTR::INFER_TYPE::TRITON;
   std::cout<<"model config is "<<model_state_->HugeCTRJsonConfig()<<std::endl;
   std::shared_ptr<HugeCTR::embedding_interface> embedding_cache = model_state_->GetEmbeddingCache(device_id_);
   hugectrmodel_=HugeCTR::HugeCTRModel::load_model(type,model_state_->HugeCTRJsonConfig(),device_id_,embedding_cache);
   LOG_MESSAGE(TRITONSERVER_LOG_INFO,(std::string("******Loading Hugectr model successfully")).c_str());
+  return nullptr;
 }
 
-void ModelInstanceState::ProcessRequest(int64_t numofsamples)
+TRITONSERVER_Error* ModelInstanceState::ProcessRequest(int64_t numofsamples)
 {
   if(model_state_->SupportLongEmbeddingKey()){
     hugectrmodel_->predict((float*)dense_value_buf->get_ptr(),cat_column_index_buf_int64->get_ptr(),(int*)row_ptr_buf->get_ptr(),(float*)prediction_buf->get_ptr(),numofsamples);
@@ -877,6 +875,7 @@ void ModelInstanceState::ProcessRequest(int64_t numofsamples)
   else{
     hugectrmodel_->predict((float*)dense_value_buf->get_ptr(),cat_column_index_buf_int32->get_ptr(),(int*)row_ptr_buf->get_ptr(),(float*)prediction_buf->get_ptr(),numofsamples);
   }
+  return nullptr;
 }
 
 
@@ -1067,9 +1066,6 @@ TRITONBACKEND_ModelInitialize(TRITONBACKEND_Model* model)
   RETURN_IF_ERROR(TRITONBACKEND_BackendState(backend, &vbackendstate));
   ModelBackend* backend_state = reinterpret_cast<ModelBackend*>(vbackendstate);
 
-  /*LOG_MESSAGE(
-      TRITONSERVER_LOG_INFO,
-      (std::string("backend state is '") + *backend_state + "'").c_str());*/
 
   // With each model we create a ModelState object and associate it
   // with the TRITONBACKEND_Model.
@@ -1084,8 +1080,16 @@ TRITONBACKEND_ModelInitialize(TRITONBACKEND_Model* model)
   // function will prevent the model from loading.
   RETURN_IF_ERROR(model_state->ValidateModelConfig());
 
+  // One of the primary things to do in ModelInitialize is to parsing
+  // the model configuration to ensure that it is something that this
+  // backend required. If not, returning an error from this
+  // function will prevent the model from loading.
   RETURN_IF_ERROR(model_state->ParseModelConfig());
   
+  // One of the primary things to do in ModelInitialize is to initialize
+  // embedding cache to ensure that it is embedding vectore that current model look_up.
+  // If not, returning an error from this
+  // function will prevent the model from loading.
   RETURN_IF_ERROR(model_state->Create_EmbeddingCache());
 
   return nullptr;  // success
@@ -1145,6 +1149,9 @@ TRITONBACKEND_ModelInstanceInitialize(TRITONBACKEND_ModelInstance* instance)
   RETURN_IF_ERROR(TRITONBACKEND_ModelInstanceSetState(
       instance, reinterpret_cast<void*>(instance_state)));
 
+  LOG_MESSAGE(TRITONSERVER_LOG_INFO,(std::string("******Loading Hugectr Model ")).c_str());
+  RETURN_IF_ERROR(instance_state->LoadHugeCTRModel());
+
   return nullptr;  // success
 }
 
@@ -1196,8 +1203,7 @@ TRITONBACKEND_ModelInstanceExecute(
       TRITONSERVER_LOG_INFO,
       (std::string("model ") + model_state->Name() + ", instance " +
        instance_state->Name() + ", executing " + std::to_string(request_count) +
-       " requests")
-          .c_str());
+       " requests").c_str());
 
 
   // 'responses' is initialized with the response objects below and
@@ -1337,6 +1343,7 @@ TRITONBACKEND_ModelInstanceExecute(
     uint64_t cat_byte_size;
     uint64_t row_byte_size;
     uint32_t input_buffer_count;
+    int64_t num_of_samples = 0;
    
 
     GUARDED_RESPOND_IF_ERROR(
@@ -1425,16 +1432,16 @@ TRITONBACKEND_ModelInstanceExecute(
 
       // Step 1. Input and output have same datatype and shape...
       TRITONBACKEND_Output* output;
-      int64_t numofdes=(des_byte_size/sizeof(float));
-      int64_t numofsample=numofdes/(instance_state->StateForModel()->DeseNum());
-      if ((numofsample>instance_state->StateForModel()->BatchSize()) ) {
+      int64_t numofdes = (des_byte_size/sizeof(float));
+      num_of_samples = numofdes/(instance_state->StateForModel()->DeseNum());
+      if ((num_of_samples>instance_state->StateForModel()->BatchSize()) ) {
           GUARDED_RESPOND_IF_ERROR(
               responses, r,
               TRITONSERVER_ErrorNew(
                   TRITONSERVER_ERROR_UNSUPPORTED,
                   "The number of Input sample greater than max batch size"));
         }
-      int64_t* out_putshape=&numofsample;
+      int64_t* out_putshape=&num_of_samples;
       GUARDED_RESPOND_IF_ERROR(
           responses, r,
           TRITONBACKEND_ResponseOutput(
@@ -1527,10 +1534,10 @@ TRITONBACKEND_ModelInstanceExecute(
         SET_TIMESTAMP(exec_start_ns);
         min_exec_start_ns = std::min(min_exec_start_ns, exec_start_ns);
 
-        instance_state->ProcessRequest(numofsample);
+        RETURN_IF_ERROR(instance_state->ProcessRequest(num_of_samples));
         LOG_MESSAGE(TRITONSERVER_LOG_INFO,(std::string("******Process request finish")).c_str());
         output_buffer_offset += buffer_byte_size; 
-        CK_CUDA_THROW_(cudaMemcpy(output_buffer, instance_state->GetPredictBuffer()->get_ptr(), numofsample*sizeof(float), cudaMemcpyDeviceToHost));
+        CK_CUDA_THROW_(cudaMemcpy(output_buffer, instance_state->GetPredictBuffer()->get_ptr(), num_of_samples*sizeof(float), cudaMemcpyDeviceToHost));
 
         uint64_t exec_end_ns = 0;
         SET_TIMESTAMP(exec_end_ns);
@@ -1554,20 +1561,16 @@ TRITONBACKEND_ModelInstanceExecute(
       }
     }
 
-    // To demonstrate response parameters we attach some here. Most
-    // responses do not use parameters but they provide a way for
-    // backends to communicate arbitrary information along with the
-    // response.
+    // Response parameters we attach some here. 
+    // NumSample-> Number of samples in current request
+    // DeviceID-> Current model initialzed on device ID
     LOG_IF_ERROR(
-        TRITONBACKEND_ResponseSetStringParameter(
-            responses[r], "param0", "an example string parameter"),
-        "failed setting string parameter");
+        TRITONBACKEND_ResponseSetIntParameter(
+            responses[r], "NumSample", num_of_samples),
+        "failed return Number of samples");
     LOG_IF_ERROR(
-        TRITONBACKEND_ResponseSetIntParameter(responses[r], "param1", 42),
-        "failed setting integer parameter");
-    LOG_IF_ERROR(
-        TRITONBACKEND_ResponseSetBoolParameter(responses[r], "param2", false),
-        "failed setting boolean parameter");
+        TRITONBACKEND_ResponseSetIntParameter(responses[r], "DeviceID", instance_state->DeviceId()),
+        "failed return device id");
 
     // If we get to this point then there hasn't been any error and
     // the response is complete and we can send it. This is the last
