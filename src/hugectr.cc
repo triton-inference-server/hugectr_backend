@@ -390,7 +390,7 @@ class ModelState {
   std::vector<int64_t> gpu_shape;
 
   bool support_int64_key_=false;
-  bool support_gpu_cache_=false;
+  bool support_gpu_cache_=true;
 
   HugeCTR::HugectrUtility<unsigned int>* EmbeddingTable_int32;
   HugeCTR::HugectrUtility<long long>* EmbeddingTable_int64;
@@ -662,7 +662,7 @@ ModelState::ParseModelConfig()
           "string_value", &embeddingkey_str));
       if ((embeddingkey_str)=="true")
         support_int64_key_=true;
-      LOG_MESSAGE(TRITONSERVER_LOG_INFO,(std::string("Support long embedding key is ") + std::to_string(support_int64_key_)).c_str());
+      LOG_MESSAGE(TRITONSERVER_LOG_INFO,(std::string("Support long long embedding key is ") + std::to_string(support_int64_key_)).c_str());
     }
   }
   model_config_.MemberAsInt("max_batch_size", &max_batch_size_);
@@ -862,7 +862,7 @@ ModelInstanceState::~ModelInstanceState()
 
 TRITONSERVER_Error* ModelInstanceState::LoadHugeCTRModel(){
   HugeCTR::INFER_TYPE type=HugeCTR::INFER_TYPE::TRITON;
-  std::cout<<"model config is "<<model_state_->HugeCTRJsonConfig()<<std::endl;
+  LOG_MESSAGE(TRITONSERVER_LOG_INFO,(std::string("model origin josn config path: " + model_state_->HugeCTRJsonConfig())).c_str());
   std::shared_ptr<HugeCTR::embedding_interface> embedding_cache = model_state_->GetEmbeddingCache(device_id_);
   hugectrmodel_=HugeCTR::HugeCTRModel::load_model(type,model_state_->HugeCTRJsonConfig(),device_id_,embedding_cache);
   LOG_MESSAGE(TRITONSERVER_LOG_INFO,(std::string("******Loading Hugectr model successfully")).c_str());
