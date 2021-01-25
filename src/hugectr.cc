@@ -330,6 +330,9 @@ class ModelState {
   // Get the HugeCTR cache size percentage.
   float CacheSizePer() {return cache_size_per;}
 
+  // Get the HugeCTR label dimension.
+  int64_t LabelDim() {return label_dim_;}
+
   // Support GPU cache for embedding table.
   bool GPUCache() { return support_gpu_cache_; }
 
@@ -378,6 +381,7 @@ class ModelState {
   int64_t cat_num_=50;
   int64_t embedding_size_=64;
   int64_t max_nnz_=3;
+  int64_t label_dim_=1;
   float cache_size_per=0.5;
   std::string hugectr_config_;
   common::TritonJson::Value model_config_;
@@ -583,10 +587,7 @@ ModelState::ParseModelConfig()
       (slots.MemberAsString(
           "string_value", &slots_str));
       slot_num_=std::stoi(slots_str );
-      LOG_MESSAGE(
-          TRITONSERVER_LOG_INFO,
-          (std::string("slots set is : ") + std::to_string(slot_num_))
-              .c_str());
+      LOG_MESSAGE(TRITONSERVER_LOG_INFO,(std::string("slots set is : ") + std::to_string(slot_num_)).c_str());
     }
     common::TritonJson::Value dense;
     if (parameters.Find("des_feature_num", &dense)) {
@@ -594,10 +595,7 @@ ModelState::ParseModelConfig()
       (dense.MemberAsString(
           "string_value", &dese_str));
       dese_num_=std::stoi(dese_str );
-      LOG_MESSAGE(
-          TRITONSERVER_LOG_INFO,
-          (std::string("desene num is : ") + std::to_string(dese_num_))
-              .c_str());
+      LOG_MESSAGE(TRITONSERVER_LOG_INFO,(std::string("desene num is : ") + std::to_string(dese_num_)).c_str());
     }
 
     common::TritonJson::Value catfea;
@@ -606,10 +604,7 @@ ModelState::ParseModelConfig()
       (catfea.MemberAsString(
           "string_value", &cat_str));
       cat_num_=std::stoi(cat_str );
-      LOG_MESSAGE(
-          TRITONSERVER_LOG_INFO,
-          (std::string("cat_feature num is : ") + std::to_string(cat_num_))
-              .c_str());
+      LOG_MESSAGE(TRITONSERVER_LOG_INFO,(std::string("cat_feature num is : ") + std::to_string(cat_num_)).c_str());
     }
 
     common::TritonJson::Value embsize;
@@ -618,10 +613,7 @@ ModelState::ParseModelConfig()
       (embsize.MemberAsString(
           "string_value", &embsize_str));
       embedding_size_=std::stoi(embsize_str );
-      LOG_MESSAGE(
-          TRITONSERVER_LOG_INFO,
-          (std::string("embedding size is  ") + std::to_string(embedding_size_))
-              .c_str());
+      LOG_MESSAGE(TRITONSERVER_LOG_INFO, (std::string("embedding size is  ") + std::to_string(embedding_size_)).c_str());
     }
     common::TritonJson::Value nnz;
     if (parameters.Find("max_nnz", &nnz)) {
@@ -629,30 +621,23 @@ ModelState::ParseModelConfig()
       (nnz.MemberAsString(
           "string_value", &nnz_str));
       max_nnz_=std::stoi(nnz_str );
-      LOG_MESSAGE(
-          TRITONSERVER_LOG_INFO,
-          (std::string("maxnnz is ") + std::to_string(max_nnz_))
-              .c_str());
+      LOG_MESSAGE(TRITONSERVER_LOG_INFO,(std::string("maxnnz is ") + std::to_string(max_nnz_)).c_str());
     }
     common::TritonJson::Value hugeconfig;
     if (parameters.Find("config", &hugeconfig)) {
       std::string config_str;
-      (hugeconfig.MemberAsString(
-          "string_value", &config_str));
+      (hugeconfig.MemberAsString("string_value", &config_str));
       hugectr_config_=config_str;
-      LOG_MESSAGE(
-          TRITONSERVER_LOG_INFO,
-          (std::string("Hugectr model config path is ") + hugectr_config_)
-              .c_str());
+      LOG_MESSAGE(TRITONSERVER_LOG_INFO,(std::string("Hugectr model config path is ") + hugectr_config_).c_str());
     }
     common::TritonJson::Value gpucache;
     if (parameters.Find("gpucache", &gpucache)) {
       std::string gpu_cache;
-      (gpucache.MemberAsString(
-          "string_value", &gpu_cache));
-      if ((gpu_cache)=="true")
-      support_gpu_cache_=true;
-      std::cout<<"support gpu cache is "<<support_gpu_cache_<<std::endl;
+      (gpucache.MemberAsString("string_value", &gpu_cache));
+      if ((gpu_cache)=="false"){
+        support_gpu_cache_=false;
+      }
+      LOG_MESSAGE(TRITONSERVER_LOG_INFO,(std::string("support gpu cache is ")+ std::to_string(support_gpu_cache_)).c_str());
     }
     common::TritonJson::Value gpucacheper;
     if (parameters.Find("gpucacheper", &gpucacheper)) {
@@ -660,9 +645,16 @@ ModelState::ParseModelConfig()
       (gpucacheper.MemberAsString(
           "string_value", &gpu_cache_per));
       cache_size_per=std::atof(gpu_cache_per.c_str());
-      std::cout<<"gpu cache per is "<<cache_size_per<<std::endl;
+      LOG_MESSAGE(TRITONSERVER_LOG_INFO,(std::string("gpu cache per is ") + std::to_string(cache_size_per)).c_str());
     }
-    
+    common::TritonJson::Value label_dim;
+    if (parameters.Find("label_dim", &label_dim)) {
+      std::string label_dim_str;
+      (label_dim.MemberAsString(
+          "string_value", &label_dim_str));
+      label_dim_=std::stoi(label_dim_str);
+      LOG_MESSAGE(TRITONSERVER_LOG_INFO,(std::string("Label dim is ") + std::to_string(label_dim_)).c_str());
+    }
     common::TritonJson::Value embeddingkey;
     if (parameters.Find("embeddingkey_long_type", &embeddingkey)) {
       std::string embeddingkey_str;
@@ -670,11 +662,11 @@ ModelState::ParseModelConfig()
           "string_value", &embeddingkey_str));
       if ((embeddingkey_str)=="true")
         support_int64_key_=true;
-      std::cout<<"Support long embedding key "<<support_int64_key_<<std::endl;
+      LOG_MESSAGE(TRITONSERVER_LOG_INFO,(std::string("Support long embedding key is ") + std::to_string(support_int64_key_)).c_str());
     }
   }
   model_config_.MemberAsInt("max_batch_size", &max_batch_size_);
-  std::cout<<"max_batch_size is "<<max_batch_size_<<std::endl;
+  LOG_MESSAGE(TRITONSERVER_LOG_INFO,(std::string("max_batch_size is ") + std::to_string(max_batch_size_)).c_str());
   return nullptr;
 }
 
@@ -857,7 +849,7 @@ ModelInstanceState::ModelInstanceState(
 
     LOG_MESSAGE(TRITONSERVER_LOG_INFO,(std::string("Predict resulte buffer allocation: ")).c_str());
     prediction_buf=HugeCTRBuffer<float>::create();
-    std::vector<size_t> prediction_dims = {static_cast<size_t>(model_state_->BatchSize()) }; 
+    std::vector<size_t> prediction_dims = {static_cast<size_t>(model_state_->BatchSize() * model_state_->LabelDim()) }; 
     prediction_buf->reserve(prediction_dims);
     prediction_buf->allocate();
 
