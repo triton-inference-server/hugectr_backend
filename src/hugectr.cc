@@ -32,6 +32,7 @@
 #include "dlfcn.h"
 #include "dirent.h"
 #include "cuda_runtime_api.h"
+#include "math.h"
 #include "triton/backend/backend_common.h"
 #include "inference/hugectrmodel.hpp"
 #include "inference/inference_utils.hpp"
@@ -1232,13 +1233,10 @@ TRITONBACKEND_ModelInstanceExecute(
     responses.push_back(response);
   }
 
-  // The way we collect these batch timestamps is not entirely
-  // accurate. Normally, in a performant backend you would execute all
-  // the requests at the same time, and so there would be a single
-  // compute-start / compute-end time-range. But here we execute each
-  // request separately so there is no single range. As a result we
-  // just show the entire execute time as being the compute time as
-  // well.
+  // HugeCTR model can't support concurrent prediction for all the requests, 
+  // which means you would execute all the requests at the same time, 
+  // So here we execute each request separately so there is no single range.
+  // As a result we just show the entire execute time as being the compute time as well.
   uint64_t min_exec_start_ns = std::numeric_limits<uint64_t>::max();
   uint64_t max_exec_end_ns = 0;
   uint64_t total_batch_size = 0;
@@ -1248,13 +1246,8 @@ TRITONBACKEND_ModelInstanceExecute(
   // go wrong in processing a particular request then we send an error
   // response just for the specific request.
 
-  // For simplicity we just process each request separately... in
-  // general a backend should try to operate on the entire batch of
-  // requests at the same time for improved performance.
   for (uint32_t r = 0; r < request_count; ++r) {
     uint64_t exec_start_ns = 0;
-    //SET_TIMESTAMP(exec_start_ns);
-    //min_exec_start_ns = std::min(min_exec_start_ns, exec_start_ns);
 
     TRITONBACKEND_Request* request = requests[r];
     const char* request_id = "";
@@ -1317,10 +1310,8 @@ TRITONBACKEND_ModelInstanceExecute(
         responses, r,
         TRITONBACKEND_RequestInputName(request, 2 /* index */, &input_name));
     RETURN_ERROR_IF_FALSE(
-      instance_state->StateForModel()->GetInputmap().count(input_name)>00, TRITONSERVER_ERROR_INVALID_ARG,
+      instance_state->StateForModel()->GetInputmap().count(input_name)>0, TRITONSERVER_ERROR_INVALID_ARG,
       std::string("expected input name as DES,CATCOLUMN and ROWINDEX in request, but got ") + input_name );
-    
-    
 
     const char* des_input_name="DES";
 
@@ -1438,11 +1429,9 @@ TRITONBACKEND_ModelInstanceExecute(
         TRITONSERVER_LOG_INFO,
         (std::string("\trequested_output ") + requested_output_name).c_str());
 
-    // For statistics we need to collect the total batch size of all
-    // the requests. If the model doesn't support batching then each
-    // request is necessarily batch-size 1. If the model does support
-    // batching then the first dimension of the shape is the batch
-    // size.
+    // If the model doesn't support batching with two-dimension tensor then each
+    // request is necessarily batch-size 1. So the first dimension of the shape is the batch
+    // size=1.
     if ( (des_dims_count > 0)) {
       total_batch_size += input_shape[0];
     } else {
@@ -1451,23 +1440,41 @@ TRITONBACKEND_ModelInstanceExecute(
 
     // We only need to produce an output if it was requested.
     if (requested_output_count > 0) {
-      // This backend simply copies the input tensor to the output
-      // tensor. The input tensor contents are available in one or
-      // more contiguous buffers. To do the copy we:
+      // Hugectr model will handls all the inpput on device and predict the result. The output tensor copies the result from GPU to CPU. 
       //
-      //   1. Create an output tensor in the response.
+      //   1. Validate input tensor.
       //
-      //   2. Allocate appropriately sized buffer in the output
-      //      tensor.
+      //   2. Initialize the output tensor.
       //
-      //   3. Iterate over the input tensor buffers, pass to the HugeCTR predict and copy the
+      //   3. Copy all input data -> Device Buffer.
+      //
+      //   4. Iterate over the input tensor buffers, pass to the HugeCTR predict and copy the
       //      result into the output buffer.
       TRITONBACKEND_Response* response = responses[r];
 
-      // Step 1. Input and output have same datatype and shape...
+      // Step 1. Input should have correct size...
       TRITONBACKEND_Output* output;
       int64_t numofdes = (des_byte_size/sizeof(float));
-      num_of_samples = numofdes/(instance_state->StateForModel()->DeseNum());
+      int64_t numofcat = ((cat_byte_size)/sizeof(unsigned int));
+      if (numofdes%(instance_state->StateForModel()->DeseNum())!=0){
+        GUARDED_RESPOND_IF_ERROR(responses, r, TRITONSERVER_ErrorNew(TRITONSERVER_ERROR_UNSUPPORTED,
+                  "The DES input sample size in request is not match with configuration. The input sample size to be an integer multiple of the configuration."));
+      }
+      if (numofcat%(instance_state->StateForModel()->CatNum())!=0){
+        GUARDED_RESPOND_IF_ERROR(responses, r, TRITONSERVER_ErrorNew(TRITONSERVER_ERROR_UNSUPPORTED,
+                  "The CATCOLUMN input sample size in request is not match with configuration. The input sample size to be an integer multiple of the configuration."));
+      }
+      int64_t num_of_sample_des = floor(numofdes/(instance_state->StateForModel()->DeseNum()));
+      int64_t num_of_sample_cat = ceil(numofcat/(instance_state->StateForModel()->CatNum()));
+      if (instance_state->StateForModel()->SupportLongEmbeddingKey()){
+        num_of_sample_cat = ceil((cat_byte_size)/sizeof(long long));
+      }
+      
+      if(num_of_sample_des!= num_of_sample_cat){
+        GUARDED_RESPOND_IF_ERROR(responses, r, TRITONSERVER_ErrorNew(TRITONSERVER_ERROR_UNSUPPORTED,
+                  "The input sample size in DES and CATCOLUMN is not match"));
+      }
+      num_of_samples = num_of_sample_des;
       if ((num_of_samples>instance_state->StateForModel()->BatchSize()) ) {
           GUARDED_RESPOND_IF_ERROR(
               responses, r,
@@ -1490,8 +1497,7 @@ TRITONBACKEND_ModelInstanceExecute(
         continue;
       }
 
-      // Step 2. Get the output buffer. We request a buffer in GPU
-      // memory but we have to handle any returned type. 
+      // Step 2. Initialize the output tensor.
       void* output_buffer;
       TRITONSERVER_MemoryType output_memory_type = TRITONSERVER_MEMORY_GPU;
       int64_t output_memory_type_id = 0;
@@ -1515,7 +1521,7 @@ TRITONBACKEND_ModelInstanceExecute(
         continue;
       }
 
-      // Step 3. Copy input -> DEvice Buffer. 
+      // Step 3. Copy all input data -> Device Buffer. 
       size_t output_buffer_offset = 0;
       for (uint32_t b = 0; b < input_buffer_count; ++b) {
 
@@ -1560,14 +1566,14 @@ TRITONBACKEND_ModelInstanceExecute(
                   TRITONSERVER_ERROR_UNSUPPORTED,
                   "failed to get input buffer in GPU memory"));
         }
-         // Step 3. Pass device buffer to Predict  
+         // Step 4. Perform prediction in device and copy result to cpu output buffer
         LOG_MESSAGE(TRITONSERVER_LOG_INFO,(std::string("******Process request on device ")+ 
         std::to_string(instance_state->DeviceId())+std::string(" for model ")+
         std::string(instance_state->Name())).c_str());
-
+        //Set Timestamp here to comput the prediction execution time for each request
         SET_TIMESTAMP(exec_start_ns);
         min_exec_start_ns = std::min(min_exec_start_ns, exec_start_ns);
-
+        // Model prediction
         RETURN_IF_ERROR(instance_state->ProcessRequest(num_of_samples));
         LOG_MESSAGE(TRITONSERVER_LOG_INFO,(std::string("******Process request finish")).c_str());
         output_buffer_offset += buffer_byte_size; 
@@ -1576,7 +1582,7 @@ TRITONBACKEND_ModelInstanceExecute(
         uint64_t exec_end_ns = 0;
         SET_TIMESTAMP(exec_end_ns);
         max_exec_end_ns = std::max(max_exec_end_ns, exec_end_ns);
-
+        //Get the prediction execution time (ms) 
         int64_t exe_time=(max_exec_end_ns-min_exec_start_ns)/1000000;
         LOG_MESSAGE(
             TRITONSERVER_LOG_ERROR,
