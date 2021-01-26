@@ -30,17 +30,74 @@
 
 # Triton Inference Server HugeCTR Backend
 
-An example Triton backend that demonstrates how to integrate the HugeCTR to Triton with custom mode. You can learn more about backends in the [backend
-repo](https://github.com/triton-inference-server/backend). Ask
-questions or report problems in the main Triton [issues
-page](https://github.com/triton-inference-server/server/issues).
+HugeCTR is a GPU-accelerated recommender framework that was designed to distribute training across multiple GPUs and nodes and estimate Click-Through Rates (CTRs).
 
-Use cmake to build and install in a local directory.
+# Quick Start
 
+## Installing and Building HugeCTR Backend
+You can either install Hugectr backend easily using the Hugectr backend Docker image in NGC, or build Hugectr backend from scratch based on your own specific requirement if you're an advanced user.
+We support the following compute capabilities for inference deployment:
+
+| Compute Capability | GPU                  |
+|--------------------|----------------------|
+| 70                 | NVIDIA V100 (Volta)  |
+| 75                 | NVIDIA T4 (Turing)   |
+| 80                 | NVIDIA A100 (Ampere) |
+
+The following prerequisites must be met before installing or building HugeCTR from scratch:
+* Docker version 19 and higher
+* cuBLAS version 10.1
+* CMake version 3.17.0
+* cuDNN version 7.5
+* RMM version 0.16
+* GCC version 7.4.0
+
+### Installing HugeCTR from NGC Containers
+All NVIDIA Merlin components are available as open-source projects. However, a more convenient way to make use of these components is by using Merlin NGC containers. Containers allow you to package your software application, libraries, dependencies, and runtime compilers in a self-contained environment. When installing hugectr backend from NGC containers, the application environment remains both portable, consistent, reproducible, and agnostic to the underlying host system software configuration.
+
+Hugectr backend docker images are available in the NVIDIA container repository on https://ngc.nvidia.com/catalog/containers/nvidia:hugectr.
+
+You can pull and launch the container by running the following command:
+
+```
+docker run --runtime=nvidia --rm -it nvcr.io/nvidia/hugectr:v3.0-inference  # Start interaction mode  
+```
+### Building HugeCTR from Scratch
+
+Since the Hugectr backend building is based on Hugectr installation, the first step is to compile hugectr, generate shared library, and install it correctly
+Before building HugeCTR from scratch, you should download the HugeCTR repository and the third-party modules that it relies on by running the following commands:
+
+```
+git clone https://github.com/NVIDIA/HugeCTR.git
+cd HugeCTR
+git submodule update --init --recursive
+```
+You can build HugeCTR from scratch using one or any combination of the following options:
+* **CMAKE_BUILD_TYPE**: You can use this option to build HugeCTR with Debug or Release. When using Debug to build, HugeCTR will print more verbose logs and execute GPU tasks in a synchronous manner.
+* **ENABLE_INFERENCE**: You can use this option to build HugeCTR in Inference mode, which was designed for framework inference. In this mode,inference shared library will be built for hugectr backend. Only inference related interfaces could be used, which means users can’t train models in this mode. This option is set to OFF by default.
+
+Here is the example of how you can build HugeCTR using these build options:
+
+```
+$ mkdir -p build
+$ cd build
+$ cmake -DCMAKE_BUILD_TYPE=Release -DENABLE_INFERENCE=ON .. .. # Target is NVIDIA V100 / A100 and Inference mode on.
+$ make -j
+$ make install
+```
+
+### Building HugeCTR Backend from Scratch
+Before building HugeCTR backend from scratch, you should download the HugeCTR backend repository by running the following commands:
+
+```
+git https://github.com/triton-inference-server/hugectr_backend.git
+cd hugectr_backend
+```
+Use cmake to build and install in a specified folder.
 ```
 $ mkdir build
 $ cd build
-$ cmake -DCMAKE_INSTALL_PREFIX:PATH=`pwd`/install ..
+$ cmake -DCMAKE_INSTALL_PREFIX:PATH=/usr/local/hugectr/ ..
 $ make install
 ```
 
