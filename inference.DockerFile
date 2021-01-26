@@ -9,10 +9,10 @@ ARG INFERENCE_MODE=ON
 RUN git clone -b $HUGECTR_BRANCH https://github.com/NVIDIA/HugeCTR.git HugeCTR &&\
     cd HugeCTR && \
     git submodule update --init --recursive && \
-    mkdir build && cd build &&\
+    mkdir -p build && cd build &&\
     cmake -DENABLE_INFERENCE=$INFERENCE_MODE .. && \
     make -j$(nproc) && \
-    mkdir /usr/local/hugectr &&\
+    mkdir -p /usr/local/hugectr &&\
     make install && \
     chmod +x /usr/local/hugectr/lib/* &&\
     chmod +x /usr/local/hugectr/include/* &&\
