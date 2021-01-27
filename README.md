@@ -64,8 +64,9 @@ docker run --runtime=nvidia --rm -it nvcr.io/nvidia/hugectr:v3.0-inference  # St
 ```
 ### Building HugeCTR from Scratch
 
-Since the Hugectr backend building is based on Hugectr installation, the first step is to compile hugectr, generate shared library, and install it correctly
+Since the Hugectr backend building is based on Hugectr installation, the first step is to compile hugectr, generate a shared library(libhugectr_inference.so), and install it in the specified folder correctly. The default path of all the HugeCTR libraries and header files are installed in /usr/local/hugectr folder.
 Before building HugeCTR from scratch, you should download the HugeCTR repository and the third-party modules that it relies on by running the following commands:
+
 
 ```
 git clone https://github.com/NVIDIA/HugeCTR.git
