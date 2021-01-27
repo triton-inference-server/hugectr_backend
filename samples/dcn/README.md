@@ -51,7 +51,7 @@ $ tail -n 4584062 dcn_data/valtest > dcn_data/test
 #### Convert the criteo data to inference format
 The HugeCTR inference requires dense features, embedding columns and row pointers of slots as the input and gives the prediction result as the output. We need to convert the criteo data to inference format (csr) first.
 ```shell.
-$ ./criteo2predict.py --src_csv_path=dcn_data/test --src_config=../samples/dcn//dcn_data.json --dst_path=./dcn_csr.txt --batch_size=1
+$ ./criteo2predict.py --src_csv_path=dcn_data/test --src_config=../samples/dcn//dcn_data.json --dst_path=./dcn_csr.txt --segmentation ',' --batch_size=1
 ```
 As result, CSR format input will be generated into dcn_csr.txt and the content as below:
 ```shell.
@@ -116,7 +116,7 @@ For deploy the Hugectr model, Some customized configuration items need to be add
   }
 ]
 ```
-## 4. Lauch Triton Server 
+## 4. Launch Triton Server 
 Before you can use the Hugectr Docker image you must install Docker. If you plan on using a GPU for inference you must also install the NVIDIA Container Toolkit. DGX users should follow Preparing to use NVIDIA Containers. 
 
 Pull the image using the following command.
