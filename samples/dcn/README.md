@@ -164,9 +164,7 @@ $ docker run --rm --net=host -v /hugectr_backend/samples/dcn:/dcn nvcr.io/nvidia
 ```
 To send a request for the dcn model. In this case we ask for the 10 samples for prediction.
 ```shell.
-Prediction Result:
-{'id': '1', 'model_name': 'dcn', 'model_version': '1', 'parameters': {'NumSample': 10, 'DeviceID': 0}, 'outputs': [{'name': 'OUTPUT0', 'datatype': 'FP32', 'shape': [10], 'parameters': {'binary_data_size': 3328}}]}
-[0.30833802 0.03543083 0.15866387 0.09720056 0.15478903 0.15859143
- 0.08548295 0.2677695  0.04621837 0.6698213 ]
+{'id': '1', 'model_name': 'dcn', 'model_version': '1', 'parameters': {'NumSample': 1, 'DeviceID': 0}, 'outputs': [{'name': 'OUTPUT0', 'datatype': 'FP32', 'shape': [1], 'parameters': {'binary_data_size': 3328}}]}
+[0.30833802]
 ```
 
