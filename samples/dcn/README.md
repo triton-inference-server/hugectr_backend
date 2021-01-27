@@ -1,35 +1,35 @@
-# DCN SAMPLE #
+# DCN SAMPLE 
 A sample of deploying Deep & Cross Network with Hugectr backend [(link)](https://arxiv.org/pdf/1708.05123.pdf).
 
-## Dataset and preprocess ##
+## Dataset and preprocess 
 The data is provided by CriteoLabs (http://azuremlsampleexperiments.blob.core.windows.net/criteo/day_1.gz).
 Each example contains a label (1 if the ad was clicked, otherwise 0) and 39 features (13 integer features and 26 categorical features).
 The dataset also has the significant amounts of missing values across the feature columns, which should be preprocessed accordingly.
 The original test set doesn't contain labels, so it's not used.
 
 
-### Requirements ###
+### Requirements
 * Python >= 3.6.9
 * Pandas 1.0.1
 * Sklearn 0.22.1
 
-### 1. Download the dataset and preprocess ###
+### 1. Download the dataset and preprocess 
 
 Go to [(link)](http://azuremlsampleexperiments.blob.core.windows.net/criteo/day_1.gz)
 and download the kaggle-display dataset into the folder "${project_home}/tools/".
 
 
-####  Download the Kaggle Criteo dataset using the following command: ####
+####  Download the Kaggle Criteo dataset using the following command: 
 ```shell.
 $  wget wget http://azuremlsampleexperiments.blob.core.windows.net/criteo/day_1.gz
 ```
 
-#### Extract the dataset using the following command:####
+#### Extract the dataset using the following command:
 ```shell.
 $ tar zxvf day_1.gz
 ```
 
-#### preprocess the data using the following commands:####
+#### preprocess the data using the following commands:
 The script `preprocess.py` fills the missing values by mapping them to the unused unique integer or category.
 It also replaces unique values which appear less than six times across the entire dataset with the unique value for missing values.
 Its purpose is to reduce the vocabulary size of each column while not losing too much information.
@@ -41,14 +41,14 @@ $ shuf train.txt > train.shuf.txt
 $ python3 ./preprocess.py --src_csv_path=train.shuf.txt --dst_csv_path=dcn_data/train.out.txt --normalize_dense=1 --feature_cross=0
 ```
 
-#### Split the dataset using the following commands:####
+#### Split the dataset using the following commands:
 ```shell.
 $ head -n 36672493 dcn_data/train.out.txt > dcn_data/train && \\\\
 $ tail -n 9168124 dcn_data/train.out.txt > dcn_data/valtest && \\\\
 $ head -n 4584062 dcn_data/valtest > dcn_data/val && \\\\
 $ tail -n 4584062 dcn_data/valtest > dcn_data/test
 ```
-#### Convert the criteo data to inference format ####
+#### Convert the criteo data to inference format
 The HugeCTR inference requires dense features, embedding columns and row pointers of slots as the input and gives the prediction result as the output. We need to convert the criteo data to inference format (csr) first.
 ```shell.
 $ ./criteo2predict.py --src_csv_path=dcn_data/test --src_config=../samples/dcn//dcn_data.json --dst_path=./dcn_csr.txt --batch_size=1
@@ -62,21 +62,21 @@ ROWINDEX: 0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 19 20 21 22 23 24 25 26
 ```
 
 
-## 2. Get DCN trained model files.##
+## 2. Get DCN trained model files
 Go to [(DCN training sample))](https://github.com/NVIDIA/HugeCTR/tree/master/samples/dcn#training-with-hugectr) in HugeCTR and make sure store the trained dense model and embedding table files into the folder "${project_home}/samples/dcn/1/"
 
-## 3. Create inference configuration files.##
-### DCN model network configuration ###
+## 3. Create inference configuration files
+### DCN model network configuration 
 Check the stored model files that will be used in the inference, and create the JSON file for inference. We should remove the solver and optimizer clauses and add the inference clause in the JSON file. The paths of the stored dense model and sparse model(s) should be specified at "dense_model_file" and "sparse_model_file" within the inference clause. We need to make some modifications to "data" in the layers clause. Besides, we need to change the last layer from BinaryCrossEntropyLoss to Sigmoid. The rest of "layers" should be exactly the same as that in the training JSON file. You may go to "${project_home}/samples/dcn/1/dcn.json" for reference.
 
-### Hugectr backend configuration ###
+### Hugectr backend configuration 
 Please refer to  [(Triton model configuration))](https://github.com/triton-inference-server/server/blob/master/docs/model_configuration.md) first and o clarify the required configuration of the model in the specific inference scenario.
 For deploy the Hugectr model, Some customized configuration items need to be added as follows：
 ```json.
  parameters [
   {
   key: "config"
-  value: { string_value: "/model/hugectr_model1/1/simple_inference_config.json" }
+  value: { string_value: "/model/dcn/1/dcn.json" }
   },
    {
   key: "gpucache"
@@ -116,7 +116,7 @@ For deploy the Hugectr model, Some customized configuration items need to be add
   }
 ]
 ```
-## 4. Lauch Triton Server ##
+## 4. Lauch Triton Server 
 Before you can use the Hugectr Docker image you must install Docker. If you plan on using a GPU for inference you must also install the NVIDIA Container Toolkit. DGX users should follow Preparing to use NVIDIA Containers. 
 
 Pull the image using the following command.
@@ -153,7 +153,7 @@ $ curl -v localhost:8005/v2/health/ready
 < Content-Length: 0
 < Content-Type: text/plain
 ```
-## 4. Running DCN Client ##
+## 4. Running DCN Client 
 Use docker pull to get the client libraries and examples image from NGC.
 ```shell.
 $ docker pull nvcr.io/nvidia/tritonserver:<xx.yy>-py3-sdk
