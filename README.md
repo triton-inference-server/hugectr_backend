@@ -82,7 +82,7 @@ Here is the example of how you can build HugeCTR using these build options:
 ```
 $ mkdir -p build
 $ cd build
-$ cmake -DCMAKE_BUILD_TYPE=Release -DENABLE_INFERENCE=ON .. .. # Target is NVIDIA V100 / A100 and Inference mode on.
+$ cmake -DCMAKE_BUILD_TYPE=Release -DENABLE_INFERENCE=ON .. # Target is NVIDIA V100 / A100 and Inference mode on.
 $ make -j
 $ make install
 ```
