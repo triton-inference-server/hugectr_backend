@@ -43,7 +43,7 @@ instance_group [
 parameters [
   {
   key: "config"
-  value: { string_value: "/model/hugectr_model1/1/simple_inference_config.json" }
+  value: { string_value: "/model/dcn/1/dcn.json" }
   },
    {
   key: "gpucache"
