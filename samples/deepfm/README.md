@@ -1,4 +1,4 @@
-# DeepFM SAMPLE deployed with Deepfm model
+# DeepFM SAMPLE 
 A sample of deploying DeepFM Network with Hugectr backend [(link)](https://www.ijcai.org/Proceedings/2017/0239.pdf).
 
 ## Dataset and preprocess 
