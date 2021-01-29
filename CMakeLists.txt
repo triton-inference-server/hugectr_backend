@@ -80,7 +80,7 @@ FetchContent_MakeAvailable(repo-common repo-core repo-backend)
 #
 # Shared library implementing the Triton Backend API
 #
-#configure_file(src/libtriton_hugectr.ldscript libtriton_hugectr.ldscript COPYONLY)
+configure_file(src/libtriton_hugectr.ldscript libtriton_hugectr.ldscript COPYONLY)
 
 
 add_library(
@@ -89,7 +89,7 @@ add_library(
 )
 
 add_library(
-  TritonhugectrBackend::triton-hugectr-backend ALIAS triton-hugectr-backend
+  TritonHugeCTRBackend::triton-hugectr-backend ALIAS triton-hugectr-backend
 )
 
 target_include_directories(
@@ -120,15 +120,16 @@ set_target_properties(
   triton-hugectr-backend PROPERTIES
   POSITION_INDEPENDENT_CODE ON
   OUTPUT_NAME triton_hugectr
-  #LINK_DEPENDS ${CMAKE_CURRENT_BINARY_DIR}/libtriton_hugectr.ldscript
-  #LINK_FLAGS "-Wl,--version-script libtriton_hugectr.ldscript"
+  LINK_DEPENDS ${CMAKE_CURRENT_BINARY_DIR}/libtriton_hugectr.ldscript
+  LINK_FLAGS "-Wl,--version-script libtriton_hugectr.ldscript"
 )
 
 #
 # Install
 #
 include(GNUInstallDirs)
-set(INSTALL_CONFIGDIR ${CMAKE_INSTALL_LIBDIR}/cmake/TritonhugectrBackend)
+set(INSTALL_CONFIGDIR ${CMAKE_INSTALL_LIBDIR}/cmake/TritonHugeCTRBackend
+)
 
 install(
   TARGETS
@@ -143,23 +144,23 @@ install(
   EXPORT
     triton-hugectr-backend-targets
   FILE
-    TritonhugectrBackendTargets.cmake
+    TritonHugeCTRBackendTargets.cmake
   NAMESPACE
-    TritonhugectrBackend::
+    TritonHugeCTRBackend::
   DESTINATION
     ${INSTALL_CONFIGDIR}
 )
 
 include(CMakePackageConfigHelpers)
 configure_package_config_file(
-  ${CMAKE_CURRENT_LIST_DIR}/cmake/TritonHugectrBackendConfig.cmake.in
-  ${CMAKE_CURRENT_BINARY_DIR}/TritonhugectrBackendConfig.cmake
+  ${CMAKE_CURRENT_LIST_DIR}/cmake/TritonHugeCTRBackendConfig.cmake.in
+  ${CMAKE_CURRENT_BINARY_DIR}/TritonHugeCTRBackendConfig.cmake
   INSTALL_DESTINATION ${INSTALL_CONFIGDIR}
 )
 
 install(
   FILES
-  ${CMAKE_CURRENT_BINARY_DIR}/TritonhugectrBackendConfig.cmake
+  ${CMAKE_CURRENT_BINARY_DIR}/TritonHugeCTRBackendConfig.cmake
   DESTINATION ${INSTALL_CONFIGDIR}
 )
 
@@ -168,8 +169,8 @@ install(
 #
 export(
   EXPORT triton-hugectr-backend-targets
-  FILE ${CMAKE_CURRENT_BINARY_DIR}/TritonhugectrBackendTargets.cmake
-  NAMESPACE TritonhugectrBackend::
+  FILE ${CMAKE_CURRENT_BINARY_DIR}/TritonHugeCTRBackendTargets.cmake
+  NAMESPACE TritonHugeCTRBackend::
 )
 
-export(PACKAGE TritonhugectrBackend)
+export(PACKAGE TritonHugeCTRBackend)
