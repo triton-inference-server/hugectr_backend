@@ -39,9 +39,9 @@ Each node only has single gpu and parameter server is deployed on same node:
 Data transmission between each embedding cache and ps will be an independent cuda stream.  
 
 Each node contains multiple GPUs and a parameter server is deployed on the same node.
-*Scenario 3: Multiple GPUs (Node 3) deploys a single model, Parameter Server could also help increase the hit rate of the embedding cache between GPUs.  
+* Scenario 3: Multiple GPUs (Node 3) deploys a single model, Parameter Server could also help increase the hit rate of the embedding cache between GPUs.  
 
-*Scenario 4: Multiple GPUs (Node 4) deploys multiple models, as the most complicated scenario for localized deployment, it is necessary to ensure that different embedding caches can share the same parameter server, and different models can share embedding caches on the same node.  
+* Scenario 4: Multiple GPUs (Node 4) deploys multiple models, as the most complicated scenario for localized deployment, it is necessary to ensure that different embedding caches can share the same parameter server, and different models can share embedding caches on the same node.  
 
 <div align=center><img src ="user_guide_src/HugeCTR_Inference_Localized_Deployment.png"/></div>
 <div align=center>Fig. 2. HugeCTR Inference Localized Deployment Architecture</div>
@@ -49,9 +49,9 @@ Each node contains multiple GPUs and a parameter server is deployed on the same 
 ## Variant Compressed Sparse Row Input 
 Here is a brief introduction to the data structure used for the hugectr model for inference services.  
 In order to efficiently read the data to obtain the data semantic information from  the raw data and avoid consuming too much time for data parsing, we use the variant csr data format as input for hugectr model. For each sample, there are mainly three types of input data:  
-*Dese feature: normal numerical data is called Dese feature，
-*Column indices: As the upstream of preprocessing tools, NVTabular performs one-hot and multi-hot encoding on categorical data, and converts categorical data into numerical data. At the same time, 
-*Row ptr: NVTabular needs to output the corresponding slot information to indicate the feature filedes to corresponding categorical data. Using this variant CSR data format, the model obtains the feature field information when reading data from request,  avoiding the redundant analysis so as to speed up the inference process.
+* Dese feature: normal numerical data is called Dese feature.
+* Column indices: As the upstream of preprocessing tools, NVTabular performs one-hot and multi-hot encoding on categorical data, and converts categorical data into numerical data.  
+* Row ptr: NVTabular needs to output the corresponding slot information to indicate the feature filedes to corresponding categorical data. Using this variant CSR data format, the model obtains the feature field information when reading data from request,  avoiding the redundant analysis so as to speed up the inference process.
 
 <div align=center><img src ="user_guide_src/HugeCTR_Inference_Input_Format.png"/></div>
 <div align=center>Fig. 3. HugeCTR Inference VCSR Input Format</div>
