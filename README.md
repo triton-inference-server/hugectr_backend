@@ -52,7 +52,7 @@ The following prerequisites must be met before installing or building HugeCTR fr
 * RMM version 0.16
 * GCC version 7.4.0
 
-### Installing HugeCTR from NGC Containers
+### Installing HugeCTR Inference Server from NGC Containers
 All NVIDIA Merlin components are available as open-source projects. However, a more convenient way to make use of these components is by using Merlin NGC containers. Containers allow you to package your software application, libraries, dependencies, and runtime compilers in a self-contained environment. When installing hugectr backend from NGC containers, the application environment remains both portable, consistent, reproducible, and agnostic to the underlying host system software configuration.
 
 Hugectr backend docker images are available in the NVIDIA container repository on https://ngc.nvidia.com/catalog/containers/nvidia:hugectr.
@@ -94,11 +94,12 @@ Before building HugeCTR backend from scratch, you should download the HugeCTR ba
 git https://github.com/triton-inference-server/hugectr_backend.git
 cd hugectr_backend
 ```
-Use cmake to build and install in a specified folder.
+Use cmake to build and install in a specified folder. Please remember to specify the absolute path of the local directory that installs the HugeCTR backend for “--backend-directory” argument when launching the Triton Server.
+
 ```
 $ mkdir build
 $ cd build
-$ cmake -DCMAKE_INSTALL_PREFIX:PATH=/usr/local/hugectr/ ..
+$ cmake -DCMAKE_INSTALL_PREFIX:PATH=`pwd`/install ..
 $ make install
 ```
 
