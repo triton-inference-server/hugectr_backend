@@ -23,8 +23,8 @@ Based on the dependencies of the hierarchical level, we can decouple the embeddi
 Here is  the complete design framework of the Hugectr inference interface.  
 
 <div align=center><img src ="user_guide_src/HugeCTR_Inference_Interface_Design.png"/></div>
-<div align=center>Fig. 1. HugeCTR Inference Design Architecture</div>
-
+<div align=center>Fig. 1. HugeCTR Inference Design Architecture</div>  
+  
 In actual applications, a parameter server  is used to load the embedding table of all models. Since different models will obtain different embedding tables through training in different application scenarios, it will bring high memory overhead in the inference process. By introducing a parameter server, the embedding table can be directly loaded into GPU memory when the embedding table size is small and loaded into CPU memory even SSD When the size is too large. So as to ensure the isolation of different models and the data sharing between the same models.  
 
 Each embedding table will create an individual embedding cache on different GPUs. Embedding cache treats the embedding table as the smallest granularity, which means that embedding cache could lookup and synchronize with the corresponding embedding table directly.  
@@ -39,8 +39,7 @@ Each node only has single gpu and parameter server is deployed on same node:
 Data transmission between each embedding cache and ps will be an independent cuda stream.  
 
 Each node contains multiple GPUs and a parameter server is deployed on the same node.
-* Scenario 3: Multiple GPUs (Node 3) deploys a single model, Parameter Server could also help increase the hit rate of the embedding cache between GPUs.  
-
+* Scenario 3: Multiple GPUs (Node 3) deploys a single model, Parameter Server could also help increase the hit rate of the embedding cache between GPUs.
 * Scenario 4: Multiple GPUs (Node 4) deploys multiple models, as the most complicated scenario for localized deployment, it is necessary to ensure that different embedding caches can share the same parameter server, and different models can share embedding caches on the same node.  
 
 <div align=center><img src ="user_guide_src/HugeCTR_Inference_Localized_Deployment.png"/></div>
