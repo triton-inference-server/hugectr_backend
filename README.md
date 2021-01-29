@@ -30,7 +30,8 @@
 
 # Triton Inference Server HugeCTR Backend
 
-HugeCTR is a GPU-accelerated recommender framework that was designed to distribute training across multiple GPUs and nodes and estimate Click-Through Rates (CTRs).
+HugeCTR Backend is a GPU-accelerated recommender model deploy framework that was designed to effectively use GPU memory to accelerate the inference by decoupling the parameter server, embedding cache and model weight. HugeCTR Backend supports concurrent model inference execution across multiple GPUs, embedding cache sharing between multiple model instances. For additional information, see [HugeCTR Inference User Guide](docs/user_guide.md).  
+
 
 # Quick Start
 
