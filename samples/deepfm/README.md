@@ -124,7 +124,7 @@ Pull the image using the following command.
 $ docker pull nvcr.io/nvidia/hugectr_backend:v3.0-inference
 ```
 In this sample, the DCN model and Deepfm model can be deployed simultaneously with multiple model instances in the same GPU.
-Use the following command to run Triton with the deepfm and dcn sample model repository. The NVIDIA Container Toolkit must be installed for Docker to recognize the GPU(s). The --gpus=1 flag indicates that 1 system GPU should be made available to Triton for inferencing.
+Use the following command to run Triton with the deepfm and dcn sample model repository. The NVIDIA Container Toolkit must be installed for Docker to recognize the GPU(s). The --gpus=1 flag indicates that 1 system GPU should be made available to Triton for inferencing.  If building HugeCTR Backend from Scratch, please specify "--backend-directory" argument value as the absolute path that installs the HugeCTR backend.
 ```shell.
  docker run --gpus=2 --rm  -p 8005:8000 -p 8004:8001 -p 8003:8002  -v /hugectr_backend/sampes/:/model  nvcr.io/nvidia/hugectr_backend:v3.0-inference  tritonserver --model-repository=/model/ --backend-directory=/usr/local/hugectr/backends/ \
 --backend-config=hugectr,dcn=/model/dcn/1/dcn.json --backend-config=hugectr,deepfm=/model/deepfm/1/deepfm.json  \
