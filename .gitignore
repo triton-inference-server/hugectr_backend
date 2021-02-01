@@ -1,0 +1,11 @@
+/build
+/.vscode
+*.so
+*.o
+*~
+*.model
+*.swp
+*.tmp
+*.tar.gz
+*.out
+
