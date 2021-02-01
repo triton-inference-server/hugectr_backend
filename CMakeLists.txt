@@ -120,6 +120,7 @@ target_link_libraries(
 set_target_properties(
   triton-hugectr-backend PROPERTIES
   POSITION_INDEPENDENT_CODE ON
+  CUDA_ARCHITECTURES OFF
   OUTPUT_NAME triton_hugectr
   LINK_DEPENDS ${CMAKE_CURRENT_BINARY_DIR}/libtriton_hugectr.ldscript
   LINK_FLAGS "-Wl,--version-script libtriton_hugectr.ldscript"
