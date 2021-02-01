@@ -32,8 +32,8 @@ get_filename_component(
 
 list(APPEND CMAKE_MODULE_PATH ${TRITONHUGECTRBACKEND_CMAKE_DIR})
 
-if(NOT TARGET TritonHugectrBackend::triton-hugectr-backend)
-  include("${TRITONHUGECTRBACKEND_CMAKE_DIR}/TritonHugectrBackendTargets.cmake")
+if(NOT TARGET TritonHugeCTRBackend::triton-hugectr-backend)
+  include("${TRITONHUGECTRBACKEND_CMAKE_DIR}/TritonHugeCTRBackendTargets.cmake")
 endif()
 
 set(TRITONHUGECTRBACKEND_LIBRARIES TritonHugeCTRBackend::triton-hugectr-backend)

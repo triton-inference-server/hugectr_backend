@@ -926,8 +926,8 @@ TRITONBACKEND_Initialize(TRITONBACKEND_Backend* backend)
   }
 
   // The backend configuration may contain information needed by the
-  // backend, such a command-line arguments. This backend doesn't use
-  // any such configuration but we print whatever is available.
+  // backend, such a command-line arguments. Hugectr backend requires 
+  // that the model json configuration file path must be specified specify in the command-line. 
   TRITONSERVER_Message* backend_config_message;
   RETURN_IF_ERROR(
       TRITONBACKEND_BackendConfig(backend, &backend_config_message));
@@ -940,6 +940,8 @@ TRITONBACKEND_Initialize(TRITONBACKEND_Backend* backend)
       TRITONSERVER_LOG_INFO,
       (std::string("backedn Repository location: ") + clocation).c_str());
 
+  //Backend configuration messag contains model configuartion with json format
+  //example format: {"cmdline":{"model1":"/jsonpath1","model2":"/josnpath2"}}
   const char* buffer;
   size_t byte_size;
   RETURN_IF_ERROR(TRITONSERVER_MessageSerializeToJson(
@@ -948,14 +950,7 @@ TRITONBACKEND_Initialize(TRITONBACKEND_Backend* backend)
       TRITONSERVER_LOG_INFO,
       (std::string("backend configuration:\n") + buffer).c_str());
 
-  // If we have any global backend state we create and set it here. We
-  // don't need anything for this backend but for demonstration
-  // purposes we just create something...
-  std::string* state = new std::string("backend state");
-  RETURN_IF_ERROR(
-      TRITONBACKEND_BackendSetState(backend, reinterpret_cast<void*>(state)));
-
-
+  //Parse the command-line augumant to determine the type of embedding table Key
   common::TritonJson::Value backend_config;
   TRITONSERVER_Error* err = backend_config.Parse(buffer, byte_size);
   RETURN_IF_ERROR(err);
@@ -981,12 +976,12 @@ TRITONBACKEND_Initialize(TRITONBACKEND_Backend* backend)
     }
   }
   
-
+  // HugeCTR have a global backend state that we need create Parameter Server for all the models, 
+  // which will be shared by all the models to update embedding cache
   ModelBackend* model_backend;
   RETURN_IF_ERROR(ModelBackend::Create(backend,&model_backend,param_values,param_keys,supportlonglongkey));
   RETURN_IF_ERROR(
       TRITONBACKEND_BackendSetState(backend, reinterpret_cast<void*>(model_backend)));
-
 
   RETURN_IF_ERROR(model_backend->HugeCTREmbedding_backend());
 
@@ -1001,13 +996,12 @@ TRITONSERVER_Error*
 TRITONBACKEND_Finalize(TRITONBACKEND_Backend* backend)
 {
   void* vstate;
+
   RETURN_IF_ERROR(TRITONBACKEND_BackendState(backend, &vstate));
-  std::string* state = reinterpret_cast<std::string*>(vstate);
+  ModelBackend* state=  reinterpret_cast<ModelBackend*>(vstate);
 
   LOG_MESSAGE(
-      TRITONSERVER_LOG_INFO,
-      (std::string("TRITONBACKEND_Finalize: state is '") + *state + "'")
-          .c_str());
+      TRITONSERVER_LOG_INFO, "TRITONBACKEND_Backend: HugectrBackend");
 
   delete state;
 
