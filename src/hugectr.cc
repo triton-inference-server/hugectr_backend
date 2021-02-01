@@ -212,16 +212,16 @@ public:
 };
 
 //
-// ModelBackend
+// HugeCTRBackend
 //
-// ModelBackend associated with a Backend that is shared by all the models. An object
+// HugeCTRBackend associated with a Backend that is shared by all the models. An object
 // of this class is created and associated with each
 // TRITONBACKEND_Backend.
 //
-class ModelBackend{
+class HugeCTRBackend{
   public:
   static TRITONSERVER_Error* Create(
-      TRITONBACKEND_Backend* triton_backend_, ModelBackend** backend,std::vector<std::string>modelnames,std::vector<std::string>modelconfigs,bool supportlonglongkey);
+      TRITONBACKEND_Backend* triton_backend_, HugeCTRBackend** backend,std::vector<std::string>modelnames,std::vector<std::string>modelconfigs,bool supportlonglongkey);
 
   // Get the handle to the TRITONBACKEND model.
   TRITONBACKEND_Backend* TritonBackend() { return triton_backend_; }
@@ -241,7 +241,7 @@ class ModelBackend{
   HugeCTR::HugectrUtility<unsigned int>* EmbeddingTable_int32;
   HugeCTR::HugectrUtility<long long>* EmbeddingTable_int64;
   bool support_int64_key_=false;
-  ModelBackend(
+  HugeCTRBackend(
        TRITONBACKEND_Backend* triton_backend_,
       std::vector<std::string>modelnames,std::vector<std::string>modelconfigs,bool supportlonglongkey );
 
@@ -249,15 +249,15 @@ class ModelBackend{
 };
 
 TRITONSERVER_Error*
-ModelBackend::Create(TRITONBACKEND_Backend* triton_backend_, ModelBackend** backend,std::vector<std::string>modelnames,std::vector<std::string>modelconfigs,bool supportlonglongkey)
+HugeCTRBackend::Create(TRITONBACKEND_Backend* triton_backend_, HugeCTRBackend** backend,std::vector<std::string>modelnames,std::vector<std::string>modelconfigs,bool supportlonglongkey)
 {
 
-  *backend = new ModelBackend(
+  *backend = new HugeCTRBackend(
        triton_backend_,modelconfigs, modelnames,supportlonglongkey);
   return nullptr;  // success
 }
 
-ModelBackend::ModelBackend(
+HugeCTRBackend::HugeCTRBackend(
    TRITONBACKEND_Backend* triton_backend,
    std::vector<std::string>modelnames, std::vector<std::string>modelconfigs,bool supportlonglongkey )
     : triton_backend_(triton_backend),
@@ -271,7 +271,7 @@ ModelBackend::ModelBackend(
 
 //HugeCTR EmbeddingTable
 TRITONSERVER_Error* 
-ModelBackend::HugeCTREmbedding_backend(){
+HugeCTRBackend::HugeCTREmbedding_backend(){
      LOG_MESSAGE(TRITONSERVER_LOG_INFO,(std::string("*****Backend Parameter Server creating...*****") ).c_str());
     HugeCTR::INFER_TYPE type= HugeCTR::INFER_TYPE::TRITON;
     if (support_int64_key_)
@@ -978,12 +978,12 @@ TRITONBACKEND_Initialize(TRITONBACKEND_Backend* backend)
   
   // HugeCTR have a global backend state that we need create Parameter Server for all the models, 
   // which will be shared by all the models to update embedding cache
-  ModelBackend* model_backend;
-  RETURN_IF_ERROR(ModelBackend::Create(backend,&model_backend,param_values,param_keys,supportlonglongkey));
+  HugeCTRBackend* hugectr_backend;
+  RETURN_IF_ERROR(HugeCTRBackend::Create(backend,&hugectr_backend,param_values,param_keys,supportlonglongkey));
   RETURN_IF_ERROR(
-      TRITONBACKEND_BackendSetState(backend, reinterpret_cast<void*>(model_backend)));
+      TRITONBACKEND_BackendSetState(backend, reinterpret_cast<void*>(hugectr_backend)));
 
-  RETURN_IF_ERROR(model_backend->HugeCTREmbedding_backend());
+  RETURN_IF_ERROR(hugectr_backend->HugeCTREmbedding_backend());
 
 
   return nullptr;  // success
@@ -998,10 +998,10 @@ TRITONBACKEND_Finalize(TRITONBACKEND_Backend* backend)
   void* vstate;
 
   RETURN_IF_ERROR(TRITONBACKEND_BackendState(backend, &vstate));
-  ModelBackend* state=  reinterpret_cast<ModelBackend*>(vstate);
+  HugeCTRBackend* state=  reinterpret_cast<HugeCTRBackend*>(vstate);
 
   LOG_MESSAGE(
-      TRITONSERVER_LOG_INFO, "TRITONBACKEND_Backend: HugectrBackend");
+      TRITONSERVER_LOG_INFO, "TRITONBACKEND_Backend Finalize: HugectrBackend");
 
   delete state;
 
@@ -1060,7 +1060,7 @@ TRITONBACKEND_ModelInitialize(TRITONBACKEND_Model* model)
 
   void* vbackendstate;
   RETURN_IF_ERROR(TRITONBACKEND_BackendState(backend, &vbackendstate));
-  ModelBackend* backend_state = reinterpret_cast<ModelBackend*>(vbackendstate);
+  HugeCTRBackend* backend_state = reinterpret_cast<HugeCTRBackend*>(vbackendstate);
 
 
   // With each model we create a ModelState object and associate it
