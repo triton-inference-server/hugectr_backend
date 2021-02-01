@@ -1,7 +1,7 @@
 FROM  xiaoleishi/hugectr:infer
 
 ARG HUGECTR_BRANCH=main
-ARG INFERENCE_BRANCH=yingcan_integration
+ARG INFERENCE_BRANCH=main
 ARG INFERENCE_MODE=ON
 
 
