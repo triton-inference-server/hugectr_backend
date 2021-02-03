@@ -54,9 +54,9 @@ The following prerequisites must be met before installing or building HugeCTR fr
 * GCC version 7.4.0
 
 ### Installing HugeCTR Inference Server from NGC Containers
-All NVIDIA Merlin components are available as open-source projects. However, a more convenient way to make use of these components is by using Merlin NGC containers. Containers allow you to package your software application, libraries, dependencies, and runtime compilers in a self-contained environment. When installing hugectr backend from NGC containers, the application environment remains both portable, consistent, reproducible, and agnostic to the underlying host system software configuration.
+All NVIDIA Merlin components are available as open-source projects. However, a more convenient way to make use of these components is by using Merlin NGC containers. Containers allow you to package your software application, libraries, dependencies, and runtime compilers in a self-contained environment. When installing HugeCTR backend from NGC containers, the application environment remains both portable, consistent, reproducible, and agnostic to the underlying host system software configuration.
 
-Hugectr backend docker images are available in the NVIDIA container repository on https://ngc.nvidia.com/catalog/containers/nvidia:hugectr.
+HugeCTR backend docker images are available in the NVIDIA container repository on https://ngc.nvidia.com/catalog/containers/nvidia:hugectr.
 
 You can pull and launch the container by running the following command:
 
@@ -65,7 +65,7 @@ docker run --runtime=nvidia --rm -it nvcr.io/nvidia/hugectr:v3.0-inference  # St
 ```
 ### Building HugeCTR from Scratch
 
-Since the Hugectr backend building is based on Hugectr installation, the first step is to compile hugectr, generate a shared library(libhugectr_inference.so), and install it in the specified folder correctly. The default path of all the HugeCTR libraries and header files are installed in /usr/local/hugectr folder.
+Since the HugeCTR backend building is based on HugeCTR installation, the first step is to compile HugeCTR, generate a shared library(libhugectr_inference.so), and install it in the specified folder correctly. The default path of all the HugeCTR libraries and header files are installed in /usr/local/hugectr folder.
 Before building HugeCTR from scratch, you should download the HugeCTR repository and the third-party modules that it relies on by running the following commands:
 
 
@@ -76,7 +76,7 @@ git submodule update --init --recursive
 ```
 You can build HugeCTR from scratch using  the following options:
 * **CMAKE_BUILD_TYPE**: You can use this option to build HugeCTR with Debug or Release. When using Debug to build, HugeCTR will print more verbose logs and execute GPU tasks in a synchronous manner.
-* **ENABLE_INFERENCE**: You can use this option to build HugeCTR in inference mode, which was designed for inference framework. In this mode,inference shared library will be built for hugectr backend. Only inference related interfaces could be used, which means users can’t train models in this mode. This option is set to OFF by default.
+* **ENABLE_INFERENCE**: You can use this option to build HugeCTR in inference mode, which was designed for inference framework. In this mode,inference shared library will be built for HugeCTR backend. Only inference related interfaces could be used, which means users can’t train models in this mode. This option is set to OFF by default.
 
 Here is the example of how you can build HugeCTR using these build options:
 
