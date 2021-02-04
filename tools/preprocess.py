@@ -254,4 +254,4 @@ if __name__ == '__main__':
     if os.path.exists(dst_csv_path) == True:
         sys.exit('ERROR: the file \'{}\' exists'.format(dst_csv_path))
 
-    preprocess(src_csv_path, dst_csv_path, normalize_dense, feature_cross
+    preprocess(src_csv_path, dst_csv_path, normalize_dense, feature_cross)
