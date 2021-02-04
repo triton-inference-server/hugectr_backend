@@ -159,7 +159,7 @@ $ curl -v localhost:8005/v2/health/ready
 ## 4. Running Deepfm Client 
 Use docker pull to get the client libraries and examples image from NGC.
 ```shell.
-$ docker pull nvcr.io/nvidia/tritonserver:<xx.yy>-py3-sdk
+$ docker pull nvcr.io/nvidia/tritonserver:<xx.yy>-py3-clientsdk
 ```
 Where <xx.yy> is the version that you want to pull.For stability considerations, we recommend using 20.10. Hugectr backend provided a client example for your reference, The input data is generated in `1.Download the dataset and preprocess` part
 ```shell.
