@@ -52,7 +52,7 @@ As result, CSR format input will be generated into dcn_csr.txt and the content a
 Label:0
 DES: 0.0,0.0,0.488888888888889,0.0,0.0,0.037037037037037,0.1111111111111111,0.0604026845637583,0.06,0.2,0.0,0.0,0.0
 CATCOLUMN: 58,177,554,811,877,954,1156,1528,1561,1605,1675,1807,2008,2066,2185,2357,2374,2411,2426,2432,2579,2629,2782,2992,3164,3196
-ROWINDEX: 0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 19 20 21 22 23 24 25 26
+ROWINDEX: 0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22,23,24,25,26
 ```
 
 
@@ -119,7 +119,7 @@ $ docker pull nvcr.io/nvidia/hugectr_backend:v3.0-inference
 ```
 Use the following command to run Triton with the dcn sample model repository. The NVIDIA Container Toolkit must be installed for Docker to recognize the GPU(s). The --gpus=2 flag indicates that 1 system GPU should be made available to Triton for inferencing. If building HugeCTR Backend from Scratch, please specify "--backend-directory" argument value as the absolute path that installs the HugeCTR backend.
 ```shell.
- docker run --gpus=2 --rm  -p 8005:8000 -p 8004:8001 -p 8003:8002  -v /hugectr_backend/sampes/:/model  nvcr.io/nvidia/hugectr_backend:v3.0-inference  tritonserver --model-repository=/model/ --backend-directory=/usr/local/hugectr/backends/ \
+ docker run --gpus=2 --rm  -p 8005:8000 -p 8004:8001 -p 8003:8002  -v /hugectr_backend/samples/:/model  nvcr.io/nvidia/hugectr_backend:v3.0-inference  tritonserver --model-repository=/model/ --backend-directory=/usr/local/hugectr/backends/ \
 --backend-config=hugectr,dcn=/model/dcn/1/dcn.json  \
 ```
 All the models should show "READY" status to indicate that they loaded correctly. If a model fails to load the status will report the failure and a reason for the failure. If your model is not displayed in the table check the path to the model repository and your CUDA drivers.
@@ -153,11 +153,9 @@ $ curl -v localhost:8005/v2/health/ready
 < Content-Type: text/plain
 ```
 ## 4. Running DCN Client 
-Use docker pull to get the client libraries and examples image from NGC.
-```shell.
-$ docker pull nvcr.io/nvidia/tritonserver:<xx.yy>-py3-clientsdk
-```
-Where <xx.yy> is the version that you want to pull.For stability considerations, we recommend using 20.10. Hugectr backend provided a client example for your reference, The input data is generated in `1.Download the dataset and preprocess` part
+The Client libraries and examples image are available in the NVIDIA container repository at the following location: https://ngc.nvidia.com/catalog/containers/nvidia:tritonserver.    
+
+The Clinet tags are <xx.yy>-py3-clientsdk, Where <xx.yy> is the version that you want to pull.For stability considerations, we recommend using 20.10. Hugectr backend provided a client example for your reference, The input data is generated in `1.Download the dataset and preprocess` part
 ```shell.
 $ docker run --rm --net=host -v /hugectr_backend/samples/dcn:/dcn nvcr.io/nvidia/tritonserver:20.10-py3-clientsdk python3 /dcn/dcn_client.py
 ```
