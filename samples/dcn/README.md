@@ -21,12 +21,12 @@ and download the kaggle-display dataset into the folder "${project_home}/tools/"
 
 ####  Download the Kaggle Criteo dataset using the following command: 
 ```shell.
-$  wget wget http://azuremlsampleexperiments.blob.core.windows.net/criteo/day_1.gz
+$  wget http://azuremlsampleexperiments.blob.core.windows.net/criteo/day_1.gz
 ```
 
 #### Extract the dataset using the following command:
 ```shell.
-$ tar zxvf day_1.gz
+$ gzip -d day_1.gz
 ```
 
 #### preprocess the data using the following commands:
@@ -34,36 +34,30 @@ The script `preprocess.py` fills the missing values by mapping them to the unuse
 It also replaces unique values which appear less than six times across the entire dataset with the unique value for missing values.
 Its purpose is to reduce the vocabulary size of each column while not losing too much information.
 In addition, it normalizes the integer feature values to the range [0, 1],
-but it doesn't create any feature crosses. Please choose one of the following two methods for data preprocessing.
+but it doesn't create any feature crosses. Please go to the folder "${project_home}/tools/" for data preprocessing.
 ```shell.
 $ mkdir dcn_data
-$ shuf train.txt > train.shuf.txt
-$ python3 ./preprocess.py --src_csv_path=train.shuf.txt --dst_csv_path=dcn_data/train.out.txt --normalize_dense=1 --feature_cross=0
+$ shuf day_1 > day_1.shuf.txt
+$ tail -n 10000 day_1.shuf.txt > train.shuf.txt
+$ python3 ./preprocess.py --src_csv_path=train.shuf.txt --dst_csv_path=dcn_data/test.txt --normalize_dense=1 --feature_cross=0
 ```
 
-#### Split the dataset using the following commands:
-```shell.
-$ head -n 36672493 dcn_data/train.out.txt > dcn_data/train && \\\\
-$ tail -n 9168124 dcn_data/train.out.txt > dcn_data/valtest && \\\\
-$ head -n 4584062 dcn_data/valtest > dcn_data/val && \\\\
-$ tail -n 4584062 dcn_data/valtest > dcn_data/test
-```
 #### Convert the criteo data to inference format
 The HugeCTR inference requires dense features, embedding columns and row pointers of slots as the input and gives the prediction result as the output. We need to convert the criteo data to inference format (csr) first.
 ```shell.
-$ ./criteo2predict.py --src_csv_path=dcn_data/test --src_config=../samples/dcn//dcn_data.json --dst_path=./dcn_csr.txt --segmentation ',' --batch_size=1
+$ python3 ./criteo2predict.py --src_csv_path=dcn_data/test.txt --src_config=../samples/dcn/dcn_data.json --dst_path=./dcn_csr.txt --segmentation ',' --batch_size=1
 ```
 As result, CSR format input will be generated into dcn_csr.txt and the content as below:
 ```shell.
 Label:0
-DES: 0.005376344086021505 0.0008673026886383349 0.002331002331002331 0.004651162790697674 0.006083972751905593 0.0008793527963418925 0.007590132827324478 0.00591715976331361 0.0420323325635104 0.20000000000000004 0.021428571428571432 0.0 0.00646551724137931
-CATCOLUMN: 630 1741 169492 439138 549150 549420 559916 561648 562203 595960 617230 785371 951890 954587 961209 1127998 1268021 1272637 1273122 1274952 1284808 1599234 1599246 1661028 1679074 1713689
+DES: 0.0,0.0,0.488888888888889,0.0,0.0,0.037037037037037,0.1111111111111111,0.0604026845637583,0.06,0.2,0.0,0.0,0.0
+CATCOLUMN: 58,177,554,811,877,954,1156,1528,1561,1605,1675,1807,2008,2066,2185,2357,2374,2411,2426,2432,2579,2629,2782,2992,3164,3196
 ROWINDEX: 0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 19 20 21 22 23 24 25 26
 ```
 
 
 ## 2. Get DCN trained model files
-Go to [(DCN training sample))](https://github.com/NVIDIA/HugeCTR/tree/master/samples/dcn#training-with-hugectr) in HugeCTR and make sure store the trained dense model and embedding table files into the folder "${project_home}/samples/dcn/1/"
+Go to [(DCN training sample))](https://github.com/NVIDIA/HugeCTR/tree/master/samples/dcn#training-with-hugectr) in HugeCTR and make sure store the trained dense model and embedding table files into the folder "${project_home}/samples/dcn/1/". In order to ensure that the training and inference configuration are consistent, please use the dcn_train.json file in the directory "${project_home}/samples/dcn"
 
 ## 3. Create inference configuration files
 ### DCN model network configuration 
