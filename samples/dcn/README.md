@@ -119,7 +119,7 @@ $ docker pull nvcr.io/nvidia/hugectr_backend:v3.0-inference
 ```
 Use the following command to run Triton with the dcn sample model repository. The NVIDIA Container Toolkit must be installed for Docker to recognize the GPU(s). The --gpus=2 flag indicates that 1 system GPU should be made available to Triton for inferencing. If building HugeCTR Backend from Scratch, please specify "--backend-directory" argument value as the absolute path that installs the HugeCTR backend.
 ```shell.
- docker run --gpus=2 --rm  -p 8005:8000 -p 8004:8001 -p 8003:8002  -v /hugectr_backend/samples/:/model  nvcr.io/nvidia/hugectr_backend:v3.0-inference  tritonserver --model-repository=/model/ --backend-directory=/usr/local/hugectr/backends/ \
+ docker run --gpus=1 --rm  -p 8005:8000 -p 8004:8001 -p 8003:8002  -v /hugectr_backend/samples/:/model  nvcr.io/nvidia/hugectr_backend:v3.0-inference  tritonserver --model-repository=/model/ --backend-directory=/usr/local/hugectr/backends/ \
 --backend-config=hugectr,dcn=/model/dcn/1/dcn.json  \
 ```
 All the models should show "READY" status to indicate that they loaded correctly. If a model fails to load the status will report the failure and a reason for the failure. If your model is not displayed in the table check the path to the model repository and your CUDA drivers.
