@@ -12,6 +12,7 @@ The original test set doesn't contain labels, so it's not used.
 * Python >= 3.6.9
 * Pandas 1.0.1
 * Sklearn 0.22.1
+* CPU MEMORY >= 20GB
 
 ### 1. Download the dataset and preprocess 
 
@@ -37,9 +38,8 @@ In addition, it normalizes the integer feature values to the range [0, 1],
 but it doesn't create any feature crosses. Please go to the folder "${project_home}/tools/" for data preprocessing.
 ```shell.
 $ mkdir deepfm_data
-$ shuf day_1 > day_1.shuf.txt
-$ tail -n 10000 day_1.shuf.txt > train.shuf.txt
-$ python3 ./preprocess.py --src_csv_path=train.shuf.txt --dst_csv_path=deepfm_data/test.txt --normalize_dense=1 --feature_cross=0
+$ tail -n 10000 > train.txt
+$ python3 ./preprocess.py --src_csv_path=train.txt --dst_csv_path=deepfm_data/test.txt --normalize_dense=1 --feature_cross=0
 ```
 
 #### Convert the criteo data to inference format
