@@ -77,8 +77,9 @@ git submodule update --init --recursive
 You can build HugeCTR from scratch using  the following options:
 * **CMAKE_BUILD_TYPE**: You can use this option to build HugeCTR with Debug or Release. When using Debug to build, HugeCTR will print more verbose logs and execute GPU tasks in a synchronous manner.
 * **ENABLE_INFERENCE**: You can use this option to build HugeCTR in inference mode, which was designed for inference framework. In this mode,inference shared library will be built for HugeCTR backend. Only inference related interfaces could be used, which means users can’t train models in this mode. This option is set to OFF by default.
+* **SM**: You can use this option to build HugeCTR with a specific compute capability (DSM=80) or multiple compute capabilities (DSM="70;75"). The following compute capabilities are supported: 6.0, 7.0, 7.5, and 8.0. The default compute capability is 70, which uses the NVIDIA V100 GPU.
 
-Here is the example of how you can build HugeCTR using these build options:
+Here are some examples of how you can build HugeCTR using these build options
 
 ```
 $ mkdir -p build
@@ -86,6 +87,13 @@ $ cd build
 $ cmake -DCMAKE_BUILD_TYPE=Release -DENABLE_INFERENCE=ON .. 
 $ make -j
 $ make install
+```
+
+```
+$ mkdir -p build
+$ cd build
+$ cmake -DCMAKE_BUILD_TYPE=Release -DSM="70,80" -DVAL_MODE=ON .. # Target is NVIDIA V100 / A100 and Validation mode on.
+$ make -j
 ```
 
 ### Building HugeCTR Backend from Scratch
