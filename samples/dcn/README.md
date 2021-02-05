@@ -12,7 +12,7 @@ The original test set doesn't contain labels, so it's not used.
 * Python >= 3.6.9
 * Pandas 1.0.1
 * Sklearn 0.22.1
-* CPU MEMORY >= 20GB 
+* CPU MEMORY >= 10GB 
 
 ### 1. Download the dataset and preprocess 
 
@@ -50,8 +50,8 @@ $ python3 ./criteo2predict.py --src_csv_path=dcn_data/test.txt --src_config=../s
 As result, CSR format input will be generated into dcn_csr.txt and the content as below:
 ```shell.
 Label:0
-DES: 0.0,0.0,0.488888888888889,0.0,0.0,0.037037037037037,0.1111111111111111,0.0604026845637583,0.06,0.2,0.0,0.0,0.0
-CATCOLUMN: 58,177,554,811,877,954,1156,1528,1561,1605,1675,1807,2008,2066,2185,2357,2374,2411,2426,2432,2579,2629,2782,2992,3164,3196
+DES: 0.0388349514563106,0.1674641148325358,0.0,0.0,0.0,0.0,0.125,0.0268456375838926,0.02,0.0,0.0,0.0,0.0
+CATCOLUMN: 45,112,529,782,836,926,988,1344,1476,1546,1685,1934,1996,2060,2258,2292,2309,2344,2365,2402,2511,2623,2727,3138,3175,3203
 ROWINDEX: 0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22,23,24,25,26
 ```
 
