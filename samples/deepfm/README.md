@@ -38,7 +38,7 @@ In addition, it normalizes the integer feature values to the range [0, 1],
 but it doesn't create any feature crosses. Please go to the folder "${project_home}/tools/" for data preprocessing.
 ```shell.
 $ mkdir deepfm_data
-$ tail -n 10000 > train.txt
+$ tail -n 10000 day_1 > train.txt
 $ python3 ./preprocess.py --src_csv_path=train.txt --dst_csv_path=deepfm_data/test.txt --normalize_dense=1 --feature_cross=0
 ```
 
