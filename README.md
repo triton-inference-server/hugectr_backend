@@ -69,7 +69,7 @@ HUgeCTR backend container has pre-installed the necessary libraries and header f
 
 ### Building HugeCTR Inference Server From Scratch
 
-1.  **Building HugeCTR from Scratch**
+** 1.  Building HugeCTR from Scratch**  
 
 Since the HugeCTR backend building is based on HugeCTR installation, the first step is to compile HugeCTR, generate a shared library(libhugectr_inference.so), and install it in the specified folder correctly. The default path of all the HugeCTR libraries and header files are installed in /usr/local/hugectr folder.
 Before building HugeCTR from scratch, you should download the HugeCTR repository and the third-party modules that it relies on by running the following commands:
@@ -102,7 +102,8 @@ $ cmake -DCMAKE_BUILD_TYPE=Release -DSM="70,80" -DENABLE_INFERENCE=ON .. # Targe
 $ make -j
 ```
 
-2.  **Building HugeCTR Backend from Scratch**
+**2.  Building HugeCTR Backend from Scratch**  
+
 Before building HugeCTR backend from scratch, you should download the HugeCTR backend repository by running the following commands:
 
 ```
