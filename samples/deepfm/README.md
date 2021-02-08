@@ -22,7 +22,7 @@ and download the kaggle-display dataset into the folder "${project_home}/tools/"
 
 ####  Download the Kaggle Criteo dataset using the following command: 
 ```shell.
-$  wget  http://azuremlsampleexperiments.blob.core.windows.net/criteo/day_1.gz
+$ wget  http://azuremlsampleexperiments.blob.core.windows.net/criteo/day_1.gz
 ```
 
 #### Extract the dataset using the following command:
@@ -109,7 +109,9 @@ For deploy the Hugectr model, Some customized configuration items need to be add
   value: { string_value: "false" }
   }
 ]
-```
+```  
+The configuration items described above have been added to the sample "${project_home}/samples/deepfm/config.pbtxt". 
+
 ## 4. Launch Triton Server to load DCN and Deepfm 
 Before you can use the Hugectr Docker image you must install Docker. If you plan on using a GPU for inference you must also install the NVIDIA Container Toolkit. DGX users should follow Preparing to use NVIDIA Containers. 
 
