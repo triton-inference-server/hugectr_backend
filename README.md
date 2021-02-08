@@ -36,7 +36,16 @@ HugeCTR Backend is a GPU-accelerated recommender model deploy framework that was
 # Quick Start
 
 ## Installing and Building HugeCTR Backend
-You can either install Hugectr backend easily using the Hugectr backend Docker image in NGC, or build Hugectr backend from scratch based on your own specific requirement if you're an advanced user.
+You can either install Hugectr backend easily using the Hugectr backend Docker image in NGC, or build Hugectr backend from scratch based on your own specific requirement using the same NGC Hugectr backend Docker image if you're an advanced user.  
+
+HugeCTR backend docker images are available in the NVIDIA container repository on https://ngc.nvidia.com/catalog/containers/nvidia:hugectr.
+
+You can pull and launch the container by running the following command:
+
+```
+docker run --runtime=nvidia --rm -it nvcr.io/nvidia/hugectr:v3.0-inference  # Start interaction mode  
+```
+
 We support the following compute capabilities for inference deployment:
 
 | Compute Capability | GPU                  |
@@ -54,16 +63,13 @@ The following prerequisites must be met before installing or building HugeCTR fr
 * GCC version 7.4.0
 
 ### Installing HugeCTR Inference Server from NGC Containers
-All NVIDIA Merlin components are available as open-source projects. However, a more convenient way to make use of these components is by using Merlin NGC containers. Containers allow you to package your software application, libraries, dependencies, and runtime compilers in a self-contained environment. When installing HugeCTR backend from NGC containers, the application environment remains both portable, consistent, reproducible, and agnostic to the underlying host system software configuration.
+All NVIDIA Merlin components are available as open-source projects. However, a more convenient way to make use of these components is by using Merlin NGC containers. Containers allow you to package your software application, libraries, dependencies, and runtime compilers in a self-contained environment. When installing HugeCTR backend from NGC containers, the application environment remains both portable, consistent, reproducible, and agnostic to the underlying host system software configuration.  
 
-HugeCTR backend docker images are available in the NVIDIA container repository on https://ngc.nvidia.com/catalog/containers/nvidia:hugectr.
+HUgeCTR backend container has pre-installed the necessary libraries and header files, and you can directly deploy the HugeCTR models in the production.  
 
-You can pull and launch the container by running the following command:
+### Building HugeCTR Inference Server Scratch
 
-```
-docker run --runtime=nvidia --rm -it nvcr.io/nvidia/hugectr:v3.0-inference  # Start interaction mode  
-```
-### Building HugeCTR from Scratch
+1.  Building HugeCTR from Scratch
 
 Since the HugeCTR backend building is based on HugeCTR installation, the first step is to compile HugeCTR, generate a shared library(libhugectr_inference.so), and install it in the specified folder correctly. The default path of all the HugeCTR libraries and header files are installed in /usr/local/hugectr folder.
 Before building HugeCTR from scratch, you should download the HugeCTR repository and the third-party modules that it relies on by running the following commands:
@@ -96,7 +102,7 @@ $ cmake -DCMAKE_BUILD_TYPE=Release -DSM="70,80" -DENABLE_INFERENCE=ON .. # Targe
 $ make -j
 ```
 
-### Building HugeCTR Backend from Scratch
+2.  Building HugeCTR Backend from Scratch
 Before building HugeCTR backend from scratch, you should download the HugeCTR backend repository by running the following commands:
 
 ```
