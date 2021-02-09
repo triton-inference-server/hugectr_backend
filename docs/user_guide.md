@@ -33,7 +33,7 @@ Current mechanism ensures that multiple model instances of the same model can sh
 
 ### Enbale GPU Embedding Cache
 
-If the user needs to enable the GPU cache mechanism, The model will directly look up the embedding vector from the GPU embedding cache. If the embedding vector does not exist in the GPU embedding cache, it will directly return the default embedding vector (default value is 0). 
+If the user needs to enable the GPU cache mechanism, the model will look up the embedding vector from the GPU embedding cache. If the embedding vector does not exist in the GPU embedding cache, it will return the default embedding vector (default value is 0). 
  
 The necessary configuration items need to be set in HugeCTR Backend "config.pbtxt" as follows:
 
@@ -51,10 +51,10 @@ The necessary configuration items need to be set in HugeCTR Backend "config.pbtx
 ...
 ]
 ```  
-* **gpucache**: You can use this option to enable  the GPU cache mechanism.  
+* **gpucache**: You can use this option to enable  the GPU cache mechanism.   
 * **gpucacheper**: You can use this option to decide the ratio(default is 0.5) that embedding vectors will be loaded from the embedding table into the GPU embedding cache. In the above example, 50% of the embedding table will be loaded into the GPU embedding cache.    
 
-GPU embedding cache also supports embedding vector updates with parameter server in a fixed hit ratio threshold. User needs to set hit ratio threshold in model inference configuration json file, such as [dcn.json](https://gitlab-master.nvidia.com/dl/hugectr/hugectr_inference_backend/-/blob/main/samples/dcn/1/dcn.json) and [deepfm.json](https://gitlab-master.nvidia.com/dl/hugectr/hugectr_inference_backend/-/blob/main/samples/deepfm/1/deepfm.json)  
+GPU embedding cache also supports embedding vector updates with parameter server in a fixed hit ratio. User needs to set hit ratio threshold in model inference configuration json file, such as [dcn.json](https://gitlab-master.nvidia.com/dl/hugectr/hugectr_inference_backend/-/blob/main/samples/dcn/1/dcn.json) and [deepfm.json](https://gitlab-master.nvidia.com/dl/hugectr/hugectr_inference_backend/-/blob/main/samples/deepfm/1/deepfm.json)  
 
  ```json.
  ...
