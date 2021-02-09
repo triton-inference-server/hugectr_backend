@@ -98,3 +98,14 @@ In order to efficiently read the data to obtain the data semantic information fr
 <div align=center><img src ="user_guide_src/HugeCTR_Inference_Input_Format.png"/></div>
 <div align=center>Fig. 3. HugeCTR Inference VCSR Input Format</div>
 
+Take the **Row 0**(also a sample) of the above figure as an example, the input data contains 4 slots, HugeCTR parses the Row 0 slot information according to "Row ptr" input. "Row ptr" input will provide the number of categorical features contained in each slot, as shown below：  
+
+<div align=center><img src ="user_guide_src/HugeCTR_Inference_VCSR_Example.png"/></div>
+<div align=center>Fig. 3. HugeCTR Inference VCSR Example</div>
+
+* slot 1: contains **1** categorical feature and the embedding key is 1. 
+* slot 2: contains **1** categorical feature and the embedding key is 3.
+* slot 3: contains **0** categorical feature.
+* slot 4: contains **2** categorical feature and the embedding keys are 8 and 9. HugeCTR will look up two embedding vectors from GPU embedding cache or parameter server and reduce to one as the final embedding vector of slot 4.
+
+
