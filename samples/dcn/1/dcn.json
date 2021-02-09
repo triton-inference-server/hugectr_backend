@@ -1,6 +1,7 @@
 {
   "inference": {
     "max_batchsize": 64,
+    "hit_rate_threshold": 0.6,
     "dense_model_file": "/model/dcn/1/_dense_10000.model",
     "sparse_model_file": "/model/dcn/1/0_sparse_10000.model",
     "label": 1
