@@ -43,7 +43,7 @@ HugeCTR backend docker images are available in the NVIDIA container repository o
 You can pull and launch the container by running the following command:
 
 ```
-docker run --runtime=nvidia --rm -it nvcr.io/nvidia/hugectr:v3.0-inference  # Start interaction mode  
+docker run --gpus=1 --rm -it nvcr.io/nvidia/hugectr:v3.0-inference  # Start interaction mode  
 ```
 
 We support the following compute capabilities for inference deployment:
