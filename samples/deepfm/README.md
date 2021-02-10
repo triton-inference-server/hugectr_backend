@@ -57,7 +57,7 @@ ROWINDEX: 0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22,23,24,25,26
 
 
 ## 2. Get Deepfm trained model files
-Go to [(deepfm training sample))](https://github.com/NVIDIA/HugeCTR/tree/master/samples/deepfm#training-with-hugectr) in HugeCTR and make sure store the trained dense model and embedding table files into the folder "${project_home}/samples/deepfm/1/". In order to ensure that the training and inference configuration are consistent, please use the deepfm_train.json file in the directory "${project_home}/samples/deepfm"
+Go to [(deepfm training sample))](https://github.com/NVIDIA/HugeCTR/tree/master/samples/deepfm#training-with-hugectr) in HugeCTR and make sure store the trained dense model and embedding table files into the folder "${project_home}/samples/deepfm/1/". In order to ensure that the training and inference configuration are consistent, please use the deepfm_train.json file in the directory "${project_home}/samples/deepfm". Please keep the "source" and "eval_source" data directories consistent if you change the default storage directory for preprocessed data.  
 
 ## 3. Create inference configuration files
 ### Deepfm model network configuration 
@@ -119,7 +119,7 @@ Pull the image using the following command.
 ```shell.
 $ docker pull nvcr.io/nvidia/hugectr_backend:v3.0-inference
 ```
-In this sample, the DCN model and Deepfm model can be deployed simultaneously with multiple model instances in the same GPU.
+In this sample, the DCN model and Deepfm model can be deployed simultaneously with multiple model instances in the same GPU. Please ensure that you can successfully deploy the dcn model according to the instructions in the "${project_home}/samples/dcn".  
 Use the following command to run Triton with the deepfm and dcn sample model repository. The NVIDIA Container Toolkit must be installed for Docker to recognize the GPU(s). The --gpus=1 flag indicates that 1 system GPU should be made available to Triton for inferencing.  If building HugeCTR Backend from Scratch, please specify "--backend-directory" argument value as the absolute path that installs the HugeCTR backend.
 ```shell.
  docker run --gpus=1 --rm  -p 8005:8000 -p 8004:8001 -p 8003:8002  -v /hugectr_backend/samples/:/model  nvcr.io/nvidia/hugectr_backend:v3.0-inference  tritonserver --model-repository=/model/ --backend-directory=/usr/local/hugectr/backends/ \
