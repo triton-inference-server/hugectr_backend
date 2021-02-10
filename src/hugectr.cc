@@ -1571,7 +1571,7 @@ TRITONBACKEND_ModelInstanceExecute(
         //Get the prediction execution time (ms) 
         int64_t exe_time=(max_exec_end_ns-min_exec_start_ns)/1000000;
         LOG_MESSAGE(
-            TRITONSERVER_LOG_ERROR,
+            TRITONSERVER_LOG_INFO,
             (std::string("Prediction exe_time is ") + std::to_string(exe_time) + " ms" )
                 .c_str());
       }
