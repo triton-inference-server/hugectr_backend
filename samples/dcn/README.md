@@ -154,7 +154,7 @@ $ curl -v localhost:8005/v2/health/ready
 < Content-Length: 0
 < Content-Type: text/plain
 ```
-## 4. Running DCN Client 
+## 4. Run DCN Client 
 The Client libraries and examples image are available in the NVIDIA container repository at the following location: https://ngc.nvidia.com/catalog/containers/nvidia:tritonserver.    
 
 The Clinet tags are <xx.yy>-py3-clientsdk, Where <xx.yy> is the version that you want to pull.For stability considerations, we recommend using 20.10. Hugectr backend provided a client example for your reference, The input data is generated in `1.Download the dataset and preprocess` part
