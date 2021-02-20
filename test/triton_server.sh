@@ -41,7 +41,7 @@ tritonserver --model-repository=/model/ --backend-directory=/usr/local/hugectr/b
 --backend-config=hugectr,identity=/model/identity/1/simple_inference_config.json &
 
  echo "starting triton....."
- sleep 300
+ sleep 900
  echo "start triton server success" 
 
 }
