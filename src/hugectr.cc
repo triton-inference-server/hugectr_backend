@@ -605,6 +605,10 @@ ModelState::ParseModelConfig()
           "string_value", &cat_str));
       cat_num_=std::stoi(cat_str );
       LOG_MESSAGE(TRITONSERVER_LOG_INFO,(std::string("cat_feature num is : ") + std::to_string(cat_num_)).c_str());
+      RETURN_ERROR_IF_FALSE(
+      cat_num_!=0, TRITONSERVER_ERROR_INVALID_ARG,
+      std::string("expected at least one categorical feature, got ") +
+          std::to_string(cat_num_));
     }
 
     common::TritonJson::Value embsize;
@@ -1283,21 +1287,21 @@ TRITONBACKEND_ModelInstanceExecute(
         TRITONBACKEND_RequestInputName(request, 0 /* index */, &input_name));
     RETURN_ERROR_IF_FALSE(
       instance_state->StateForModel()->GetInputmap().count(input_name)>0, TRITONSERVER_ERROR_INVALID_ARG,
-      std::string("expected input name as DES,CATCOLUMN and ROWINDEX in request, but got ") + input_name );
+      std::string("expected input name as DES, CATCOLUMN and ROWINDEX in request, but got ") + input_name );
   
     GUARDED_RESPOND_IF_ERROR(
         responses, r,
         TRITONBACKEND_RequestInputName(request, 1 /* index */, &input_name));
     RETURN_ERROR_IF_FALSE(
       instance_state->StateForModel()->GetInputmap().count(input_name)>0, TRITONSERVER_ERROR_INVALID_ARG,
-      std::string("expected input name as DES,CATCOLUMN and ROWINDEX in request, but got ") + input_name );
+      std::string("expected input name as DES, CATCOLUMN and ROWINDEX in request, but got ") + input_name );
     
     GUARDED_RESPOND_IF_ERROR(
         responses, r,
         TRITONBACKEND_RequestInputName(request, 2 /* index */, &input_name));
     RETURN_ERROR_IF_FALSE(
       instance_state->StateForModel()->GetInputmap().count(input_name)>0, TRITONSERVER_ERROR_INVALID_ARG,
-      std::string("expected input name as DES,CATCOLUMN and ROWINDEX in request, but got ") + input_name );
+      std::string("expected input name as DES, CATCOLUMN and ROWINDEX in request, but got ") + input_name );
 
     const char* des_input_name="DES";
 
@@ -1354,6 +1358,10 @@ TRITONBACKEND_ModelInstanceExecute(
     uint64_t row_byte_size;
     uint32_t input_buffer_count;
     int64_t num_of_samples = 0;
+    int64_t numofdes;
+    int64_t numofcat;
+    int64_t num_of_sample_des=1;
+    int64_t num_of_sample_cat=1;
    
 
     GUARDED_RESPOND_IF_ERROR(
@@ -1400,6 +1408,11 @@ TRITONBACKEND_ModelInstanceExecute(
          ", buffer_count = " + std::to_string(input_buffer_count))
             .c_str());
 
+    if (instance_state->StateForModel()->DeseNum()!=0 && des_byte_size==0){
+        GUARDED_RESPOND_IF_ERROR(responses, r, TRITONSERVER_ErrorNew(TRITONSERVER_ERROR_UNSUPPORTED,
+                  "The DES input in request is empty. The input sample size to be an integer multiple of the configuration."));
+    }
+
     
     if (responses[r] == nullptr) {
       LOG_MESSAGE(
@@ -1440,9 +1453,17 @@ TRITONBACKEND_ModelInstanceExecute(
 
       // Step 1. Input should have correct size...
       TRITONBACKEND_Output* output;
-      int64_t numofdes = (des_byte_size/sizeof(float));
-      int64_t numofcat = ((cat_byte_size)/sizeof(unsigned int));
-      if (numofdes%(instance_state->StateForModel()->DeseNum())!=0){
+      
+      numofdes = (des_byte_size/sizeof(float));
+      if (instance_state->StateForModel()->SupportLongEmbeddingKey()){
+        numofcat = ((cat_byte_size)/sizeof(long long));
+      }
+      else{
+        numofcat = ((cat_byte_size)/sizeof(unsigned int));
+      }
+      
+      if (instance_state->StateForModel()->DeseNum()!=0 &&
+          numofdes%(instance_state->StateForModel()->DeseNum())!=0){
         GUARDED_RESPOND_IF_ERROR(responses, r, TRITONSERVER_ErrorNew(TRITONSERVER_ERROR_UNSUPPORTED,
                   "The DES input sample size in request is not match with configuration. The input sample size to be an integer multiple of the configuration."));
       }
@@ -1450,17 +1471,18 @@ TRITONBACKEND_ModelInstanceExecute(
         GUARDED_RESPOND_IF_ERROR(responses, r, TRITONSERVER_ErrorNew(TRITONSERVER_ERROR_UNSUPPORTED,
                   "The CATCOLUMN input sample size in request is not match with configuration. The input sample size to be an integer multiple of the configuration."));
       }
-      int64_t num_of_sample_des = floor(numofdes/(instance_state->StateForModel()->DeseNum()));
-      int64_t num_of_sample_cat = ceil(numofcat/(instance_state->StateForModel()->CatNum()));
-      if (instance_state->StateForModel()->SupportLongEmbeddingKey()){
-        num_of_sample_cat = ceil((cat_byte_size)/sizeof(long long));
+      if(instance_state->StateForModel()->DeseNum()!=0){
+        num_of_sample_des = floor(numofdes/(instance_state->StateForModel()->DeseNum()));
       }
       
-      if(num_of_sample_des!= num_of_sample_cat){
+      num_of_sample_cat = floor(numofcat/(instance_state->StateForModel()->CatNum()));
+      
+      if(instance_state->StateForModel()->DeseNum()!=0 &&
+          num_of_sample_des!= num_of_sample_cat){
         GUARDED_RESPOND_IF_ERROR(responses, r, TRITONSERVER_ErrorNew(TRITONSERVER_ERROR_UNSUPPORTED,
                   "The input sample size in DES and CATCOLUMN is not match"));
       }
-      num_of_samples = num_of_sample_des;
+      num_of_samples = num_of_sample_cat;
       if ((num_of_samples>instance_state->StateForModel()->BatchSize()) ) {
           GUARDED_RESPOND_IF_ERROR(
               responses, r,
