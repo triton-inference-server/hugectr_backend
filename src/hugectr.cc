@@ -1356,7 +1356,9 @@ TRITONBACKEND_ModelInstanceExecute(
     uint64_t des_byte_size;
     uint64_t cat_byte_size;
     uint64_t row_byte_size;
-    uint32_t input_buffer_count;
+    uint32_t des_input_buffer_count;
+    uint32_t cat_input_buffer_count;
+    uint32_t rowindex_input_buffer_count;
     int64_t num_of_samples = 0;
     int64_t numofdes;
     int64_t numofcat;
@@ -1368,7 +1370,7 @@ TRITONBACKEND_ModelInstanceExecute(
         responses, r,
         TRITONBACKEND_InputProperties(
             catcol_input, nullptr /* input_name */, &cat_datatype, &input_shape,
-            &cat_dims_count, &cat_byte_size, &input_buffer_count));
+            &cat_dims_count, &cat_byte_size, &cat_input_buffer_count));
      LOG_MESSAGE(
         TRITONSERVER_LOG_INFO,
         
@@ -1376,7 +1378,7 @@ TRITONBACKEND_ModelInstanceExecute(
          ": datatype = " + TRITONSERVER_DataTypeString(cat_datatype) +
          ", shape = " + backend::ShapeToString(input_shape, cat_dims_count) +
          ", byte_size = " + std::to_string(cat_byte_size) +
-         ", buffer_count = " + std::to_string(input_buffer_count))
+         ", buffer_count = " + std::to_string(cat_input_buffer_count))
             .c_str());
     
 
@@ -1384,28 +1386,28 @@ TRITONBACKEND_ModelInstanceExecute(
         responses, r,
         TRITONBACKEND_InputProperties(
             row_input, nullptr /* input_name */, &row_datatype, &input_shape,
-            &row_dims_count, &row_byte_size, &input_buffer_count));
+            &row_dims_count, &row_byte_size, &rowindex_input_buffer_count));
      LOG_MESSAGE(
         TRITONSERVER_LOG_INFO,
         (std::string("\tinput ") + row_input_name +
          ": datatype = " + TRITONSERVER_DataTypeString(row_datatype) +
          ", shape = " + backend::ShapeToString(input_shape, row_dims_count) +
          ", byte_size = " + std::to_string(row_byte_size) +
-         ", buffer_count = " + std::to_string(input_buffer_count))
+         ", buffer_count = " + std::to_string(rowindex_input_buffer_count))
             .c_str());
      
      GUARDED_RESPOND_IF_ERROR(
         responses, r,
         TRITONBACKEND_InputProperties(
             des_input, nullptr /* input_name */, &des_datatype, &input_shape,
-            &des_dims_count, &des_byte_size, &input_buffer_count));
+            &des_dims_count, &des_byte_size, &des_input_buffer_count));
     LOG_MESSAGE(
         TRITONSERVER_LOG_INFO,
         (std::string("\tinput ") + des_input_name +
          ": datatype = " + TRITONSERVER_DataTypeString(des_datatype) +
          ", shape = " + backend::ShapeToString(input_shape, des_dims_count) +
          ", byte_size = " + std::to_string(des_byte_size) +
-         ", buffer_count = " + std::to_string(input_buffer_count))
+         ", buffer_count = " + std::to_string(des_input_buffer_count))
             .c_str());
 
     if (instance_state->StateForModel()->DeseNum()!=0 && des_byte_size==0){
@@ -1436,7 +1438,7 @@ TRITONBACKEND_ModelInstanceExecute(
     } else {
       total_batch_size++;
     }
-
+    
     // We only need to produce an output if it was requested.
     if (requested_output_count > 0) {
       // Hugectr model will handls all the inpput on device and predict the result. The output tensor copies the result from GPU to CPU. 
@@ -1512,7 +1514,7 @@ TRITONBACKEND_ModelInstanceExecute(
       GUARDED_RESPOND_IF_ERROR(
           responses, r,
           TRITONBACKEND_OutputBuffer(
-              output, &output_buffer, instance_state->GetDeseBuffer()->get_buffer_size(), &output_memory_type,
+              output, &output_buffer, instance_state->StateForModel()->BatchSize() * sizeof(float), &output_memory_type,
               &output_memory_type_id));
       if ((responses[r] == nullptr) ) {
         GUARDED_RESPOND_IF_ERROR(
@@ -1528,13 +1530,12 @@ TRITONBACKEND_ModelInstanceExecute(
                 .c_str());
         continue;
       }
-
       // Step 3. Copy all input data -> Device Buffer. 
       size_t output_buffer_offset = 0;
-      for (uint32_t b = 0; b < input_buffer_count; ++b) {
+      for (uint32_t b = 0; b < cat_input_buffer_count; ++b) {
 
         const void* des_buffer=nullptr;
-        uint64_t buffer_byte_size = des_byte_size;
+        uint64_t buffer_byte_size = num_of_sample_cat*sizeof(float);
         TRITONSERVER_MemoryType input_memory_type = TRITONSERVER_MEMORY_GPU;
         int64_t input_memory_type_id = 0;
         GUARDED_RESPOND_IF_ERROR(
