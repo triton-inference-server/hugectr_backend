@@ -55,7 +55,6 @@ CATCOLUMN: 45,112,529,782,836,926,988,1344,1476,1546,1685,1934,1996,2060,2258,22
 ROWINDEX: 0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22,23,24,25,26
 ```
 
-
 ## 2. Get DCN trained model files
 Go to [(DCN training sample))](https://github.com/NVIDIA/HugeCTR/tree/master/samples/dcn#training-with-hugectr) in HugeCTR and make sure store the trained dense model and embedding table files into the folder "${project_home}/samples/dcn/1/". In order to ensure that the training and inference configuration are consistent, please use the dcn_train.json file in the directory "${project_home}/samples/dcn". Please keep the "source" and "eval_source" data directories consistent if you change the default storage directory for preprocessed data.  
 
@@ -110,7 +109,19 @@ In order to deploy the Hugectr model, some customized configuration items need t
   }
 ]
 ```  
-The configuration items described above have been added to the sample "${project_home}/samples/dcn/config.pbtxt". 
+The configuration items described above have been added to the sample "${project_home}/samples/dcn/config.pbtxt".  
+
+If you use Parquet format data as input to train the model in [**2. Get DCN trained model files**](https://gitlab-master.nvidia.com/dl/hugectr/hugectr_inference_backend/-/blob/main/samples/dcn/README.md#2-get-dcn-trained-model-files), it means that the key type of the embedding table is I64 (the default is I32), so the configuration file needs to be modified as follows:  
+```json.
+ parameters [
+...
+  {
+  key: "embeddingkey_long_type"
+  value: { string_value: "true" }
+  }
+... 
+]
+```
 
 ## 4. Launch Triton Server 
 Before you can use the Hugectr Docker image you must install Docker. If you plan on using a GPU for inference you must also install the NVIDIA Container Toolkit. DGX users should follow Preparing to use NVIDIA Containers. 
@@ -119,7 +130,11 @@ Pull the image using the following command.
 ```shell.
 $ docker pull nvcr.io/nvidia/hugectr_backend:v3.0-inference
 ```
-Use the following command to run Triton with the dcn sample model repository. If the deepfm model files are not trained and exported before, please remove the "${project_home}/samples/deepfm". The NVIDIA Container Toolkit must be installed for Docker to recognize the GPU(s). The --gpus=2 flag indicates that 1 system GPU should be made available to Triton for inferencing. If building HugeCTR Backend from Scratch, please specify "--backend-directory" argument value as the absolute path that installs the HugeCTR backend.
+Use the following command to run Triton with the dcn sample model repository. If the deepfm model files are not trained and exported before, please remove the "${project_home}/samples/deepfm". The NVIDIA Container Toolkit must be installed for Docker to recognize the GPU(s). The --gpus=1 flag indicates that 1 system GPU should be made available to Triton for inferencing.   
+
+- If building HugeCTR Backend from Scratch, please specify "--backend-directory" argument value as the absolute path that installs the HugeCTR backend.  
+- If the key value type of the embedding table is I64, please add "--backend-config=hugectr,supportlonglong=true".    
+
 ```shell.
  docker run --gpus=1 --rm  -p 8005:8000 -p 8004:8001 -p 8003:8002  -v /hugectr_backend/samples/:/model  nvcr.io/nvidia/hugectr_backend:v3.0-inference  tritonserver --model-repository=/model/ --backend-directory=/usr/local/hugectr/backends/ \
 --backend-config=hugectr,dcn=/model/dcn/1/dcn.json  \
@@ -157,7 +172,10 @@ $ curl -v localhost:8005/v2/health/ready
 ## 4. Running DCN Client 
 The Client libraries and examples image are available in the NVIDIA container repository at the following location: https://ngc.nvidia.com/catalog/containers/nvidia:tritonserver.    
 
-The Clinet tags are <xx.yy>-py3-clientsdk, Where <xx.yy> is the version that you want to pull.For stability considerations, we recommend using 20.10. Hugectr backend provided a client example for your reference, The input data is generated in `1.Download the dataset and preprocess` part
+The Clinet tags are <xx.yy>-py3-clientsdk, Where <xx.yy> is the version that you want to pull.For stability considerations, we recommend using 20.10. Hugectr backend provided a client example for your reference, The input data is generated in `1.Download the dataset and preprocess` part.  
+
+If the key value type of the embedding table is I64, please change the **dtype** of "CATCOLUMN" input data from "**uint32**" to "**int64**" in dcn_client.py. 
+
 ```shell.
 $ docker run --rm --net=host -v /hugectr_backend/samples/dcn:/dcn nvcr.io/nvidia/tritonserver:20.10-py3-clientsdk python3 /dcn/dcn_client.py
 ```
