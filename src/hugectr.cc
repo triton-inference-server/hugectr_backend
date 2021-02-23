@@ -1535,7 +1535,7 @@ TRITONBACKEND_ModelInstanceExecute(
       for (uint32_t b = 0; b < cat_input_buffer_count; ++b) {
 
         const void* des_buffer=nullptr;
-        uint64_t buffer_byte_size = num_of_sample_cat*sizeof(float);
+        uint64_t buffer_byte_size = des_byte_size;
         TRITONSERVER_MemoryType input_memory_type = TRITONSERVER_MEMORY_GPU;
         int64_t input_memory_type_id = 0;
         GUARDED_RESPOND_IF_ERROR(
