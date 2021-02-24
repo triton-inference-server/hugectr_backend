@@ -25,17 +25,17 @@ Here is  the complete design framework of the HugeCTR inference interface.
 <div align=center><img src ="user_guide_src/HugeCTR_Inference_Interface_Design.png"/></div>
 <div align=center>Fig. 1. HugeCTR Inference Design Architecture</div>  
   
-In actual applications, a parameter server is used to load the embedding table of all models. Since different models will obtain different embedding tables through training in different application scenarios, it will bring high memory overhead in the inference process. By introducing a parameter server, the embedding table can be directly loaded into GPU memory when the embedding table size is small and loaded into CPU memory even SSD When the size is too large. So as to ensure the isolation of different models and the data sharing between the same models.  
+In actual applications, a parameter server is used to load the embedding tables of all models. Since different models will obtain different embedding tables through training in different application scenarios, it will bring high memory overhead in the inference process. By introducing a parameter server, the embedding table can be directly loaded into GPU memory when the embedding table size is small and loaded into CPU memory even SSD When the size is too large. So as to ensure the isolation of different models and the embedding tables sharing between the same models.  
 
 Each embedding table will create an individual embedding cache on different GPUs. Embedding cache treats the embedding table as the smallest granularity, which means that embedding cache could lookup and synchronize with the corresponding embedding table directly.  
 
-Current mechanism ensures that multiple model instances of the same model can share the same embedding cache on the deployed GPU node, embedding table will be periodically updated(or based on threshold defined by user) with the embedding cache to realize the acceleration of looking up embedding vectors from parameter server. 
+Current mechanism ensures that multiple model instances of the same model can share the same embedding cache on the deployed GPU node, embedding table will be periodically updated(or based on threshold defined by user) with the embedding cache to realize the acceleration of looking up embedding vectors from parameter server.  
 
 ### Enbale GPU Embedding Cache
 
-If the user needs to enable the GPU cache mechanism, the model will look up the embedding vector from the GPU embedding cache. If the embedding vector does not exist in the GPU embedding cache, it will return the default embedding vector (default value is 0). 
+If the user enables the GPU cache mechanism, the model will look up the embedding vector from the GPU embedding cache. If the embedding vector does not exist in the GPU embedding cache, it will return the default embedding vector (default value is 0).  
  
-The necessary configuration items need to be set in HugeCTR Backend "config.pbtxt" as follows:
+The necessary configuration items need to be set in HugeCTR Backend "config.pbtxt" as follows:  
 
  ```json.
  parameters [
@@ -51,7 +51,7 @@ The necessary configuration items need to be set in HugeCTR Backend "config.pbtx
 ...
 ]
 ```  
-* **gpucache**: You can use this option to enable  the GPU cache mechanism.   
+* **gpucache**: You can use this option to enable the GPU cache mechanism.   
 * **gpucacheper**: You can use this option to decide the ratio(default is 0.5) that embedding vectors will be loaded from the embedding table into the GPU embedding cache. In the above example, 50% of the embedding table will be loaded into the GPU embedding cache.    
 
 GPU embedding cache also supports embedding vector updates with parameter server in a fixed hit ratio. User needs to set hit ratio threshold in model inference configuration json file, such as [dcn.json](https://gitlab-master.nvidia.com/dl/hugectr/hugectr_inference_backend/-/blob/main/samples/dcn/1/dcn.json) and [deepfm.json](https://gitlab-master.nvidia.com/dl/hugectr/hugectr_inference_backend/-/blob/main/samples/deepfm/1/deepfm.json)  
@@ -69,7 +69,7 @@ GPU embedding cache also supports embedding vector updates with parameter server
 ...
 ]
 ``` 
-* **hit_rate_threshold**: You can use this option to determine that the update mechanism of embedding cache and parameter server is based on the hit rate. If the hit rate of an embedding vector looking up is lower than the threshold, the GPU embedding cache will update the missing vector with parameter server.  
+* **hit_rate_threshold**: You can use this option to determine that the Updating mechanism of embedding cache and parameter server is based on the hit rate. If the hit rate of an embedding vector looking up is lower than the threshold, the GPU embedding cache will update the missing vector with parameter server.  
 
 ### Disable GPU Embedding Cache
 If the user disables the GPU embedding cache mechanism (set "gpucache" as false), the model will look up the embedding vector  from the parameter server directly, and all GPU embedding cache related settings will be invalid.  
@@ -91,7 +91,7 @@ Each node contains multiple GPUs and a parameter server is deployed on the same 
 ## Variant Compressed Sparse Row Input 
 Here is a brief introduction to the data structure used for the HugeCTR model for inference services.  
 In order to efficiently read the data to obtain the data semantic information from  the raw data and avoid consuming too much time for data parsing, we use the variant csr data format as input for HugeCTR model. For each sample, there are mainly three types of input data:  
-* Dese feature: normal numerical data is called Dese feature.
+* Dense feature: normal numerical data is called Dense feature.
 * Column indices: As the upstream of preprocessing tools, NVTabular performs one-hot and multi-hot encoding on categorical data, and converts categorical data into numerical data.  
 * Row ptr: NVTabular needs to output the corresponding slot information to indicate the feature filedes to corresponding categorical data. Using this variant CSR data format, the model obtains the feature field information when reading data from request,  avoiding the redundant analysis so as to speed up the inference process.
 
@@ -99,7 +99,7 @@ In order to efficiently read the data to obtain the data semantic information fr
 <div align=center>Fig. 3. HugeCTR Inference VCSR Input Format</div>
 
 ### VCSR Example
-Take the **Row 0** ( also a sample ) of the above figure as an example, the input data contains 4 slots, HugeCTR parses the Row 0 slot information according to "Row ptr" input. "Row ptr" input will provide the number of categorical features contained in each slot, as shown below：  
+Take the **Row 0** ( a sample) of the above figure as an example, the input data contains 4 slots, HugeCTR parses the Row 0 slot information according to "Row ptr" input. "Row ptr" input will provide the number of categorical features contained in each slot, as shown below：  
 
 <div align=center><img src ="user_guide_src/HugeCTR_Inference_VCSR_Example.png" width="562" height="225" /></div>
 <div align=center>Fig. 4. HugeCTR Inference VCSR Example</div>
