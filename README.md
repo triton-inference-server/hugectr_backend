@@ -28,7 +28,7 @@
 
 [![License](https://img.shields.io/badge/License-BSD3-lightgrey.svg)](https://opensource.org/licenses/BSD-3-Clause)
 
-#HugeCTR Backend
+# HugeCTR Backend
 
 The HugeCTR Backend is a GPU-accelerated recommender model deploy framework that was designed to effectively use GPU memory to accelerate the inference by decoupling the parameter server and embedding cache and model weight. HugeCTR Backend supports concurrent model inference execution across multiple GPUs by embedding cache that is shared between multiple model instances. For additional information, see [HugeCTR Inference User Guide](docs/user_guide.md).  
 
@@ -130,7 +130,7 @@ but the listed CMake argument can be used to override.
 
 ### Model Repository Extension
 
-The riton's model repository extension allows a client to query and control the one or more model repositories being served by Triton. Because this extension is supported, Triton reports “model_repository” in the extensions field of its Server Metadata. For additional information, see [Model Repository Extension](https://github.com/triton-inference-server/server/blob/master/docs/protocol/extension_model_repository.md).  
+The Triton's model repository extension allows a client to query and control the one or more model repositories being served by Triton. Because this extension is supported, Triton reports “model_repository” in the extensions field of its Server Metadata. For additional information, see [Model Repository Extension](https://github.com/triton-inference-server/server/blob/master/docs/protocol/extension_model_repository.md).  
  
 As one of the customized backend components of Triton, HugeCTR Backend also supports Model Repository Extension. As HugeCTR Backend is an  [hierarchical inference framework](docs/user_guide.md) for recommendation fields, we provide isolated loading of embedding tables through parameter server, and achieve high service availability through GPU embedding cache. So the following points need to be noted when using model extension functions:  
  - [The load API](https://github.com/triton-inference-server/server/blob/master/docs/protocol/extension_model_repository.md#load) will load the network weight part of the HugeCTR model (not including embedding tables), which means Parameter Server will independently provide an update mechanism for existing embedding tables. If you need to load a new model, you can refer to the [samples](samples/dcn/README.md) to launch Triton Server again.  
