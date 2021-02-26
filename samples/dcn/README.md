@@ -1,5 +1,5 @@
 # DCN SAMPLE 
-A sample of deploying Deep & Cross Network with Hugectr backend [(link)](https://arxiv.org/pdf/1708.05123.pdf).
+A sample of deploying Deep & Cross Network with HugeCTR backend [(link)](https://arxiv.org/pdf/1708.05123.pdf).
 
 ## Dataset and preprocess 
 The data is provided by CriteoLabs (http://azuremlsampleexperiments.blob.core.windows.net/criteo/day_1.gz).
@@ -56,15 +56,15 @@ ROWINDEX: 0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22,23,24,25,26
 ```
 
 ## 2. Get DCN trained model files
-Go to [(DCN training sample))](https://github.com/NVIDIA/HugeCTR/tree/master/samples/dcn#training-with-hugectr) in HugeCTR and make sure store the trained dense model and embedding table files into the folder "${project_home}/samples/dcn/1/". In order to ensure that the training and inference configuration are consistent, please use the dcn_train.json file in the directory "${project_home}/samples/dcn". Please keep the "source" and "eval_source" data directories consistent if you change the default storage directory for preprocessed data.  
+Go to [(DCN training sample))](https://github.com/NVIDIA/HugeCTR/tree/master/samples/dcn#training-with-hugectr) in HugeCTR and make sure to store the trained dense model and embedding table files into the folder "${project_home}/samples/dcn/1/". In order to ensure that the training and inference configuration are consistent, please use the dcn_train.json file in the directory "${project_home}/samples/dcn". Please keep the "source" and "eval_source" data directories consistent if you change the default storage directory for preprocessed data.  
 
 ## 3. Create inference configuration files
 ### DCN model network configuration 
 Check the stored model files that will be used in the inference, and create the JSON file for inference. We should remove the solver and optimizer clauses and add the inference clause in the JSON file. The paths of the stored dense model and sparse model(s) should be specified at "dense_model_file" and "sparse_model_file" within the inference clause. We need to make some modifications to "data" in the layers clause. Besides, we need to change the last layer from BinaryCrossEntropyLoss to Sigmoid. The rest of "layers" should be exactly the same as that in the training JSON file. You may go to "${project_home}/samples/dcn/1/dcn.json" for reference.
 
-### Hugectr backend configuration 
-Please refer to  [(Triton model configuration))](https://github.com/triton-inference-server/server/blob/master/docs/model_configuration.md) first and o clarify the required configuration of the model in the specific inference scenario.
-In order to deploy the Hugectr model, some customized configuration items need to be added as follows：
+### HugeCTR Backend configuration 
+Please refer to  [(Triton model configuration))](https://github.com/triton-inference-server/server/blob/master/docs/model_configuration.md) first and  clarify the required configuration of the model in the specific inference scenario.
+In order to deploy the HugeCTR model, some customized configuration items need to be added as follows：
 ```json.
  parameters [
   {
@@ -124,7 +124,7 @@ If you use Parquet format data as input to train the model in [**2. Get DCN trai
 ```
 
 ## 4. Launch Triton Server 
-Before you can use the Hugectr Docker image you must install Docker. If you plan on using a GPU for inference you must also install the NVIDIA Container Toolkit. DGX users should follow Preparing to use NVIDIA Containers. 
+Before you can use the HugeCTR Docker image you must install Docker. If you plan on using a GPU for inference you must also install the NVIDIA Container Toolkit. DGX users should follow Preparing to use NVIDIA Containers. 
 
 Pull the image using the following command.
 ```shell.
@@ -136,8 +136,9 @@ Use the following command to run Triton with the dcn sample model repository. If
 - If the key value type of the embedding table is I64, please add "--backend-config=hugectr,supportlonglong=true".    
 
 ```shell.
- docker run --gpus=1 --rm  -p 8005:8000 -p 8004:8001 -p 8003:8002  -v /hugectr_backend/samples/:/model  nvcr.io/nvidia/hugectr_backend:v3.0-inference  tritonserver --model-repository=/model/ --backend-directory=/usr/local/hugectr/backends/ \
---backend-config=hugectr,dcn=/model/dcn/1/dcn.json  \
+ docker run --gpus=1 --rm  -p 8005:8000 -p 8004:8001 -p 8003:8002 -v /hugectr_backend/samples/:/model  nvcr.io/nvidia/hugectr_backend:v3.0-inference \ tritonserver --model-repository=/model/ --load-model=dcn --model-control-mode=explicit \
+--backend-directory=/usr/local/hugectr/backends/ \
+--backend-config=hugectr,dcn=/model/dcn/1/dcn.json 
 ```
 All the models should show "READY" status to indicate that they loaded correctly. If a model fails to load the status will report the failure and a reason for the failure. If your model is not displayed in the table check the path to the model repository and your CUDA drivers.
 ```shell.
@@ -170,9 +171,9 @@ $ curl -v localhost:8005/v2/health/ready
 < Content-Type: text/plain
 ```
 ## 4. Running DCN Client 
-The Client libraries and examples image are available in the NVIDIA container repository at the following location: https://ngc.nvidia.com/catalog/containers/nvidia:tritonserver.    
+The Client libraries image are available in the NVIDIA container repository at the following location: https://ngc.nvidia.com/catalog/containers/nvidia:tritonserver.    
 
-The Clinet tags are <xx.yy>-py3-clientsdk, Where <xx.yy> is the version that you want to pull.For stability considerations, we recommend using 20.10. Hugectr backend provided a client example for your reference, The input data is generated in `1.Download the dataset and preprocess` part.  
+The client tags are <xx.yy>-py3-clientsdk, Where <xx.yy> is the version that you want to pull.For stability considerations, we recommend using 20.10. HugeCTR backend provided a client example for your reference, The input data is generated in `1.Download the dataset and preprocess` part.  
 
 If the key value type of the embedding table is I64, please change the **dtype** of "CATCOLUMN" input data from "**uint32**" to "**int64**" in dcn_client.py. 
 
