@@ -37,7 +37,7 @@ The HugeCTR Backend is a GPU-accelerated recommender model deploy framework that
 # Quick Start
 
 ## Installing and Building HugeCTR Backend
-You can either install Hugectr backend easily using the Hugectr backend Docker image in NGC, or build Hugectr backend from scratch based on your own specific requirement using the same NGC Hugectr backend Docker image if you're an advanced user.  
+You can either install HugeCTR backend easily using the HugeCTR backend Docker image in NGC, or build HugeCTR backend from scratch based on your own specific requirement using the same NGC HugeCTR backend Docker image if you're an advanced user.  
 
 HugeCTR backend docker images are available in the NVIDIA container repository on https://ngc.nvidia.com/catalog/containers/nvidia:hugectr.
 
@@ -83,7 +83,7 @@ git submodule update --init --recursive
 ```
 You can build HugeCTR from scratch using  the following options:
 * **CMAKE_BUILD_TYPE**: You can use this option to build HugeCTR with Debug or Release. When using Debug to build, HugeCTR will print more verbose logs and execute GPU tasks in a synchronous manner.
-* **ENABLE_INFERENCE**: You can use this option to build HugeCTR in inference mode, which was designed for inference framework. In this mode,inference shared library will be built for HugeCTR backend. Only inference related interfaces could be used, which means users can’t train models in this mode. This option is set to OFF by default.
+* **ENABLE_INFERENCE**: You can use this option to build HugeCTR in inference mode, which was designed for inference framework. In this mode, an inference shared library will be built for the HugeCTR backend. Only inference related interfaces could be used, which means users can’t train models in this mode. This option is set to OFF by default.
 * **SM**: You can use this option to build HugeCTR with a specific compute capability (DSM=80) or multiple compute capabilities (DSM="70;75"). The following compute capabilities are supported: 6.0, 7.0, 7.5, and 8.0. The default compute capability is 70, which uses the NVIDIA V100 GPU.
 
 Here are some examples of how you can build HugeCTR using these build options
@@ -130,7 +130,7 @@ but the listed CMake argument can be used to override.
 
 ### Model Repository Extension
 
-The Triton's model repository extension allows a client to query and control the one or more model repositories being served by Triton. Because this extension is supported, Triton reports “model_repository” in the extensions field of its Server Metadata. For additional information, see [Model Repository Extension](https://github.com/triton-inference-server/server/blob/master/docs/protocol/extension_model_repository.md).  
+Triton's model repository extension allows a client to query and control the one or more model repositories being served by Triton. Because this extension is supported, Triton reports “model_repository” in the extensions field of its Server Metadata. For additional information, see [Model Repository Extension](https://github.com/triton-inference-server/server/blob/master/docs/protocol/extension_model_repository.md).  
  
 As one of the customized backend components of Triton, HugeCTR Backend also supports Model Repository Extension. As HugeCTR Backend is an  [hierarchical inference framework](docs/user_guide.md) for recommendation fields, we provide isolated loading of embedding tables through parameter server, and achieve high service availability through GPU embedding cache. So the following points need to be noted when using model extension functions:  
  - [The load API](https://github.com/triton-inference-server/server/blob/master/docs/protocol/extension_model_repository.md#load) will load the network weight part of the HugeCTR model (not including embedding tables), which means Parameter Server will independently provide an update mechanism for existing embedding tables. If you need to load a new model, you can refer to the [samples](samples/dcn/README.md) to launch Triton Server again.  
