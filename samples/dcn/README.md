@@ -30,7 +30,7 @@ $ wget http://azuremlsampleexperiments.blob.core.windows.net/criteo/day_1.gz
 $ gzip -d day_1.gz
 ```
 
-#### preprocess the data using the following commands:
+#### Preprocess the data using the following commands:
 The script `preprocess.py` fills the missing values by mapping them to the unused unique integer or category.
 It also replaces unique values which appear less than six times across the entire dataset with the unique value for missing values.
 Its purpose is to reduce the vocabulary size of each column while not losing too much information.
@@ -123,7 +123,7 @@ If you use Parquet format data as input to train the model in [**2. Get DCN trai
 ]
 ```
 
-## 4. Launch Triton Server 
+## 4. Launch Triton server 
 Before you can use the HugeCTR Docker image you must install Docker. If you plan on using a GPU for inference you must also install the NVIDIA Container Toolkit. DGX users should follow Preparing to use NVIDIA Containers. 
 
 Pull the image using the following command.
@@ -139,8 +139,8 @@ Use the following command to run Triton with the dcn sample model repository. If
  docker run --gpus=1 --rm  -p 8005:8000 -p 8004:8001 -p 8003:8002 \    
  -v /hugectr_backend/samples/:/model  nvcr.io/nvidia/hugectr_backend:v3.0-inference \  
  tritonserver --model-repository=/model/ --load-model=dcn --model-control-mode=explicit \   
---backend-directory=/usr/local/hugectr/backends/ \  
---backend-config=hugectr,dcn=/model/dcn/1/dcn.json 
+ --backend-directory=/usr/local/hugectr/backends/ \  
+ --backend-config=hugectr,dcn=/model/dcn/1/dcn.json 
 ```
 All the models should show "READY" status to indicate that they loaded correctly. If a model fails to load the status will report the failure and a reason for the failure. If your model is not displayed in the table check the path to the model repository and your CUDA drivers.
 ```shell.
@@ -172,7 +172,7 @@ $ curl -v localhost:8005/v2/health/ready
 < Content-Length: 0
 < Content-Type: text/plain
 ```
-## 4. Running DCN Client 
+## 4. Run DCN client 
 The Client libraries image are available in the NVIDIA container repository at the following location: https://ngc.nvidia.com/catalog/containers/nvidia:tritonserver.    
 
 The client tags are <xx.yy>-py3-clientsdk, Where <xx.yy> is the version that you want to pull.For stability considerations, we recommend using 20.10. HugeCTR Backend provided a client example for your reference, The input data is generated in `1.Download the dataset and preprocess` part.  
