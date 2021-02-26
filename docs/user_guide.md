@@ -5,7 +5,7 @@ HugeCTR Backend is a GPU-accelerated recommender model deploy framework that was
 ## Design Goals:
 * **Hierarchical Framework**: The design of HugeCTR adopts a hierarchical framework, decoupling the model weight and embedding table, the GPU cache is used to accelerate the embedding vector look up efficiency in the inference process.  
 * **Concurrent Model Execution**: Multiple models (or multiple instances of the same model) can run simultaneously on the same GPU or on multiple GPUs.
-* **Extensible Backends**: The inference interface provided by HugeCTR is based on a hierarchical framework , which can be easily integrated with backend API that allows models to be extended with any execution logic implemented in Python or C++.  
+* **Extensible Backends**: The inference interface provided by HugeCTR is based on a hierarchical framework, which can be easily integrated with the backend API that allows models to be extended with any execution logic implemented in Python or C++.  
 * **Easy Deployment of New Models**: Updating a model should be as transparent as possible and shouldn’t affect inference performance. This means that no matter how many models need to be deployed, as long as it is a model trained by HugeCTR, it can be loaded through the same HugeCTR backend API. The user only needs to change configuration files for different models.  
 
 ## HugeCTR Inference Framework
@@ -31,7 +31,7 @@ Each embedding table will create an individual embedding cache on different GPUs
 
 Current mechanism ensures that multiple model instances of the same model can share the same embedding cache on the deployed GPU node, embedding table will be periodically updated(or based on threshold defined by user) with the embedding cache to realize the acceleration of looking up embedding vectors from parameter server.  
 
-### Enbale GPU Embedding Cache
+### Enable GPU Embedding Cache
 
 If the user enables the GPU cache mechanism, the model will look up the embedding vector from the GPU embedding cache. If the embedding vector does not exist in the GPU embedding cache, it will return the default embedding vector (default value is 0).  
  
@@ -107,6 +107,6 @@ Take the **Row 0** ( a sample) of the above figure as an example, the input data
 * slot 1: contains **1** categorical feature and the embedding key is 1. 
 * slot 2: contains **1** categorical feature and the embedding key is 3.
 * slot 3: contains **0** categorical feature.
-* slot 4: contains **2** categorical feature and the embedding keys are 8 and 9. HugeCTR will look up two embedding vectors from GPU embedding cache or parameter server and reduce to one as the final embedding vector of slot 4.
+* slot 4: contains **2** categorical features and the embedding keys are 8 and 9. HugeCTR will look up two embedding vectors from GPU embedding cache or parameter server and reduce to one as the final embedding vector of slot 4.
 
 
