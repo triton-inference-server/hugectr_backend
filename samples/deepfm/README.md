@@ -177,7 +177,7 @@ $ curl -v localhost:8005/v2/health/ready
 < Content-Length: 0
 < Content-Type: text/plain
 ```
-## 4. Running DeepFM client 
+## 4. Run DeepFM client 
 The client image is available in the NVIDIA container repository at the following location: https://ngc.nvidia.com/catalog/containers/nvidia:tritonserver.  
 
 The client tags are <xx.yy>-py3-clientsdk, Where <xx.yy> is the version that you want to pull.For stability considerations, we recommend using 20.10. HugeCTR Backend provided a client example for your reference, The input data is generated in `1.Download the dataset and preprocess` part.  
