@@ -1,5 +1,5 @@
 # DCN SAMPLE 
-A sample of deploying Deep & Cross Network with HugeCTR backend [(link)](https://arxiv.org/pdf/1708.05123.pdf).
+A sample of deploying Deep & Cross Network with HugeCTR Backend [(link)](https://arxiv.org/pdf/1708.05123.pdf).
 
 ## Dataset and preprocess 
 The data is provided by CriteoLabs (http://azuremlsampleexperiments.blob.core.windows.net/criteo/day_1.gz).
@@ -136,8 +136,10 @@ Use the following command to run Triton with the dcn sample model repository. If
 - If the key value type of the embedding table is I64, please add "--backend-config=hugectr,supportlonglong=true".    
 
 ```shell.
- docker run --gpus=1 --rm  -p 8005:8000 -p 8004:8001 -p 8003:8002 -v /hugectr_backend/samples/:/model  nvcr.io/nvidia/hugectr_backend:v3.0-inference \ tritonserver --model-repository=/model/ --load-model=dcn --model-control-mode=explicit \
---backend-directory=/usr/local/hugectr/backends/ \
+ docker run --gpus=1 --rm  -p 8005:8000 -p 8004:8001 -p 8003:8002 \    
+ -v /hugectr_backend/samples/:/model  nvcr.io/nvidia/hugectr_backend:v3.0-inference \  
+ tritonserver --model-repository=/model/ --load-model=dcn --model-control-mode=explicit \   
+--backend-directory=/usr/local/hugectr/backends/ \  
 --backend-config=hugectr,dcn=/model/dcn/1/dcn.json 
 ```
 All the models should show "READY" status to indicate that they loaded correctly. If a model fails to load the status will report the failure and a reason for the failure. If your model is not displayed in the table check the path to the model repository and your CUDA drivers.
@@ -173,7 +175,7 @@ $ curl -v localhost:8005/v2/health/ready
 ## 4. Running DCN Client 
 The Client libraries image are available in the NVIDIA container repository at the following location: https://ngc.nvidia.com/catalog/containers/nvidia:tritonserver.    
 
-The client tags are <xx.yy>-py3-clientsdk, Where <xx.yy> is the version that you want to pull.For stability considerations, we recommend using 20.10. HugeCTR backend provided a client example for your reference, The input data is generated in `1.Download the dataset and preprocess` part.  
+The client tags are <xx.yy>-py3-clientsdk, Where <xx.yy> is the version that you want to pull.For stability considerations, we recommend using 20.10. HugeCTR Backend provided a client example for your reference, The input data is generated in `1.Download the dataset and preprocess` part.  
 
 If the key value type of the embedding table is I64, please change the **dtype** of "CATCOLUMN" input data from "**uint32**" to "**int64**" in dcn_client.py. 
 
