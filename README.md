@@ -137,4 +137,6 @@ As one of the customized backend components of Triton, HugeCTR Backend also supp
  
  - [The unload API](https://github.com/triton-inference-server/server/blob/master/docs/protocol/extension_model_repository.md#unload) requests a HugeCTR model network weights be unloaded from Triton ((not including embedding tables)),  which means the embedding tables corresponding to the model still remain in Parameter Server. 
 
+### Build HugeCTR Backend Inference Docker
 
+From the v3.0 release, we stop releasing the HugeCTR container separately. Instead, Merlin unified container is available on the NVIDIA GPU Could (NGC), or refer to [here](https://github.com/NVIDIA/HugeCTR/tree/master/tools/dockerfiles) to build HugeCTR Training or Inference docker image from scratch based on your own specific requirement if you're an advanced user.  
