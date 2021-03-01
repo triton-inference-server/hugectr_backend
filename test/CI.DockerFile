@@ -1,4 +1,4 @@
-FROM  gitlab-master.nvidia.com:5005/rapidsdl/dlfw_nvt/tri_nvt:latest
+FROM  gitlab-master.nvidia.com:5005/dl/hugectr/hugectr:v3.0-inference
 
 ARG HUGECTR_BRANCH=main
 ARG INFERENCE_BRANCH=main
