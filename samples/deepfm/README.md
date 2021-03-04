@@ -121,7 +121,16 @@ If you use Parquet format data as input to train the model in [**2. Get DeepFM t
   }
 ... 
 ]
-```
+```  
+
+Add the **input_key_type** to "${project_home}/samples/dcn/1/deepfm.json" as follows:
+```json.
+"inference": {
+    ...
+    "input_key_type": "I64",
+    ...
+  },
+``` 
 
 ## 4. Launch Triton server to load DCN and DeepFM 
 Before you can use the HugeCTR Docker image you must install Docker. If you plan on using a GPU for inference you must also install the NVIDIA Container Toolkit. DGX users should follow Preparing to use NVIDIA Containers. 
