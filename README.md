@@ -44,7 +44,7 @@ HugeCTR backend docker images are available in the NVIDIA container repository o
 You can pull and launch the container by running the following command:
 
 ```
-docker run --gpus=1 --rm -it nvcr.io/nvidia/hugectr:v3.0-inference  # Start interaction mode  
+docker run --gpus=1 --rm -it nvcr.io/nvstaging/merlin/merlin-inference  # Start interaction mode  
 ```
 
 We support the following compute capabilities for inference deployment:
@@ -84,7 +84,7 @@ git submodule update --init --recursive
 You can build HugeCTR from scratch using  the following options:
 * **CMAKE_BUILD_TYPE**: You can use this option to build HugeCTR with Debug or Release. When using Debug to build, HugeCTR will print more verbose logs and execute GPU tasks in a synchronous manner.
 * **ENABLE_INFERENCE**: You can use this option to build HugeCTR in inference mode, which was designed for inference framework. In this mode, an inference shared library will be built for the HugeCTR backend. Only inference related interfaces could be used, which means users can’t train models in this mode. This option is set to OFF by default.
-* **SM**: You can use this option to build HugeCTR with a specific compute capability (DSM=80) or multiple compute capabilities (DSM="70;75"). The following compute capabilities are supported: 6.0, 7.0, 7.5, and 8.0. The default compute capability is 70, which uses the NVIDIA V100 GPU.
+* **SM**: You can use this option to build HugeCTR with a specific compute capability (DSM=80) or multiple compute capabilities (DSM="70;75"). The following compute capabilities are supported: 7.0, 7.5, and 8.0. The default compute capability is 70, which uses the NVIDIA V100 GPU.
 
 Here are some examples of how you can build HugeCTR using these build options
 
@@ -137,4 +137,6 @@ As one of the customized backend components of Triton, HugeCTR Backend also supp
  
  - [The unload API](https://github.com/triton-inference-server/server/blob/master/docs/protocol/extension_model_repository.md#unload) requests a HugeCTR model network weights be unloaded from Triton ((not including embedding tables)),  which means the embedding tables corresponding to the model still remain in Parameter Server. 
 
+### Build HugeCTR Backend Inference Docker
 
+From the v3.0 release, we stop releasing the HugeCTR container separately. Instead, Merlin unified container is available on the NVIDIA GPU Could (NGC), or refer to [here](https://github.com/NVIDIA/HugeCTR/tree/master/tools/dockerfiles) to build HugeCTR Training or Inference docker image from scratch based on your own specific requirement if you're an advanced user.  
