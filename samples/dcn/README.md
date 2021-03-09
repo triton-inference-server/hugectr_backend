@@ -137,7 +137,11 @@ Before you can use the HugeCTR Docker image you must install Docker. If you plan
 
 Pull the image using the following command.
 ```shell.
+<<<<<<< HEAD
 $ docker pull nvcr.io/nvidia/merlin/merlin-inference:0.4
+=======
+$ docker pull nvcr.io/nvstaging/merlin/merlin-inference
+>>>>>>> main
 ```
 Use the following command to run Triton with the dcn sample model repository. If the deepfm model files are not trained and exported before, please remove the "${project_home}/samples/deepfm". The NVIDIA Container Toolkit must be installed for Docker to recognize the GPU(s). The --gpus=1 flag indicates that 1 system GPU should be made available to Triton for inferencing.   
 
