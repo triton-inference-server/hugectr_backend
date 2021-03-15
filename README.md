@@ -39,12 +39,12 @@ The HugeCTR Backend is a GPU-accelerated recommender model deploy framework that
 ## Installing and Building HugeCTR Backend
 You can either install HugeCTR backend easily using the HugeCTR backend Docker image in NGC, or build HugeCTR backend from scratch based on your own specific requirement using the same NGC HugeCTR backend Docker image if you're an advanced user.  
 
-HugeCTR backend docker images are available in the NVIDIA container repository on https://ngc.nvidia.com/catalog/containers/nvidia:hugectr.
+HugeCTR backend docker images are available in the NVIDIA container repository on https://ngc.nvidia.com/catalog/containers/nvidia:merlin:merlin-inference.
 
 You can pull and launch the container by running the following command:
 
 ```
-docker run --gpus=1 --rm -it nvcr.io/nvidia/hugectr:v3.0-inference  # Start interaction mode  
+docker run --gpus=1 --rm -it nvcr.io/nvidia/merlin/merlin-inference:0.4  # Start interaction mode
 ```
 
 We support the following compute capabilities for inference deployment:
