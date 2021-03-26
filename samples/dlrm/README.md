@@ -98,10 +98,8 @@ Activate the rapids conda environment by running the following command:
 root@02d56ff0738f:/opt/tritonserver#  source activate rapids
 ```
 
-3) Your saved model should be in the `dlrm_infer/model` directory. Navigate to the `model` working directory inside the triton server container to check the saved models:
-```
-cd /model
-```
+3) Your saved model should be in the `dlrm_infer/model` directory. 
+
 4) Start the triton server and run Triton with the example model repository you just created. Note that you need to provide correct path for the models directory, and `dlrm.json` file.
 ```
 tritonserver --model-repository=/dlrm_infer/model/ --load-model=dlrm \
