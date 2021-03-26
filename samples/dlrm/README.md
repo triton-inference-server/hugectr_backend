@@ -10,10 +10,10 @@ There are two containers that are needed in order to train and deploy HugeCTR Mo
 
 We start with pulling the `Merlin-Training` container. This is to do preprocessing, feature engineering on our datasets using NVTabular, and then to train a DLRM model with HugeCTR framework with processed datasets.
 
-Before starting docker container, first create a `nvt_triton` directory and `data` subdirectory on your host machine:
+Before starting docker container, first create a `/dlrm_train` directory on your host machine:
 
 ```
-mkdir -p dlrm_train
+mkdir -p /dlrm_train
 cd dlrm_train
 ```
 We will mount `dlrm_train` directory into the training docker container.
@@ -79,7 +79,7 @@ Now you can start `HugeCTR_DLRM_Training` notebooks. Note that you need to save 
 
 ## 3. Build and Run the Triton Inference Server container:
 
-1) Navigate to the `dlrm_infer` directory.
+1) Before launch Triton server, first create a `/dlrm_infer` directory on your host machine:
 ```
 mkdir -p /dlrm_infer
 ```
