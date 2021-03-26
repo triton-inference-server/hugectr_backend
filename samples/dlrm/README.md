@@ -1,6 +1,6 @@
 # Training and Inference with HugeCTR Model
 
-In this folder, we provide two example notebooks, [HugeCTR_DLRM_Training.ipynb](https://gitlab-master.nvidia.com/dl/hugectr/hugectr_inference_backend/-/blob/V3.0.1-integration/samples/dlrm/HugeCTR_DLRM_Training.ipynb) and [HugeCTR_DLRM_Inference.ipynb](https://gitlab-master.nvidia.com/dl/hugectr/hugectr_inference_backend/-/blob/V3.0.1-integration/samples/dlrm/HugeCTR_DLRM_Inference.ipynb), and explain the steps to do train and inference with HUgeCTR and NVTabular with Merlin framework. 
+In this folder, we provide two example notebooks, [HugeCTR_DLRM_Training.ipynb](https://gitlab-master.nvidia.com/dl/hugectr/hugectr_inference_backend/-/blob/V3.0.1-integration/samples/dlrm/HugeCTR_DLRM_Training.ipynb) and [HugeCTR_DLRM_Inference.ipynb](https://gitlab-master.nvidia.com/dl/hugectr/hugectr_inference_backend/-/blob/V3.0.1-integration/samples/dlrm/HugeCTR_DLRM_Inference.ipynb), and explain the steps to do train and inference with HugeCTR and NVTabular with Merlin framework. 
 
 ## Getting Started 
 
