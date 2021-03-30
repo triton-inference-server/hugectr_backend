@@ -300,6 +300,8 @@ class ModelState {
   static TRITONSERVER_Error* Create(
       TRITONBACKEND_Model* triton_model, ModelState** state,HugeCTR::HugectrUtility<unsigned int>* EmbeddingTable_int32, HugeCTR::HugectrUtility<long long>* EmbeddingTable_int64);
 
+  ~ModelState();
+
   // Get the handle to the TRITONBACKEND model.
   TRITONBACKEND_Model* TritonModel() { return triton_model_; }
 
@@ -394,8 +396,6 @@ class ModelState {
 
   HugeCTR::HugectrUtility<unsigned int>* EmbeddingTable_int32;
   HugeCTR::HugectrUtility<long long>* EmbeddingTable_int64;
-
-  HugeCTR::embedding_interface* Embedding_cache;
 
   std::map<int64_t, std::shared_ptr<HugeCTR::embedding_interface>> embedding_cache_map;
 
@@ -707,6 +707,10 @@ ModelState::Create_EmbeddingCache()
   return nullptr;
 }
 
+ModelState::~ModelState(){
+  embedding_cache_map.clear();
+}
+
 //
 // ModelInstanceState
 //
@@ -772,8 +776,8 @@ ModelInstanceState(
     std::shared_ptr<HugeCTRBuffer<long long>> cat_column_index_buf_int64;
     std::shared_ptr<HugeCTRBuffer<int>> row_ptr_buf;
     std::shared_ptr<HugeCTRBuffer<float>> prediction_buf;
+    std::shared_ptr<HugeCTR::embedding_interface> embedding_cache;
     
-    HugeCTR::embedding_interface* Embedding_cache;
 
     HugeCTR::HugeCTRModel* hugectrmodel_;
 
@@ -862,13 +866,16 @@ ModelInstanceState::ModelInstanceState(
 ModelInstanceState::~ModelInstanceState()
 {
   // release all the buffers
+  embedding_cache.reset();
+  model_state_->GetEmbeddingCache(device_id_).reset();
+  delete hugectrmodel_;
 }
 
 TRITONSERVER_Error* ModelInstanceState::LoadHugeCTRModel(){
   HugeCTR::INFER_TYPE type=HugeCTR::INFER_TYPE::TRITON;
   LOG_MESSAGE(TRITONSERVER_LOG_INFO,(std::string("model origin josn config path: " + model_state_->HugeCTRJsonConfig())).c_str());
-  std::shared_ptr<HugeCTR::embedding_interface> embedding_cache = model_state_->GetEmbeddingCache(device_id_);
-  hugectrmodel_=HugeCTR::HugeCTRModel::load_model(type,model_state_->HugeCTRJsonConfig(),device_id_,embedding_cache);
+  embedding_cache = model_state_->GetEmbeddingCache(device_id_);
+  hugectrmodel_=HugeCTR::HugeCTRModel::load_model(type,model_state_->HugeCTRJsonConfig(),device_id_, embedding_cache);
   LOG_MESSAGE(TRITONSERVER_LOG_INFO,(std::string("******Loading Hugectr model successfully")).c_str());
   return nullptr;
 }
