@@ -52,6 +52,8 @@ apt-get update
 apt-get install unzip -y
 apt-get install curl -y
 pip install graphviz 
+pip install pandas
+pip install pyarrow
 ```
 
 2) Start the jupyter-lab server by running the following command. In case the container does not have `JupyterLab`, you can easily [install](https://jupyterlab.readthedocs.io/en/stable/getting_started/installation.html) it either using conda or pip.
