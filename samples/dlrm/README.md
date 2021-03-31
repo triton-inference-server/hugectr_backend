@@ -68,14 +68,14 @@ Open any browser to access the jupyter-lab server using `https://<host IP-Addres
 There are two example notebooks that should be run in order. The first one [HugeCTR_DLRM_Training.ipynb](https://gitlab-master.nvidia.com/dl/hugectr/hugectr_inference_backend/-/blob/V3.0.1-integration/samples/dlrm/HugeCTR_DLRM_Training.ipynb) shows how to
 - Dataset Preprocessing with NVTabular
 - DLRM Model Training
-- Save the Model Files in the `/dlrm_train` directory.
+- Save the Model Files in the `/dlrm_train` directory 
 **If jupyter-lab can be launched normally in the first part above, then you can run `HugeCTR_DLRM_Training` successfully**  
 
 The following notebook [HugeCTR_DLRM_Inference.ipynb](https://gitlab-master.nvidia.com/dl/hugectr/hugectr_inference_backend/-/blob/V3.0.1-integration/samples/dlrm/HugeCTR_DLRM_Inference.ipynb) shows how to send request to Triton IS 
 - Generate the DLRM Deployment Configuration
 - Load Models on Triton Server
 - Prepare Inference Input Data 
-- Inference Benchmarm by Triton Performance Tool
+- Inference Benchmarm by Triton Performance Tool  
 **After completing the Step 1 and step 3 correctly, you can successfully run the `HugeCTR_DLRM_Inference` notebook**  
 
 
