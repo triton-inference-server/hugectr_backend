@@ -69,12 +69,14 @@ There are two example notebooks that should be run in order. The first one [Huge
 - Dataset Preprocessing with NVTabular
 - DLRM Model Training
 - Save the Model Files in the `/dlrm_train` directory.
+**If jupyter-lab can be launched normally in the first part above, then you can run `HugeCTR_DLRM_Training` successfully**  
 
 The following notebook [HugeCTR_DLRM_Inference.ipynb](https://gitlab-master.nvidia.com/dl/hugectr/hugectr_inference_backend/-/blob/V3.0.1-integration/samples/dlrm/HugeCTR_DLRM_Inference.ipynb) shows how to send request to Triton IS 
 - Generate the DLRM Deployment Configuration
 - Load Models on Triton Server
 - Prepare Inference Input Data 
 - Inference Benchmarm by Triton Performance Tool
+**After completing the Step 1 and step 3 correctly, you can successfully run the `HugeCTR_DLRM_Inference` notebook**  
 
 
 Now you can start `HugeCTR_DLRM_Training` notebooks. Note that you need to save your workflow and DLRM model in the `dlrm_infer/model` directory before launching the `tritonserver` as defined below, the details you could refer to `HugeCTR_DLRM_Inference` example notebook once the server is started.
@@ -114,4 +116,4 @@ Note: The model-repository path is /dlrm_infer/model/
 
 After you start Triton you will see output on the console showing the server starting up. At this stage you have loaded the `dlrm` model in the  `HugeCTR_DLRM_Inference` notebook to be able to send the request. All the models should load successfully. If a model fails to load the status will report the failure and a reason for the failure. 
 
-Once the models are successfully loaded, you can run the `HugeCTR_DLRM_Inference` notebook to test the benchmark of DLRM model inference on Triton. Note that, by default Triton will not start if models are not loaded successfully.
+Once the models are successfully loaded,  you can launch jupyter-lab again in same container and run the `HugeCTR_DLRM_Inference` notebook to test the benchmark of DLRM model inference on Triton. Note that, by default Triton will not start if models are not loaded successfully.
