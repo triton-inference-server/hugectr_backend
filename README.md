@@ -29,33 +29,20 @@
 [![License](https://img.shields.io/badge/License-BSD3-lightgrey.svg)](https://opensource.org/licenses/BSD-3-Clause)
 
 # HugeCTR Backend
+The HugeCTR Backend is a recommender model deployment framework that was designed to effectively use GPU memory to accelerate the Inference by decoupling the Parameter server, embedding cache, and model weight. The HugeCTR Backend supports concurrent model inference execution across multiple GPUs by embedding cache that is shared between multiple model instances. For more information, see [HugeCTR Inference Architecture](docs/architecture.md#hugectr-inference-framework).  
 
-The HugeCTR Backend is a GPU-accelerated recommender model deploy framework that was designed to effectively use GPU memory to accelerate the inference by decoupling the parameter server and embedding cache and model weight. HugeCTR Backend supports concurrent model inference execution across multiple GPUs by embedding cache that is shared between multiple model instances. For additional information, see [HugeCTR Inference User Guide](docs/user_guide.md).  
-
-
-
-# Quick Start
-
-## Installing and Building HugeCTR Backend
-You can either install HugeCTR backend easily using the HugeCTR backend Docker image in NGC, or build HugeCTR backend from scratch based on your own specific requirement using the same NGC HugeCTR backend Docker image if you're an advanced user.  
-
-HugeCTR backend docker images are available in the NVIDIA container repository on https://ngc.nvidia.com/catalog/containers/nvidia:merlin:merlin-inference.  
-
-You can pull and launch the container by running the following command:
-
-```
-docker run --gpus=1 --rm -it nvcr.io/nvidia/merlin/merlin-inference:0.4  # Start interaction mode  
-```
+## Quick Start
+You can either install the HugeCTR Backend using Docker images in NGC, or build the HugeCTR Backend from scratch based on your own specific requirements using the same NGC HugeCTR Backend Docker images if you're an advanced user.
 
 We support the following compute capabilities for inference deployment:
 
-| Compute Capability | GPU                  |
-|--------------------|----------------------|
-| 70                 | NVIDIA V100 (Volta)  |
-| 75                 | NVIDIA T4 (Turing)   |
-| 80                 | NVIDIA A100 (Ampere) |
+| Compute Capability | GPU                  | [SM](#building-hugectr-from-scratch) |
+|--------------------|----------------------|----|
+| 7.0                | NVIDIA V100 (Volta)  | 70 |
+| 7.5                | NVIDIA T4 (Turing)   | 75 |
+| 8.0                | NVIDIA A100 (Ampere) | 80 |
 
-The following prerequisites must be met before installing or building HugeCTR from scratch:
+The following prerequisites must be met before installing or building the HugeCTR Backend from scratch:
 * Docker version 19 and higher
 * cuBLAS version 10.1
 * CMake version 3.17.0
@@ -63,80 +50,53 @@ The following prerequisites must be met before installing or building HugeCTR fr
 * RMM version 0.16
 * GCC version 7.4.0
 
-### Installing HugeCTR Inference Server from NGC Containers
-All NVIDIA Merlin components are available as open-source projects. However, a more convenient way to make use of these components is by using Merlin NGC containers. Containers allow you to package your software application, libraries, dependencies, and runtime compilers in a self-contained environment. When installing HugeCTR backend from NGC containers, the application environment remains both portable, consistent, reproducible, and agnostic to the underlying host system software configuration.  
+### Install the HugeCTR Backend Using NGC Containers
+All NVIDIA Merlin components are available as open-source projects. However, a more convenient way to make use of these components is by using Merlin NGC containers. These NGC containers allow you to package your software application, libraries, dependencies, and runtime compilers in a self-contained environment. When installing the HugeCTR Backend using NGC containers, the application environment remains both portable, consistent, reproducible, and agnostic to the underlying host system software configuration. The HugeCTR Backend container has the necessary libraries and header files pre-installed, and you can directly deploy the HugeCTR models to production.
 
-HUgeCTR backend container has pre-installed the necessary libraries and header files, and you can directly deploy the HugeCTR models in the production.  
+Docker images for the HugeCTR Backend are available in the NVIDIA container repository on https://ngc.nvidia.com/catalog/containers/nvidia:merlin:merlin-inference. You can pull and launch the container by running the following command:
+```
+docker run --gpus=1 --rm -it nvcr.io/nvidia/merlin/merlin-inference:0.4  # Start interaction mode  
+```
 
-### Building HugeCTR Inference Server From Scratch
+**NOTE**: As of HugeCTR version 3.0, the HugeCTR container is no longer being released separately. If you're an advanced user, you should use the unified Merlin container to build the HugeCTR Training or Inference Docker image from scratch based on your own specific requirements. You can obtain the unified Merlin container by logging into NGC or by going [here](https://github.com/NVIDIA/HugeCTR/tree/master/tools/dockerfiles). 
 
-**1.  Building HugeCTR from Scratch**  
-
-Since the HugeCTR backend building is based on HugeCTR installation, the first step is to compile HugeCTR, generate a shared library(libhugectr_inference.so), and install it in the specified folder correctly. The default path of all the HugeCTR libraries and header files are installed in /usr/local/hugectr folder.
-Before building HugeCTR from scratch, you should download the HugeCTR repository and the third-party modules that it relies on by running the following commands:
-
-
+### Build the HugeCTR Backend from Scratch
+Before you can build the HugeCTR Backend from scratch, you must first compile HugeCTR, generate a shared library (libhugectr_inference.so), and build HugeCTR. The default path where all the HugeCTR libraries and header files are installed in is /usr/local/hugectr. Before building HugeCTR from scratch, you should download the HugeCTR repository and the third-party modules that it relies on by running the following commands:
 ```
 git clone https://github.com/NVIDIA/HugeCTR.git
 cd HugeCTR
 git submodule update --init --recursive
 ```
-You can build HugeCTR from scratch using  the following options:
-* **CMAKE_BUILD_TYPE**: You can use this option to build HugeCTR with Debug or Release. When using Debug to build, HugeCTR will print more verbose logs and execute GPU tasks in a synchronous manner.
-* **ENABLE_INFERENCE**: You can use this option to build HugeCTR in inference mode, which was designed for inference framework. In this mode, an inference shared library will be built for the HugeCTR backend. Only inference related interfaces could be used, which means users can’t train models in this mode. This option is set to OFF by default.
-* **SM**: You can use this option to build HugeCTR with a specific compute capability (DSM=80) or multiple compute capabilities (DSM="70;75"). The following compute capabilities are supported: 7.0, 7.5, and 8.0. The default compute capability is 70, which uses the NVIDIA V100 GPU.
+For more information, see [Building HugeCTR from Scratch](https://gitlab-master.nvidia.com/dl/hugectr/hugectr/-/blob/master/docs/hugectr_user_guide.md#building-hugectr-from-scratch).
 
-Here are some examples of how you can build HugeCTR using these build options
+After you've built HugeCTR from scratch, do the following:
+1. Download the HugeCTR Backend repository by running the following commands:
+   ```
+   git https://github.com/triton-inference-server/hugectr_backend.git
+   cd hugectr_backend
+   ```
 
-```
-$ mkdir -p build
-$ cd build
-$ cmake -DCMAKE_BUILD_TYPE=Release -DENABLE_INFERENCE=ON .. 
-$ make -j
-$ make install
-```
+2. Use cmake to build and install the HugeCTR Backend in a specified folder as follows:
+   ```
+   $ mkdir build
+   $ cd build
+   $ cmake -DCMAKE_INSTALL_PREFIX:PATH=`pwd`/install ..
+   $ make install
+   ```
+   
+   **NOTE**: Please remember to specify the absolute path of the local directory that installs the HugeCTR Backend for the `--backend-directory` argument when launching the 
+   Triton server.
+   
+   The following Triton repositories, which are required, will be pulled and used in the build. By default, the "main" branch/tag will be used for each repository. However, the 
+   following cmake arguments can be used to override the "main" branch/tag:
+   * triton-inference-server/backend: -DTRITON_BACKEND_REPO_TAG=[tag]
+   * triton-inference-server/core: -DTRITON_CORE_REPO_TAG=[tag]
+   * triton-inference-server/common: -DTRITON_COMMON_REPO_TAG=[tag]
 
-```
-$ mkdir -p build
-$ cd build
-$ cmake -DCMAKE_BUILD_TYPE=Release -DSM="70,80" -DENABLE_INFERENCE=ON .. # Target is NVIDIA V100 / A100 and Validation mode on.
-$ make -j
-```
+## Model Repository Extension
+Since the HugeCTR Backend is a customizable Triton component, it is capable of supporting the Model Repository Extension. Triton's Model Repository Extension allows you to query and control model repositories that are being served by Triton. The “model_repository” is reported in the Extensions field of its server metadata. For more information, see [Model Repository Extension](https://github.com/triton-inference-server/server/blob/master/docs/protocol/extension_model_repository.md).  
 
-**2.  Building HugeCTR Backend from Scratch**  
-
-Before building HugeCTR backend from scratch, you should download the HugeCTR backend repository by running the following commands:
-
-```
-git https://github.com/triton-inference-server/hugectr_backend.git
-cd hugectr_backend
-```
-Use cmake to build and install in a specified folder. Please remember to specify the absolute path of the local directory that installs the HugeCTR backend for “--backend-directory” argument when launching the Triton Server.
-
-```
-$ mkdir build
-$ cd build
-$ cmake -DCMAKE_INSTALL_PREFIX:PATH=`pwd`/install ..
-$ make install
-```
-
-The following required Triton repositories will be pulled and used in
-the build. By default the "main" branch/tag will be used for each repo
-but the listed CMake argument can be used to override.
-
-* triton-inference-server/backend: -DTRITON_BACKEND_REPO_TAG=[tag]
-* triton-inference-server/core: -DTRITON_CORE_REPO_TAG=[tag]
-* triton-inference-server/common: -DTRITON_COMMON_REPO_TAG=[tag]
-
-### Model Repository Extension
-
-Triton's model repository extension allows a client to query and control the one or more model repositories being served by Triton. Because this extension is supported, Triton reports “model_repository” in the extensions field of its Server Metadata. For additional information, see [Model Repository Extension](https://github.com/triton-inference-server/server/blob/master/docs/protocol/extension_model_repository.md).  
- 
-As one of the customized backend components of Triton, HugeCTR Backend also supports Model Repository Extension. As HugeCTR Backend is an  [hierarchical inference framework](docs/user_guide.md) for recommendation fields, we provide isolated loading of embedding tables through parameter server, and achieve high service availability through GPU embedding cache. So the following points need to be noted when using model extension functions:  
- - [The load API](https://github.com/triton-inference-server/server/blob/master/docs/protocol/extension_model_repository.md#load) will load the network weight part of the HugeCTR model (not including embedding tables), which means Parameter Server will independently provide an update mechanism for existing embedding tables. If you need to load a new model, you can refer to the [samples](samples/dcn/README.md) to launch Triton Server again.  
- 
- - [The unload API](https://github.com/triton-inference-server/server/blob/master/docs/protocol/extension_model_repository.md#unload) requests a HugeCTR model network weights be unloaded from Triton ((not including embedding tables)),  which means the embedding tables corresponding to the model still remain in Parameter Server. 
-
-### Build HugeCTR Backend Inference Docker
-
-From the v3.0 release, we stop releasing the HugeCTR container separately. Instead, Merlin unified container is available on the NVIDIA GPU Could (NGC), or refer to [here](https://github.com/NVIDIA/HugeCTR/tree/master/tools/dockerfiles) to build HugeCTR Training or Inference docker image from scratch based on your own specific requirement if you're an advanced user.  
+The following should be noted when using Model Repository Extension functions:  
+ - [The load API](https://github.com/triton-inference-server/server/blob/master/docs/protocol/extension_model_repository.md#load) will load the network weight as part of the 
+HugeCTR model (not including embedding tables), which means the Parameter server will independently provide an updated mechanism for existing embedding tables. If you need to load a new model, you can refer to the [samples](samples/dcn/README.md) to launch the Triton server again.
+ - [The unload API](https://github.com/triton-inference-server/server/blob/master/docs/protocol/extension_model_repository.md#unload) will request that the HugeCTR model network's weights be unloaded from Triton (not including embedding tables), which means the embedding tables corresponding to the model will still remain in the Parameter server.
