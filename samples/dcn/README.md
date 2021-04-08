@@ -146,7 +146,7 @@ Use the following command to run Triton with the dcn sample model repository. If
 
 ```shell.
  docker run --gpus=1 --rm  -p 8005:8000 -p 8004:8001 -p 8003:8002 \    
- -v /hugectr_backend/samples/:/model  nvcr.io/nvidia/merlin/merlin-inference:0.4 \
+ -v /hugectr_backend/samples/:/model  nvcr.io/nvidia/merlin/merlin-inference:0.4 \  
  tritonserver --model-repository=/model/ --load-model=dcn --model-control-mode=explicit \   
  --backend-directory=/usr/local/hugectr/backends/ \  
  --backend-config=hugectr,dcn=/model/dcn/1/dcn.json 
