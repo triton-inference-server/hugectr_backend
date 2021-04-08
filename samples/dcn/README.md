@@ -144,10 +144,21 @@ Use the following command to run Triton with the dcn sample model repository. If
 - If building HugeCTR Backend from Scratch, please specify "--backend-directory" argument value as the absolute path that installs the HugeCTR backend.  
 - If the key value type of the embedding table is I64, please add "--backend-config=hugectr,supportlonglong=true".    
 
+You can pull the `Merlin-Training` container by running the following command:  
+
 ```shell.
- docker run --gpus=1 --rm  -p 8005:8000 -p 8004:8001 -p 8003:8002 \    
- -v /hugectr_backend/samples/:/model  nvcr.io/nvidia/merlin/merlin-inference:0.4 \  
- tritonserver --model-repository=/model/ --load-model=dcn --model-control-mode=explicit \   
+docker run --gpus=1 --rm  -p 8005:8000 -p 8004:8001 -p 8003:8002 \    
+-v /hugectr_backend/samples/:/model  nvcr.io/nvidia/merlin/merlin-inference:0.4 /bin/bash
+```
+
+Activate the rapids conda environment by running the following command:  
+```shell.
+root@2efa5b50b909: source activate rapids
+```
+
+Launch the Triton server to load the DCN model by running the following command:  
+```shell.
+(rapids)root@2efa5b50b909: tritonserver --model-repository=/model/ --load-model=dcn --model-control-mode=explicit \   
  --backend-directory=/usr/local/hugectr/backends/ \  
  --backend-config=hugectr,dcn=/model/dcn/1/dcn.json 
 ```
