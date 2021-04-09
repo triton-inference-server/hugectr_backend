@@ -110,4 +110,3 @@ Take the **Row 0** ( a sample) of the above figure as an example, the input data
 * slot 4: contains **2** categorical features and the embedding keys are 8 and 9. HugeCTR will look up two embedding vectors from GPU embedding cache or parameter server and reduce to one as the final embedding vector of slot 4.
 
 
-

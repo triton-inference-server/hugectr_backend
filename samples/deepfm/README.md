@@ -121,7 +121,7 @@ If you use Parquet format data as input to train the model in [**2. Get DeepFM t
   }
 ... 
 ]
-```
+```  
 
 Add the **input_key_type** to "${project_home}/samples/dcn/1/deepfm.json" as follows:
 ```json.
@@ -130,7 +130,7 @@ Add the **input_key_type** to "${project_home}/samples/dcn/1/deepfm.json" as fol
     "input_key_type": "I64",
     ...
   },
-```
+``` 
 
 ## 4. Launch Triton server to load DCN and DeepFM 
 Before you can use the HugeCTR Docker image you must install Docker. If you plan on using a GPU for inference you must also install the NVIDIA Container Toolkit. DGX users should follow Preparing to use NVIDIA Containers. 
@@ -145,10 +145,22 @@ Use the following command to run Triton with the deepFM and dcn sample model rep
 - If building HugeCTR Backend from Scratch, please specify "--backend-directory" argument value as the absolute path that installs the HugeCTR backend.  
 - If the key value type of the embedding table is I64, please add "--backend-config=hugectr,supportlonglong=true".  
 
+You can pull the `Merlin-Training` container by running the following command:   
+
 ```shell.
- docker run --gpus=1 --rm  -p 8005:8000 -p 8004:8001 -p 8003:8002 \     
- -v /hugectr_backend/samples/:/model  nvcr.io/nvidia/merlin/merlin-inference:0.4 \    
- tritonserver --model-repository=/model/ \    
+docker run --gpus=1 --rm  -p 8005:8000 -p 8004:8001 -p 8003:8002 \    
+-v /hugectr_backend/samples/:/model  nvcr.io/nvidia/merlin/merlin-inference:0.4 /bin/bash
+```
+
+Activate the rapids conda environment by running the following command:   
+```shell.
+root@2efa5b50b909: source activate rapids
+```
+
+Launch the Triton server to load the DCN model by running the following command:   
+
+```shell.
+ (rapids)root@2efa5b50b909: tritonserver --model-repository=/model/ \    
  --backend-directory=/usr/local/hugectr/backends/ \  
  --backend-config=hugectr,dcn=/model/dcn/1/dcn.json \   
  --backend-config=hugectr,deepfm=/model/deepfm/1/deepfm.json

@@ -67,7 +67,7 @@ git clone https://github.com/NVIDIA/HugeCTR.git
 cd HugeCTR
 git submodule update --init --recursive
 ```
-For more information, see [Building HugeCTR from Scratch](https://gitlab-master.nvidia.com/dl/hugectr/hugectr/-/blob/master/docs/hugectr_user_guide.md#building-hugectr-from-scratch).
+For more information, see [Building HugeCTR from Scratch](https://github.com/NVIDIA/HugeCTR/blob/master/docs/hugectr_user_guide.md#building-hugectr-from-scratch).
 
 After you've built HugeCTR from scratch, do the following:
 1. Download the HugeCTR Backend repository by running the following commands:
