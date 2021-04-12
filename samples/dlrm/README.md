@@ -23,7 +23,7 @@ Merlin containers are available in the NVIDIA container repository at the follow
 You can pull the `Merlin-Training` container by running the following command:
 
 ```
-docker run --gpus=all -it -v ${PWD}:/dlrm_train/ --net=host nvcr.io/nvidia/merlin/merlin-training:0.4 /bin/bash
+docker run --gpus=all -it -v ${PWD}:/dlrm_train/ --net=host nvcr.io/nvidia/merlin/merlin-training:0.5 /bin/bash
 ```
 
 The container will open a shell when the run command execution is completed. You'll have to start the jupyter lab on the Docker container. It should look similar to this:
@@ -92,7 +92,7 @@ mkdir -p /dlrm_infer
 
 2) Launch Merlin Triton Inference Server container:
 ```
-docker run -it --gpus=all --shm-size=1g --ulimit memlock=-1 --ulimit stack=67108864 --net=host -v dlrm_infer:/dlrm_infer/ -v dlrm_train:/dlrm_train/ nvcr.io/nvidia/merlin/merlin-inference:0.4
+docker run -it --gpus=all --shm-size=1g --ulimit memlock=-1 --ulimit stack=67108864 --net=host -v dlrm_infer:/dlrm_infer/ -v dlrm_train:/dlrm_train/ nvcr.io/nvidia/merlin/merlin-inference:0.5
 ```
 The container will open a shell when the run command execution is completed. It should look similar to this:
 ```

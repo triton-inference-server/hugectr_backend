@@ -137,7 +137,7 @@ Before you can use the HugeCTR Docker image you must install Docker. If you plan
 
 Pull the image using the following command.
 ```shell.
-$ docker pull nvcr.io/nvidia/merlin/merlin-inference:0.4
+$ docker pull nvcr.io/nvidia/merlin/merlin-inference:0.5
 ```
 In this sample, the DCN model and DeepFM model can be deployed simultaneously with multiple model instances in the same GPU. Please ensure that you can successfully deploy the dcn model according to the instructions in the "${project_home}/samples/dcn".
 Use the following command to run Triton with the deepFM and dcn sample model repository. The NVIDIA Container Toolkit must be installed for Docker to recognize the GPU(s). The --gpus=1 flag indicates that 1 system GPU should be made available to Triton for inferencing.   
@@ -149,7 +149,7 @@ You can pull the `Merlin-Training` container by running the following command:
 
 ```shell.
 docker run --gpus=1 --rm  -p 8005:8000 -p 8004:8001 -p 8003:8002 \    
--v /hugectr_backend/samples/:/model  nvcr.io/nvidia/merlin/merlin-inference:0.4 /bin/bash
+-v /hugectr_backend/samples/:/model  nvcr.io/nvidia/merlin/merlin-inference:0.5 /bin/bash
 ```
 
 Activate the rapids conda environment by running the following command:   
