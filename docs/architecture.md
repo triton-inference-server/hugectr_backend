@@ -1,41 +1,37 @@
-HugeCTR Inference User Guide
-===================================
+HugeCTR Inference Architecture
+==============================
 
-HugeCTR Backend is a GPU-accelerated recommender model deploy framework that was designed to effectively use GPU memory to accelerate the inference by decoupling the parameter server, embedding cache and model weight. HugeCTR Backend supports concurrent model inference execution across multiple GPUs, embedding cache sharing between multiple model instances.  
-## Design Goals:
-* **Hierarchical Framework**: The design of HugeCTR adopts a hierarchical framework, decoupling the model weight and embedding table, the GPU cache is used to accelerate the embedding vector look up efficiency in the inference process.  
-* **Concurrent Model Execution**: Multiple models (or multiple instances of the same model) can run simultaneously on the same GPU or on multiple GPUs.
-* **Extensible Backends**: The inference interface provided by HugeCTR is based on a hierarchical framework, which can be easily integrated with the backend API that allows models to be extended with any execution logic implemented in Python or C++.  
-* **Easy Deployment of New Models**: Updating a model should be as transparent as possible and shouldn’t affect inference performance. This means that no matter how many models need to be deployed, as long as it is a model trained by HugeCTR, it can be loaded through the same HugeCTR backend API. The user only needs to change configuration files for different models.  
+The HugeCTR Backend is a GPU-accelerated recommender model deployment framework that was designed to effectively use the GPU's memory to accelerate the inference by decoupling the Parameter Server, embedding cache, and model weight. The HugeCTR Backend supports concurrent model inference execution across multiple GPUs through the use of embedding cache that is shared between multiple model instances.
+  
+## Design
+The HugeCTR Backend adopts a hierarchical framework to prevent services from being affected in multiple models that are deployed on multiple GPUs by isolating the loading of embedding tables through the Parameter Server, as well as achieving high service availability through the embedding cache. The GPU's cache is used to accelerate the embedding vector lookup efficiency during the inference process. 
 
-## HugeCTR Inference Framework
+The HugeCTR Backend also offers the following:
 
-The design of HugeCTR adopts a hierarchical framework to prevent services from being affected in multiple models deployed in multiple GPUs, providing isolated loading of embedding tables through parameter server, and achieving high service availability through embedding cache. Updating a model should be as transparent as possible and shouldn’t affect application performance.  
+* **Concurrent Model Execution**: Multiple models and instances of the same model can run simultaneously on the same GPU or multiple GPUs.
+* **Extensible Backends**: The Inference interface provided by HugeCTR can be easily integrated with the backend API, which allows models to be extended with any execution logic using Python or C++.  
+* **Easy Deployment of New Models**: Updating a model should be as transparent as possible and shouldn’t affect the inference performance. This means that no matter how many models need to be deployed, as long as the models are trained by HugeCTR, they can be loaded through the same HugeCTR backend API. The configuration files must be updated for each model.  
 
-* Parameter server:The parameter server is used to load and manage the huge size embedding table that belongs to different modeles, which also needs to provide syncup and update service for the embedding cache. At the same time, it can ensure that the complete embedding table is loaded and updated regularly.   
+### HugeCTR Backend Framework
+The following components make up the HugeCTR Backend framework:
 
-* The embedding cache: can be loaded directly into the GPU memory, providing embedding vector look up service for the model, avoiding the high latency caused between CPU and GPU from parameter server. Embedding cache also provides the update mechanism to load the latest cached embedding vector in time to ensure a high hit rate.  
+* **Parameter Server**: It is used to load and manage large embedding tables that belong to different models. The embedding tables provide syncup and update service for the embedding cache. It also ensures that the embedding table is completely loaded and updated regularly.   
+* **Embedding Cache**: It can be loaded directly into the GPU's memory while providing an embedding vector lookup service for the model and avoiding the high latency caused between the CPU and GPU from the Parameter Server. It also provides the update mechanism for loading the latest cached embedding vector in time to ensure a high hit rate.  
+* **Model**: It is much smaller than the embedding table, so it can be directly loaded into the GPU's memory to accelerate inference. The model can interact directly with the embedding cache in the GPU's memory to obtain embedding vectors. Based on the hierarchical design structure, multiple model instances will share embedding cache in the GPU's memory to enforce concurrent model execution. Based on the dependencies of the hierarchical level, the embedding table can be decoupled from the lookup operation of the model, which implements an efficient and low-latency lookup operation by relying on the embedding cache. This makes it possible to implement inference logic using interface-by-interface initialization and dependency injection.  
 
-* Model: the model weight is much smaller than the embedding table, so it can be directly loaded into the gpu memory to accelerate inference, while the model can directly interact with the embedding cache in the GPU memory to obtain embedding vectors. Based on the hierarchical design structure, multiple model instances will share embedding cache in gpu memory to achieve the purpose of Concurrent model execution.  
-
-Based on the dependencies of the hierarchical level, we can decouple the embedding table from the lookup operation of the model, and the model implements the efficient and low-latency look up operation by relying on the embedding cache. Allow the user implement the inference logic by interface-by-interface initialization and dependency injection.  
-
-Here is  the complete design framework of the HugeCTR inference interface.  
+Here's an in-depth look into the design framework of the HugeCTR Inference interface:
 
 <div align=center><img src ="user_guide_src/HugeCTR_Inference_Interface_Design.png"/></div>
 <div align=center>Fig. 1. HugeCTR Inference Design Architecture</div>  
   
-In actual applications, a parameter server is used to load the embedding tables of all models. Since different models will obtain different embedding tables through training in different application scenarios, it will bring high memory overhead in the inference process. By introducing a parameter server, the embedding table can be directly loaded into GPU memory when the embedding table size is small and loaded into CPU memory even SSD When the size is too large. So as to ensure the isolation of different models and the embedding tables sharing between the same models.  
+In actual applications, a Parameter Server is used to load the embedding tables for all models. Since different models will obtain different embedding tables by training in different application scenarios, high memory overhead will be needed during the inference process. By introducing a Parameter Server, the embedding table can be loaded directly into the GPU's memory when the embedding table size is small and loaded into the CPU's memory or even into the solid-state drive (SSD) when the embedding table size is too large. This ensures that  different models and the embedding tables shared between these models are isolated.  
 
-Each embedding table will create an individual embedding cache on different GPUs. Embedding cache treats the embedding table as the smallest granularity, which means that embedding cache could lookup and synchronize with the corresponding embedding table directly.  
+Each embedding table will create an individual embedding cache on different GPUs. The embedding cache treats the embedding table as the smallest granularity, which means that the embedding cache can look up and synchronize with the corresponding embedding table directly. The current mechanism ensures that multiple model instances for the same model can share the same embedding cache on the deployed GPU node. The embedding table will be updated periodically, or depending upon the timeframe that has been set, with the embedding cache to determine the lookup acceleration of the embedding vector on the Parameter Server.
 
-Current mechanism ensures that multiple model instances of the same model can share the same embedding cache on the deployed GPU node, embedding table will be periodically updated(or based on threshold defined by user) with the embedding cache to realize the acceleration of looking up embedding vectors from parameter server.  
-
-### Enable GPU Embedding Cache
-
-If the user enables the GPU cache mechanism, the model will look up the embedding vector from the GPU embedding cache. If the embedding vector does not exist in the GPU embedding cache, it will return the default embedding vector (default value is 0).  
+### Enabling the GPU's Embedding Cache
+When the GPU's cache mechanism is enabled, the model will look up the embedding vector from the GPU's embedding cache. If the embedding vector does not exist in the GPU's embedding cache, it will return the default embedding vector. The default value is 0.  
  
-The necessary configuration items need to be set in HugeCTR Backend "config.pbtxt" as follows:  
+The following parameters have to be set in the config.pbtxt file for the HugeCTR Backend:  
 
  ```json.
  parameters [
@@ -50,11 +46,10 @@ The necessary configuration items need to be set in HugeCTR Backend "config.pbtx
   },
 ...
 ]
-```  
-* **gpucache**: You can use this option to enable the GPU cache mechanism.   
-* **gpucacheper**: You can use this option to decide the ratio(default is 0.5) that embedding vectors will be loaded from the embedding table into the GPU embedding cache. In the above example, 50% of the embedding table will be loaded into the GPU embedding cache.    
+```
 
-GPU embedding cache also supports embedding vector updates with parameter server in a fixed hit ratio. User needs to set hit ratio threshold in model inference configuration json file, such as [dcn.json](https://gitlab-master.nvidia.com/dl/hugectr/hugectr_inference_backend/-/blob/main/samples/dcn/1/dcn.json) and [deepfm.json](https://gitlab-master.nvidia.com/dl/hugectr/hugectr_inference_backend/-/blob/main/samples/deepfm/1/deepfm.json)  
+* **gpucache**: Use this option to enable the GPU's cache mechanism.   
+* **gpucacheper**: Use this option to determine which percentage of the embedding vectors will be loaded from the embedding table into the GPU's embedding cache. The default value is 0.5. In the above example, 50% of the embedding table will be loaded into the GPU's embedding cache.
 
  ```json.
  ...
@@ -68,45 +63,44 @@ GPU embedding cache also supports embedding vector updates with parameter server
 
 ...
 ]
-``` 
-* **hit_rate_threshold**: You can use this option to determine that the Updating mechanism of embedding cache and parameter server is based on the hit rate. If the hit rate of an embedding vector looking up is lower than the threshold, the GPU embedding cache will update the missing vector with parameter server.  
+```
 
-### Disable GPU Embedding Cache
-If the user disables the GPU embedding cache mechanism (set "gpucache" as false), the model will look up the embedding vector  from the parameter server directly, and all GPU embedding cache related settings will be invalid.  
+* **hit_rate_threshold**: Use this option to determine the Updating mechanism of the embedding cache and Parameter Server based on the hit rate. If the hit rate of an embedding vector lookup is lower than the set threshold, the GPU's embedding cache will update the missing vector on the Parameter Server. The GPU's embedding cache also supports the embedding vector updates from the Parameter Server in a fixed hit ratio. The hit rate threshold must be set in the model inference configuration JSON file. For example, [dcn.json](https://gitlab-master.nvidia.com/dl/hugectr/hugectr_inference_backend/-/blob/main/samples/dcn/1/dcn.json) and [deepfm.json](https://gitlab-master.nvidia.com/dl/hugectr/hugectr_inference_backend/-/blob/main/samples/deepfm/1/deepfm.json). 
+
+### Disabling the GPU's Embedding Cache
+When the GPU's embedding cache mechanism is disabled ("gpucache" is set to false), the model will look up the embedding vector from the Parameter Server directly. All settings related to the GPU's embedding cache will be invalid.  
 
 ## Localized Deployment
-Here are several deployment examples for different infrastructure scenarios that HugeCTR supported. The parameter server implements localized deployment on the same nodes/cluster.  
-Each node only has single gpu and parameter server is deployed on same node:  
-* Scenario 1: A single GPU(Node 1) deploys a single model, the hit rate of  embedding cache will be maximized by launching multiple parallel instances
-* Scenario 2: A single GPU (Node 2) deploys multiple models,  the GPU resources can be maximized. Need to find a balance between the number of concurrent instances and multiple embedding caches to ensure efficient use of GPUmemory.
-Data transmission between each embedding cache and ps will be an independent cuda stream.  
+The Parameter Server implements localized deployment on the same nodes and cluster. Each node only has one GPU and Parameter Server that is deployed on the same node. Here are several deployment scenarios that HugeCTR supports:
 
-Each node contains multiple GPUs and a parameter server is deployed on the same node.
-* Scenario 3: Multiple GPUs (Node 3) deploys a single model, Parameter Server could also help increase the hit rate of the embedding cache between GPUs.
-* Scenario 4: Multiple GPUs (Node 4) deploys multiple models, as the most complicated scenario for localized deployment, it is necessary to ensure that different embedding caches can share the same parameter server, and different models can share embedding caches on the same node.  
+* Scenario 1: One GPU (Node 1) deploys one model so that the hit rate of the embedding cache will be maximized by launching multiple parallel instances.
+* Scenario 2: One GPU (Node 2) deploys multiple models so that the GPU's resources can be maximized. A balance between the number of concurrent instances and multiple embedding caches is needed to ensure efficient use of the GPU's memory. Data transmission between each embedding cache and Parameter Server will be an independent cuda stream.  
+
+  **NOTE**: Multiple GPUs and a Parameter Server is deployed on each node in the examples noted below.
+  
+* Scenario 3: Multiple GPUs (Node 3) deploys a single model in which the Parameter Server can help increase the hit rate of the embedding cache between GPUs.
+* Scenario 4: Multiple GPUs (Node 4) deploys multiple models, and with this being the most complicated scenario for localized deployment, it is necessary to ensure that different embedding caches can share the same Parameter Server and different models can share embedding caches on the same node.  
 
 <div align=center><img src ="user_guide_src/HugeCTR_Inference_Localized_Deployment.png"/></div>
 <div align=center>Fig. 2. HugeCTR Inference Localized Deployment Architecture</div>
 
 ## Variant Compressed Sparse Row Input 
-Here is a brief introduction to the data structure used for the HugeCTR model for inference services.  
-In order to efficiently read the data to obtain the data semantic information from  the raw data and avoid consuming too much time for data parsing, we use the variant csr data format as input for HugeCTR model. For each sample, there are mainly three types of input data:  
-* Dense feature: normal numerical data is called Dense feature.
-* Column indices: As the upstream of preprocessing tools, NVTabular performs one-hot and multi-hot encoding on categorical data, and converts categorical data into numerical data.  
-* Row ptr: NVTabular needs to output the corresponding slot information to indicate the feature filedes to corresponding categorical data. Using this variant CSR data format, the model obtains the feature field information when reading data from request,  avoiding the redundant analysis so as to speed up the inference process.
+The Variant Compressed Sparse Row (CSR) data format is used as input for the HugeCTR model to efficiently read the data, obtain data semantic information from the raw data, and avoid consuming too much time for data parsing. NVTabular has to output the corresponding slot information to indicate the feature files for the categorical data. Using the variant CSR data format, the model obtains the feature field information when reading data from the request, and the inference process is sped up since analysis redundancy is avoided. For each sample, there are three main types of input data: 
+ 
+* **Dense Feature**: Represents normal numerical data.
+* **Column Indices**: The upstream preprocessing tool where NVTabular performs one-hot and multi-hot encoding on categorical data and converts it into numerical data.  
+* **Row ptr**: Provides the number of categorical features in each slot. 
 
 <div align=center><img src ="user_guide_src/HugeCTR_Inference_Input_Format.png"/></div>
 <div align=center>Fig. 3. HugeCTR Inference VCSR Input Format</div>
 
 ### VCSR Example
-Take the **Row 0** ( a sample) of the above figure as an example, the input data contains 4 slots, HugeCTR parses the Row 0 slot information according to "Row ptr" input. "Row ptr" input will provide the number of categorical features contained in each slot, as shown below：  
+Take the **Row 0**, a sample, of the figure above as an example. The input data contains four slots and HugeCTR parses the Row 0 slot information according to the "Row ptr" input. 
 
 <div align=center><img src ="user_guide_src/HugeCTR_Inference_VCSR_Example.png" width="562" height="225" /></div>
 <div align=center>Fig. 4. HugeCTR Inference VCSR Example</div>
 
-* slot 1: contains **1** categorical feature and the embedding key is 1. 
-* slot 2: contains **1** categorical feature and the embedding key is 3.
-* slot 3: contains **0** categorical feature.
-* slot 4: contains **2** categorical features and the embedding keys are 8 and 9. HugeCTR will look up two embedding vectors from GPU embedding cache or parameter server and reduce to one as the final embedding vector of slot 4.
-
-
+* slot 1: Contains **1** categorical feature and the embedding key is 1. 
+* slot 2: Contains **1** categorical feature and the embedding key is 3.
+* slot 3: Contains **0** categorical features.
+* slot 4: Contains **2** categorical features and the embedding keys are 8 and 9. HugeCTR will look up two embedding vectors from the GPU's embedding cache or the Parameter Server and end up with one final embedding vector for slot 4.
