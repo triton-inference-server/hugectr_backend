@@ -81,7 +81,7 @@ The following notebook [HugeCTR_DLRM_Inference.ipynb](https://gitlab-master.nvid
 **After completing the Step 1 and step 3 correctly, you can successfully run the `HugeCTR_DLRM_Inference` notebook**  
 
 
-Now you can start `HugeCTR_DLRM_Training` notebooks. Note that you need to save your workflow and DLRM model in the `dlrm_infer/model` directory before launching the `tritonserver` as defined below, the details you could refer to `HugeCTR_DLRM_Inference` example notebook once the server is started.
+Now you can start `HugeCTR_DLRM_Inference` notebooks. Note that you need to save your workflow and DLRM model in the `dlrm_infer/model` directory before launching the `tritonserver` as defined below, the details you could refer to `HugeCTR_DLRM_Inference` example notebook once the server is started.
 
 ## 3. Build and Run the Triton Inference Server container:
 

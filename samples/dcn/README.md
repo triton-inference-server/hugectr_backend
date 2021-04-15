@@ -144,7 +144,7 @@ Use the following command to run Triton with the dcn sample model repository. If
 - If building HugeCTR Backend from Scratch, please specify "--backend-directory" argument value as the absolute path that installs the HugeCTR backend.  
 - If the key value type of the embedding table is I64, please add "--backend-config=hugectr,supportlonglong=true".    
 
-You can pull the `Merlin-Training` container by running the following command:  
+You can pull the `Merlin-Inference` container by running the following command:  
 
 ```shell.
 docker run --gpus=1 --rm  -p 8005:8000 -p 8004:8001 -p 8003:8002 \    
