@@ -323,7 +323,7 @@ class ModelState {
   // Get the HugeCTR model Embedding size.
   int64_t EmbeddingSize() { return embedding_size_; }
 
-  //Get Embeding Cache
+  //Get Embedding Cache
   std::shared_ptr<HugeCTR::embedding_interface> GetEmbeddingCache(int64_t device_id){return embedding_cache_map[device_id];}
 
   //Get input data entry map
