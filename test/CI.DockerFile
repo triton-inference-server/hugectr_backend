@@ -1,4 +1,4 @@
-FROM  gitlab-master.nvidia.com:5005/dl/hugectr/hugectr:v3.0-inference
+FROM  gitlab-master.nvidia.com:5005/dl/hugectr/hugectr:v3.0.1-inference
 
 ARG HUGECTR_BRANCH=main
 ARG INFERENCE_BRANCH=main
