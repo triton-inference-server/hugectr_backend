@@ -33,14 +33,14 @@ The container will open a shell when the run command execution is completed. You
 root@2efa5b50b909:
 ```
 
-Activate the rapids conda environment by running the following command:
+Activate the merlin conda environment by running the following command:
 ```
-root@2efa5b50b909: source activate rapids
+root@2efa5b50b909: source activate merlin
 ```
 You should receive the following response, indicating that the environment has been activated:
 
 ```
-(rapids)root@2efa5b50b909:
+(merlin)root@2efa5b50b909:
 ```
 
 1) Install Required Libraries:
@@ -99,9 +99,9 @@ The container will open a shell when the run command execution is completed. It 
 root@02d56ff0738f:/opt/tritonserver# 
 ```
 
-Activate the rapids conda environment by running the following command:
+Activate the merlin conda environment by running the following command:
 ```
-root@02d56ff0738f:/opt/tritonserver#  source activate rapids
+root@02d56ff0738f:/opt/tritonserver#  source activate merlin
 ```
 
 3) Your saved model should be in the `dlrm_infer/model` directory. 
