@@ -129,25 +129,36 @@ Add the **input_key_type** to "${project_home}/samples/dcn/1/dcn.json" as follow
     ...
     "input_key_type": "I64",
     ...
-  },
-``` 
+  }
+```  
 
 ## 4. Launch Triton server 
 Before you can use the HugeCTR Docker image you must install Docker. If you plan on using a GPU for inference you must also install the NVIDIA Container Toolkit. DGX users should follow Preparing to use NVIDIA Containers. 
 
 Pull the image using the following command.
 ```shell.
-$ docker pull nvcr.io/nvidia/merlin/merlin-inference:0.4
+$ docker pull nvcr.io/nvidia/merlin/merlin-inference:0.5
 ```
 Use the following command to run Triton with the dcn sample model repository. If the deepfm model files are not trained and exported before, please remove the "${project_home}/samples/deepfm". The NVIDIA Container Toolkit must be installed for Docker to recognize the GPU(s). The --gpus=1 flag indicates that 1 system GPU should be made available to Triton for inferencing.   
 
 - If building HugeCTR Backend from Scratch, please specify "--backend-directory" argument value as the absolute path that installs the HugeCTR backend.  
 - If the key value type of the embedding table is I64, please add "--backend-config=hugectr,supportlonglong=true".    
 
+You can pull the `Merlin-Training` container by running the following command:  
+
 ```shell.
- docker run --gpus=1 --rm  -p 8005:8000 -p 8004:8001 -p 8003:8002 \    
- -v /hugectr_backend/samples/:/model  nvcr.io/nvidia/merlin/merlin-inference:0.4 \  
- tritonserver --model-repository=/model/ --load-model=dcn --model-control-mode=explicit \   
+docker run --gpus=1 --rm  -p 8005:8000 -p 8004:8001 -p 8003:8002 \    
+-v /hugectr_backend/samples/:/model  nvcr.io/nvidia/merlin/merlin-inference:0.5 /bin/bash
+```
+
+Activate the rapids conda environment by running the following command:  
+```shell.
+root@2efa5b50b909: source activate rapids
+```
+
+Launch the Triton server to load the DCN model by running the following command:  
+```shell.
+(rapids)root@2efa5b50b909: tritonserver --model-repository=/model/ --load-model=dcn --model-control-mode=explicit \   
  --backend-directory=/usr/local/hugectr/backends/ \  
  --backend-config=hugectr,dcn=/model/dcn/1/dcn.json 
 ```
