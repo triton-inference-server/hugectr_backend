@@ -33,6 +33,7 @@
 #include "dirent.h"
 #include "cuda_runtime_api.h"
 #include "math.h"
+#include "algorithm"
 #include "triton/backend/backend_common.h"
 #include "inference/hugectrmodel.hpp"
 #include "inference/inference_utils.hpp"
@@ -232,6 +233,10 @@ class HugeCTRBackend{
   //HugeCTR long long type Paramerter Server
   HugeCTR::HugectrUtility<long long>* HugeCTRParameterServerInt64(){return EmbeddingTable_int64;}
 
+  HugeCTR::InferenceParams HugeCTRModelConfiguration(std::string modelname){return inference_params_map.at(modelname);}
+
+  std::map<std::string, HugeCTR::InferenceParams> HugeCTRModelConfigurationMap(){return inference_params_map;}
+
   //Initilize HugeCTR EmbeddingTable 
   TRITONSERVER_Error* HugeCTREmbedding_backend();
  private:
@@ -240,6 +245,14 @@ class HugeCTRBackend{
   std::vector<std::string> model_name;
   HugeCTR::HugectrUtility<unsigned int>* EmbeddingTable_int32;
   HugeCTR::HugectrUtility<long long>* EmbeddingTable_int64;
+
+  std::map<std::string, HugeCTR::InferenceParams> inference_params_map;
+
+  ///Parameter server configuration test
+  std::string dense_model{"/model/dlrm/1/_dense_58000.model"};
+  std::vector<std::string> sparse_models{"/model/dlrm/1/0_sparse_58000.model"};
+
+
   bool support_int64_key_=false;
   HugeCTRBackend(
        TRITONBACKEND_Backend* triton_backend_,
@@ -265,7 +278,12 @@ HugeCTRBackend::HugeCTRBackend(
     
 {
 
-    //current much Model Backend initialization handled by TritonBackend_Backend
+  std::string modelname="dlrm";
+  HugeCTR::InferenceParams infer_param(modelname, 1, 0.55, dense_model, sparse_models, 0, true, 0.55, true);
+  
+  inference_params_map.insert(std::pair<std::string, HugeCTR::InferenceParams>(modelname, infer_param));
+
+  //current much Model Backend initialization handled by TritonBackend_Backend
 }
 
 
@@ -274,15 +292,19 @@ TRITONSERVER_Error*
 HugeCTRBackend::HugeCTREmbedding_backend(){
      LOG_MESSAGE(TRITONSERVER_LOG_INFO,(std::string("*****Backend Parameter Server creating...*****") ).c_str());
     HugeCTR::INFER_TYPE type= HugeCTR::INFER_TYPE::TRITON;
+    std::vector<HugeCTR::InferenceParams> model_vet;
+    for (const auto &s : HugeCTRModelConfigurationMap()){
+      model_vet.push_back(s.second );
+    }
     if (support_int64_key_)
     {
       LOG_MESSAGE(TRITONSERVER_LOG_INFO,(std::string("*****Backend Long Long type key Parameter Server creating...***** ") ).c_str());
-      EmbeddingTable_int64=HugeCTR::HugectrUtility<long long>::Create_Parameter_Server(type,model_config_path,model_name);
+      EmbeddingTable_int64=HugeCTR::HugectrUtility<long long>::Create_Parameter_Server(type,model_config_path,model_vet);
     }
     else
     {
       LOG_MESSAGE(TRITONSERVER_LOG_INFO,(std::string("*****Backend regular int key type Parameter Server creating...***** ") ).c_str());
-      EmbeddingTable_int32 =HugeCTR::HugectrUtility<unsigned int>::Create_Parameter_Server(type,model_config_path,model_name);
+      EmbeddingTable_int32 =HugeCTR::HugectrUtility<unsigned int>::Create_Parameter_Server(type,model_config_path,model_vet);
     }
     LOG_MESSAGE(TRITONSERVER_LOG_INFO,(std::string("*****Backend Create Parameter Server sucessully!*****") ).c_str());
     return nullptr;
@@ -298,7 +320,7 @@ HugeCTRBackend::HugeCTREmbedding_backend(){
 class ModelState {
  public:
   static TRITONSERVER_Error* Create(
-      TRITONBACKEND_Model* triton_model, ModelState** state,HugeCTR::HugectrUtility<unsigned int>* EmbeddingTable_int32, HugeCTR::HugectrUtility<long long>* EmbeddingTable_int64);
+      TRITONBACKEND_Model* triton_model, ModelState** state,HugeCTR::HugectrUtility<unsigned int>* EmbeddingTable_int32, HugeCTR::HugectrUtility<long long>* EmbeddingTable_int64,HugeCTR::InferenceParams Model_Inference_Para );
 
   ~ModelState();
 
@@ -366,12 +388,15 @@ class ModelState {
   //HugeCTR long long PS
   HugeCTR::HugectrUtility<long long>* HugeCTRParameterServerInt64(){return EmbeddingTable_int64;}
 
+  //Model Inference Inference Parameter Configuration 
+  HugeCTR::InferenceParams ModelInferencePara(){return Model_Inference_Para;}
+
  private:
   ModelState(
       TRITONSERVER_Server* triton_server, TRITONBACKEND_Model* triton_model,
       const char* name, const uint64_t version,
       common::TritonJson::Value&& model_config,
-      HugeCTR::HugectrUtility<unsigned int>* EmbeddingTable_int32,HugeCTR::HugectrUtility<long long>* EmbeddingTable_int64 );
+      HugeCTR::HugectrUtility<unsigned int>* EmbeddingTable_int32,HugeCTR::HugectrUtility<long long>* EmbeddingTable_int64,HugeCTR::InferenceParams Model_Inference_Para );
 
   TRITONSERVER_Server* triton_server_;
   TRITONBACKEND_Model* triton_model_;
@@ -396,6 +421,7 @@ class ModelState {
 
   HugeCTR::HugectrUtility<unsigned int>* EmbeddingTable_int32;
   HugeCTR::HugectrUtility<long long>* EmbeddingTable_int64;
+  HugeCTR::InferenceParams Model_Inference_Para;
 
   std::map<int64_t, std::shared_ptr<HugeCTR::embedding_interface>> embedding_cache_map;
 
@@ -405,7 +431,8 @@ class ModelState {
 };
 
 TRITONSERVER_Error*
-ModelState::Create(TRITONBACKEND_Model* triton_model, ModelState** state, HugeCTR::HugectrUtility<unsigned int>* EmbeddingTable_int32, HugeCTR::HugectrUtility<long long>* EmbeddingTable_int64 )
+ModelState::Create(TRITONBACKEND_Model* triton_model, ModelState** state, HugeCTR::HugectrUtility<unsigned int>* EmbeddingTable_int32, 
+HugeCTR::HugectrUtility<long long>* EmbeddingTable_int64,HugeCTR::InferenceParams Model_Inference_Para )
 {
   TRITONSERVER_Message* config_message;
   RETURN_IF_ERROR(TRITONBACKEND_ModelConfig(
@@ -439,17 +466,18 @@ ModelState::Create(TRITONBACKEND_Model* triton_model, ModelState** state, HugeCT
 
   *state = new ModelState(
       triton_server, triton_model, model_name, model_version,
-      std::move(model_config),EmbeddingTable_int32, EmbeddingTable_int64);
+      std::move(model_config),EmbeddingTable_int32, EmbeddingTable_int64,Model_Inference_Para);
   return nullptr;  // success
 }
 
 ModelState::ModelState(
     TRITONSERVER_Server* triton_server, TRITONBACKEND_Model* triton_model,
     const char* name, const uint64_t version,
-    common::TritonJson::Value&& model_config, HugeCTR::HugectrUtility<unsigned int>* EmbeddingTable_int32,HugeCTR::HugectrUtility<long long>* EmbeddingTable_int64 )
+    common::TritonJson::Value&& model_config, HugeCTR::HugectrUtility<unsigned int>* EmbeddingTable_int32,
+    HugeCTR::HugectrUtility<long long>* EmbeddingTable_int64,HugeCTR::InferenceParams Model_Inference_Para )
     : triton_server_(triton_server), triton_model_(triton_model), name_(name),
       version_(version), model_config_(std::move(model_config)),
-      EmbeddingTable_int32(EmbeddingTable_int32),EmbeddingTable_int64(EmbeddingTable_int64)
+      EmbeddingTable_int32(EmbeddingTable_int32),EmbeddingTable_int64(EmbeddingTable_int64), Model_Inference_Para(Model_Inference_Para)
 {
 
     //current much model initialization work handled by TritonBackend_Model
@@ -685,21 +713,19 @@ ModelState::Create_EmbeddingCache()
       std::string(name_)+ std::string(" in device ")+ std::to_string(gpu_shape[i])).c_str());
       if(support_int64_key_)
       {
-        embedding_cache_map[gpu_shape[i]] = std::shared_ptr<HugeCTR::embedding_interface>(HugeCTR::embedding_interface::Create_Embedding_Cache(EmbeddingTable_int64,
-        gpu_shape[i],
-        support_gpu_cache_,
-        cache_size_per,
+        Model_Inference_Para.device_id=gpu_shape[i];
+        embedding_cache_map[gpu_shape[i]] = std::shared_ptr<HugeCTR::embedding_interface>(HugeCTR::embedding_interface::Create_Embedding_Cache(
         hugectr_config_,
-        name_));
+        Model_Inference_Para,
+        EmbeddingTable_int64));
       }
       else
       {
-        embedding_cache_map[gpu_shape[i]] = std::shared_ptr<HugeCTR::embedding_interface>(HugeCTR::embedding_interface::Create_Embedding_Cache(EmbeddingTable_int32,
-        gpu_shape[i],
-        support_gpu_cache_,
-        cache_size_per,
+        Model_Inference_Para.device_id=gpu_shape[i];
+        embedding_cache_map[gpu_shape[i]] = std::shared_ptr<HugeCTR::embedding_interface>(HugeCTR::embedding_interface::Create_Embedding_Cache(
         hugectr_config_,
-        name_));
+        Model_Inference_Para,
+        EmbeddingTable_int32));
       }  
     } 
   }
@@ -875,7 +901,7 @@ TRITONSERVER_Error* ModelInstanceState::LoadHugeCTRModel(){
   HugeCTR::INFER_TYPE type=HugeCTR::INFER_TYPE::TRITON;
   LOG_MESSAGE(TRITONSERVER_LOG_INFO,(std::string("model origin josn config path: " + model_state_->HugeCTRJsonConfig())).c_str());
   embedding_cache = model_state_->GetEmbeddingCache(device_id_);
-  hugectrmodel_=HugeCTR::HugeCTRModel::load_model(type,model_state_->HugeCTRJsonConfig(),device_id_, embedding_cache);
+  hugectrmodel_=HugeCTR::HugeCTRModel::load_model(type,model_state_->HugeCTRJsonConfig(),model_state_->ModelInferencePara(), embedding_cache);
   LOG_MESSAGE(TRITONSERVER_LOG_INFO,(std::string("******Loading Hugectr model successfully")).c_str());
   return nullptr;
 }
@@ -1077,7 +1103,8 @@ TRITONBACKEND_ModelInitialize(TRITONBACKEND_Model* model)
   // With each model we create a ModelState object and associate it
   // with the TRITONBACKEND_Model.
   ModelState* model_state;
-  ModelState::Create(model, &model_state,backend_state->HugeCTRParameterServerInt32(),backend_state->HugeCTRParameterServerInt64());
+  ModelState::Create(model, &model_state,backend_state->HugeCTRParameterServerInt32(),
+  backend_state->HugeCTRParameterServerInt64(),backend_state->HugeCTRModelConfiguration(cname));
   RETURN_IF_ERROR(
       TRITONBACKEND_ModelSetState(model, reinterpret_cast<void*>(model_state)));
 
