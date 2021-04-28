@@ -31,6 +31,7 @@
 #include "cstdlib"
 #include "dlfcn.h"
 #include "dirent.h"
+#include "fstream"
 #include "cuda_runtime_api.h"
 #include "math.h"
 #include "algorithm"
@@ -239,6 +240,8 @@ class HugeCTRBackend{
 
   //Initilize HugeCTR EmbeddingTable 
   TRITONSERVER_Error* HugeCTREmbedding_backend();
+  TRITONSERVER_Error* ParseParameterServer(const std::string& path);
+
  private:
   TRITONBACKEND_Backend* triton_backend_;
   std::vector<std::string> model_config_path;
@@ -247,6 +250,8 @@ class HugeCTRBackend{
   HugeCTR::HugectrUtility<long long>* EmbeddingTable_int64;
 
   std::map<std::string, HugeCTR::InferenceParams> inference_params_map;
+
+  common::TritonJson::Value parameter_server_config;
 
   ///Parameter server configuration test
   std::string dense_model{"/model/dlrm/1/_dense_58000.model"};
@@ -277,15 +282,55 @@ HugeCTRBackend::HugeCTRBackend(
       model_config_path(modelconfigs),model_name(modelnames),support_int64_key_(supportlonglongkey)
     
 {
-
-  std::string modelname="dlrm";
-  HugeCTR::InferenceParams infer_param(modelname, 1, 0.55, dense_model, sparse_models, 0, true, 0.55, true);
-  
-  inference_params_map.insert(std::pair<std::string, HugeCTR::InferenceParams>(modelname, infer_param));
-
   //current much Model Backend initialization handled by TritonBackend_Backend
+  
 }
 
+TRITONSERVER_Error* 
+HugeCTRBackend::ParseParameterServer(const std::string& path){
+  std::ifstream file_stream(path);
+  std::cout<<"path is "<<path<<std::endl;
+  if (!file_stream.is_open()) {
+    //CK_THROW_(Error_t::FileCannotOpen, "file_stream.is_open() failed: " + filename);
+    std::cout<<"file open fail"<<std::endl;
+  }
+  LOG_MESSAGE(TRITONSERVER_LOG_INFO,(std::string("Parsing Parameter Server Configuration from ")+path ).c_str());
+  std::string filecontent((std::istreambuf_iterator<char>(file_stream)),  
+                 std::istreambuf_iterator<char>()); 
+  file_stream.close();
+  std::string str_buffer_ = std::move(filecontent);
+  const char* buffer_test=str_buffer_.data();
+  size_t byte_size_test=str_buffer_.size();
+  parameter_server_config.Parse(buffer_test, byte_size_test);
+
+  common::TritonJson::Value models;
+  (parameter_server_config.MemberAsArray("models", &models));
+  for (size_t i=0; i<models.ArraySize(); i++)
+  {
+    common::TritonJson::Value model;
+    (models.IndexAsObject(i, &model));
+    //Checkout input data_type
+    std::string modelname;
+    (model.MemberAsString("model", &modelname));
+
+    std::string dense;
+    (model.MemberAsString("dense_file", &dense));
+    std::cout<<"dense:"<<dense<<std::endl;
+
+    common::TritonJson::Value sparse_files;
+    std::vector<std::string> sparses;
+    (model.MemberAsArray("sparse_files", &sparse_files));
+    for (size_t i = 0; i < sparse_files.ArraySize(); ++i) {
+      std::string d;
+      (sparse_files.IndexAsString(i, &d));
+      sparses.push_back(d);
+    }
+
+    HugeCTR::InferenceParams infer_param(modelname, 1, 0.55, dense, sparses, 0, true, 0.55, true);
+    inference_params_map.insert(std::pair<std::string, HugeCTR::InferenceParams>(modelname, infer_param));
+  }
+  return nullptr;
+}
 
 //HugeCTR EmbeddingTable
 TRITONSERVER_Error* 
@@ -996,19 +1041,24 @@ TRITONBACKEND_Initialize(TRITONBACKEND_Backend* backend)
   std::vector<std::string> param_keys;
   std::vector<std::string> cmd_keys;
   bool supportlonglongkey=false;
+  std::string ps_path;
   if (backend_config.Find("cmdline", &cmdline)) {
     RETURN_IF_ERROR(cmdline.Members(&cmd_keys));
     for (const auto& param_key : cmd_keys){
       std::string value_string;
-      if(param_key!="supportlonglong")
+      if(param_key =="supportlonglong")
       {
-      RETURN_IF_ERROR(cmdline.MemberAsString(
-                        param_key.c_str(), &value_string));
-      param_values.push_back(value_string);
-      param_keys.push_back(param_key);
+        supportlonglongkey=true;
+      }
+      else if(param_key=="ps"){
+        RETURN_IF_ERROR(cmdline.MemberAsString(
+                        param_key.c_str(), &ps_path));
       }
       else{
-        supportlonglongkey=true;
+        RETURN_IF_ERROR(cmdline.MemberAsString(
+                        param_key.c_str(), &value_string));
+        param_values.push_back(value_string);
+        param_keys.push_back(param_key);
       }
     }
   }
@@ -1020,7 +1070,9 @@ TRITONBACKEND_Initialize(TRITONBACKEND_Backend* backend)
   RETURN_IF_ERROR(
       TRITONBACKEND_BackendSetState(backend, reinterpret_cast<void*>(hugectr_backend)));
 
+  RETURN_IF_ERROR(hugectr_backend->ParseParameterServer(ps_path));
   RETURN_IF_ERROR(hugectr_backend->HugeCTREmbedding_backend());
+  
 
 
   return nullptr;  // success
