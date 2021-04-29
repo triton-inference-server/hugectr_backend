@@ -223,7 +223,7 @@ public:
 class HugeCTRBackend{
   public:
   static TRITONSERVER_Error* Create(
-      TRITONBACKEND_Backend* triton_backend_, HugeCTRBackend** backend,std::vector<std::string>modelnames,std::vector<std::string>modelconfigs,bool supportlonglongkey);
+      TRITONBACKEND_Backend* triton_backend_, HugeCTRBackend** backend);
 
   // Get the handle to the TRITONBACKEND model.
   TRITONBACKEND_Backend* TritonBackend() { return triton_backend_; }
@@ -244,43 +244,31 @@ class HugeCTRBackend{
 
  private:
   TRITONBACKEND_Backend* triton_backend_;
-  std::vector<std::string> model_config_path;
-  std::vector<std::string> model_name;
   HugeCTR::HugectrUtility<unsigned int>* EmbeddingTable_int32;
   HugeCTR::HugectrUtility<long long>* EmbeddingTable_int64;
+
+  std::vector<std::string> model_network_files;
 
   std::map<std::string, HugeCTR::InferenceParams> inference_params_map;
 
   common::TritonJson::Value parameter_server_config;
 
-  ///Parameter server configuration test
-  std::string dense_model{"/model/dlrm/1/_dense_58000.model"};
-  std::vector<std::string> sparse_models{"/model/dlrm/1/0_sparse_58000.model"};
-
-
   bool support_int64_key_=false;
-  HugeCTRBackend(
-       TRITONBACKEND_Backend* triton_backend_,
-      std::vector<std::string>modelnames,std::vector<std::string>modelconfigs,bool supportlonglongkey );
-
+  HugeCTRBackend( TRITONBACKEND_Backend* triton_backend_);
 
 };
 
 TRITONSERVER_Error*
-HugeCTRBackend::Create(TRITONBACKEND_Backend* triton_backend_, HugeCTRBackend** backend,std::vector<std::string>modelnames,std::vector<std::string>modelconfigs,bool supportlonglongkey)
+HugeCTRBackend::Create(TRITONBACKEND_Backend* triton_backend_, HugeCTRBackend** backend)
 {
 
-  *backend = new HugeCTRBackend(
-       triton_backend_,modelconfigs, modelnames,supportlonglongkey);
+  *backend = new HugeCTRBackend(triton_backend_);
   return nullptr;  // success
 }
 
 HugeCTRBackend::HugeCTRBackend(
-   TRITONBACKEND_Backend* triton_backend,
-   std::vector<std::string>modelnames, std::vector<std::string>modelconfigs,bool supportlonglongkey )
-    : triton_backend_(triton_backend),
-      model_config_path(modelconfigs),model_name(modelnames),support_int64_key_(supportlonglongkey)
-    
+   TRITONBACKEND_Backend* triton_backend)
+    : triton_backend_(triton_backend)
 {
   //current much Model Backend initialization handled by TritonBackend_Backend
   
@@ -303,8 +291,10 @@ HugeCTRBackend::ParseParameterServer(const std::string& path){
   size_t byte_size_test=str_buffer_.size();
   parameter_server_config.Parse(buffer_test, byte_size_test);
 
+  parameter_server_config.MemberAsBool("supportlonglong", &support_int64_key_);
+
   common::TritonJson::Value models;
-  (parameter_server_config.MemberAsArray("models", &models));
+  parameter_server_config.MemberAsArray("models", &models);
   for (size_t i=0; i<models.ArraySize(); i++)
   {
     common::TritonJson::Value model;
@@ -316,6 +306,11 @@ HugeCTRBackend::ParseParameterServer(const std::string& path){
     std::string dense;
     (model.MemberAsString("dense_file", &dense));
     std::cout<<"dense:"<<dense<<std::endl;
+
+    std::string network_file;
+    (model.MemberAsString("network_file", &network_file));
+    model_network_files.push_back(network_file);
+    std::cout<<"network_file:"<<network_file<<std::endl;
 
     common::TritonJson::Value sparse_files;
     std::vector<std::string> sparses;
@@ -344,12 +339,12 @@ HugeCTRBackend::HugeCTREmbedding_backend(){
     if (support_int64_key_)
     {
       LOG_MESSAGE(TRITONSERVER_LOG_INFO,(std::string("*****Backend Long Long type key Parameter Server creating...***** ") ).c_str());
-      EmbeddingTable_int64=HugeCTR::HugectrUtility<long long>::Create_Parameter_Server(type,model_config_path,model_vet);
+      EmbeddingTable_int64=HugeCTR::HugectrUtility<long long>::Create_Parameter_Server(type,model_network_files,model_vet);
     }
     else
     {
       LOG_MESSAGE(TRITONSERVER_LOG_INFO,(std::string("*****Backend regular int key type Parameter Server creating...***** ") ).c_str());
-      EmbeddingTable_int32 =HugeCTR::HugectrUtility<unsigned int>::Create_Parameter_Server(type,model_config_path,model_vet);
+      EmbeddingTable_int32 =HugeCTR::HugectrUtility<unsigned int>::Create_Parameter_Server(type,model_network_files,model_vet);
     }
     LOG_MESSAGE(TRITONSERVER_LOG_INFO,(std::string("*****Backend Create Parameter Server sucessully!*****") ).c_str());
     return nullptr;
@@ -1037,28 +1032,15 @@ TRITONBACKEND_Initialize(TRITONBACKEND_Backend* backend)
   TRITONSERVER_Error* err = backend_config.Parse(buffer, byte_size);
   RETURN_IF_ERROR(err);
   common::TritonJson::Value cmdline;;
-  std::vector<std::string> param_values;
-  std::vector<std::string> param_keys;
   std::vector<std::string> cmd_keys;
-  bool supportlonglongkey=false;
   std::string ps_path;
   if (backend_config.Find("cmdline", &cmdline)) {
     RETURN_IF_ERROR(cmdline.Members(&cmd_keys));
     for (const auto& param_key : cmd_keys){
       std::string value_string;
-      if(param_key =="supportlonglong")
-      {
-        supportlonglongkey=true;
-      }
-      else if(param_key=="ps"){
+      if(param_key=="ps"){
         RETURN_IF_ERROR(cmdline.MemberAsString(
                         param_key.c_str(), &ps_path));
-      }
-      else{
-        RETURN_IF_ERROR(cmdline.MemberAsString(
-                        param_key.c_str(), &value_string));
-        param_values.push_back(value_string);
-        param_keys.push_back(param_key);
       }
     }
   }
@@ -1066,13 +1048,12 @@ TRITONBACKEND_Initialize(TRITONBACKEND_Backend* backend)
   // HugeCTR have a global backend state that we need create Parameter Server for all the models, 
   // which will be shared by all the models to update embedding cache
   HugeCTRBackend* hugectr_backend;
-  RETURN_IF_ERROR(HugeCTRBackend::Create(backend,&hugectr_backend,param_values,param_keys,supportlonglongkey));
+  RETURN_IF_ERROR(HugeCTRBackend::Create(backend,&hugectr_backend));
   RETURN_IF_ERROR(
       TRITONBACKEND_BackendSetState(backend, reinterpret_cast<void*>(hugectr_backend)));
 
   RETURN_IF_ERROR(hugectr_backend->ParseParameterServer(ps_path));
   RETURN_IF_ERROR(hugectr_backend->HugeCTREmbedding_backend());
-  
 
 
   return nullptr;  // success
