@@ -236,7 +236,7 @@ class HugeCTRBackend{
 
   HugeCTR::InferenceParams HugeCTRModelConfiguration(std::string modelname){return inference_params_map.at(modelname);}
 
-  std::map<std::string, HugeCTR::InferenceParams> HugeCTRModelConfigurationMap(){return inference_params_map;}
+  std::map<std::string, HugeCTR::InferenceParams> HugeCTRModelConfigurationMap() {return inference_params_map;}
 
   //Initilize HugeCTR EmbeddingTable 
   TRITONSERVER_Error* HugeCTREmbedding_backend();
@@ -321,7 +321,7 @@ HugeCTRBackend::ParseParameterServer(const std::string& path){
       sparses.push_back(d);
     }
 
-    HugeCTR::InferenceParams infer_param(modelname, 1, 0.55, dense, sparses, 0, true, 0.55, true);
+    HugeCTR::InferenceParams infer_param(modelname, 64, 0.55, dense, sparses, 0, true, 0.55, true);
     inference_params_map.insert(std::pair<std::string, HugeCTR::InferenceParams>(modelname, infer_param));
   }
   return nullptr;
@@ -450,6 +450,7 @@ class ModelState {
   int64_t max_nnz_=3;
   int64_t label_dim_=1;
   float cache_size_per=0.5;
+  float hit_rate_threshold=0.8;
   std::string hugectr_config_;
   common::TritonJson::Value model_config_;
   std::vector<std::string> model_config_path;
@@ -472,7 +473,7 @@ class ModelState {
 
 TRITONSERVER_Error*
 ModelState::Create(TRITONBACKEND_Model* triton_model, ModelState** state, HugeCTR::HugectrUtility<unsigned int>* EmbeddingTable_int32, 
-HugeCTR::HugectrUtility<long long>* EmbeddingTable_int64,HugeCTR::InferenceParams Model_Inference_Para )
+HugeCTR::HugectrUtility<long long>* EmbeddingTable_int64, HugeCTR::InferenceParams Model_Inference_Para)
 {
   TRITONSERVER_Message* config_message;
   RETURN_IF_ERROR(TRITONBACKEND_ModelConfig(
@@ -506,7 +507,7 @@ HugeCTR::HugectrUtility<long long>* EmbeddingTable_int64,HugeCTR::InferenceParam
 
   *state = new ModelState(
       triton_server, triton_model, model_name, model_version,
-      std::move(model_config),EmbeddingTable_int32, EmbeddingTable_int64,Model_Inference_Para);
+      std::move(model_config),EmbeddingTable_int32, EmbeddingTable_int64, Model_Inference_Para);
   return nullptr;  // success
 }
 
@@ -554,7 +555,6 @@ ModelState::ValidateModelConfig()
     //Checkout input data_type
     std::string input_dtype;
     RETURN_IF_ERROR(input.MemberAsString("data_type", &input_dtype));
-     
 
     std::string input_name;
     RETURN_IF_ERROR(input.MemberAsString("name", &input_name));
@@ -708,15 +708,25 @@ ModelState::ParseModelConfig()
       (gpucache.MemberAsString("string_value", &gpu_cache));
       if ((gpu_cache)=="false"){
         support_gpu_cache_=false;
+        Model_Inference_Para.use_gpu_embedding_cache=false;
       }
       LOG_MESSAGE(TRITONSERVER_LOG_INFO,(std::string("support gpu cache is ")+ std::to_string(support_gpu_cache_)).c_str());
     }
     common::TritonJson::Value gpucacheper;
     if (parameters.Find("gpucacheper", &gpucacheper)) {
       std::string gpu_cache_per;
-      (gpucacheper.MemberAsString(
-          "string_value", &gpu_cache_per));
+      (gpucacheper.MemberAsString("string_value", &gpu_cache_per));
       cache_size_per=std::atof(gpu_cache_per.c_str());
+      Model_Inference_Para.cache_size_percentage=cache_size_per;
+      LOG_MESSAGE(TRITONSERVER_LOG_INFO,(std::string("gpu cache per is ") + std::to_string(cache_size_per)).c_str());
+    }
+
+    common::TritonJson::Value hit_threshold;
+    if (parameters.Find("hit_rate_threshold", &hit_threshold)) {
+      std::string cache_thres;
+      (hit_threshold.MemberAsString("string_value", &cache_thres));
+      hit_rate_threshold=std::atof(cache_thres.c_str());
+      Model_Inference_Para.hit_rate_threshold=hit_rate_threshold;
       LOG_MESSAGE(TRITONSERVER_LOG_INFO,(std::string("gpu cache per is ") + std::to_string(cache_size_per)).c_str());
     }
     common::TritonJson::Value label_dim;
@@ -733,11 +743,15 @@ ModelState::ParseModelConfig()
       (embeddingkey.MemberAsString(
           "string_value", &embeddingkey_str));
       if ((embeddingkey_str)=="true")
+      {
         support_int64_key_=true;
+        Model_Inference_Para.i64_input_key=true;
+      }
       LOG_MESSAGE(TRITONSERVER_LOG_INFO,(std::string("Support long long embedding key is ") + std::to_string(support_int64_key_)).c_str());
     }
   }
   model_config_.MemberAsInt("max_batch_size", &max_batch_size_);
+  Model_Inference_Para.max_batchsize=max_batch_size_;
   LOG_MESSAGE(TRITONSERVER_LOG_INFO,(std::string("max_batch_size is ") + std::to_string(max_batch_size_)).c_str());
   return nullptr;
 }
@@ -1581,7 +1595,7 @@ TRITONBACKEND_ModelInstanceExecute(
       GUARDED_RESPOND_IF_ERROR(
           responses, r,
           TRITONBACKEND_OutputBuffer(
-              output, &output_buffer, instance_state->StateForModel()->BatchSize() * sizeof(float), &output_memory_type,
+              output, &output_buffer, num_of_samples* sizeof(float), &output_memory_type,
               &output_memory_type_id));
       if ((responses[r] == nullptr) ) {
         GUARDED_RESPOND_IF_ERROR(
