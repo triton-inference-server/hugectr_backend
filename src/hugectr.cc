@@ -292,6 +292,7 @@ HugeCTRBackend::ParseParameterServer(const std::string& path){
   parameter_server_config.Parse(buffer_test, byte_size_test);
 
   parameter_server_config.MemberAsBool("supportlonglong", &support_int64_key_);
+  std::cout<<"supportlonglong is "<<support_int64_key_<<std::endl;
 
   common::TritonJson::Value models;
   parameter_server_config.MemberAsArray("models", &models);
@@ -321,7 +322,7 @@ HugeCTRBackend::ParseParameterServer(const std::string& path){
       sparses.push_back(d);
     }
 
-    HugeCTR::InferenceParams infer_param(modelname, 64, 0.55, dense, sparses, 0, true, 0.55, true);
+    HugeCTR::InferenceParams infer_param(modelname, 64, 0.55, dense, sparses, 0, true, 0.55, support_int64_key_);
     inference_params_map.insert(std::pair<std::string, HugeCTR::InferenceParams>(modelname, infer_param));
   }
   return nullptr;
@@ -747,7 +748,7 @@ ModelState::ParseModelConfig()
         support_int64_key_=true;
         Model_Inference_Para.i64_input_key=true;
       }
-      LOG_MESSAGE(TRITONSERVER_LOG_INFO,(std::string("Support long long embedding key is ") + std::to_string(support_int64_key_)).c_str());
+      LOG_MESSAGE(TRITONSERVER_LOG_INFO,(std::string("Support long long embedding key is ") + std::to_string(Model_Inference_Para.i64_input_key)).c_str());
     }
   }
   model_config_.MemberAsInt("max_batch_size", &max_batch_size_);
@@ -1595,7 +1596,7 @@ TRITONBACKEND_ModelInstanceExecute(
       GUARDED_RESPOND_IF_ERROR(
           responses, r,
           TRITONBACKEND_OutputBuffer(
-              output, &output_buffer, num_of_samples* sizeof(float), &output_memory_type,
+              output, &output_buffer, num_of_samples * sizeof(float), &output_memory_type,
               &output_memory_type_id));
       if ((responses[r] == nullptr) ) {
         GUARDED_RESPOND_IF_ERROR(
