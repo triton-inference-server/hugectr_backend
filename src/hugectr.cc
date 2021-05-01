@@ -1521,7 +1521,7 @@ TRITONBACKEND_ModelInstanceExecute(
       GUARDED_RESPOND_IF_ERROR(
           responses, r,
           TRITONBACKEND_OutputBuffer(
-              output, &output_buffer, instance_state->StateForModel()->BatchSize() * sizeof(float), &output_memory_type,
+              output, &output_buffer, num_of_samples * sizeof(float), &output_memory_type,
               &output_memory_type_id));
       if ((responses[r] == nullptr) ) {
         GUARDED_RESPOND_IF_ERROR(
