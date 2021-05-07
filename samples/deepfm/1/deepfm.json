@@ -1,17 +1,11 @@
 {
-  "inference": {
-    "max_batchsize": 64,
-    "hit_rate_threshold": 0.6,
-    "dense_model_file": "/model/deepfm/1/_dense_10000.model",
-    "sparse_model_file": "/model/deepfm/1/0_sparse_10000.model",
-    "label": 1
-  },
   "layers": [
     {
       "name": "data",
       "type": "Data",
       "check": "Sum",
       "label":{
+	      "top": "label",
 	      "label_dim":1
       },
       "dense": {

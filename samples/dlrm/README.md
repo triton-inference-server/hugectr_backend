@@ -111,9 +111,8 @@ root@02d56ff0738f:/opt/tritonserver#  source activate merlin
 tritonserver --model-repository=/dlrm_infer/model/ --load-model=dlrm \
      --model-control-mode=explicit \
     --backend-directory=/usr/local/hugectr/backends \
-    --backend-config=hugectr,dlrm=/dlrm_infer/model/dlrm/1/dlrm.json  \
-    --backend-config=hugectr,supportlonglong=true
-Note: The model-repository path is /dlrm_infer/model/
+    --backend-config=hugectr,ps=/dlrm_infer/model/ps.json
+Note: The model-repository path is /dlrm_infer/model/. The path for the dlrm model network json file is /dlrm_infer/model/dlrm/1/dlrm.json. The path for the parameter server configuration file is /dlrm_infer/model/ps.json.
 ```
 
 After you start Triton you will see output on the console showing the server starting up. At this stage you have loaded the `dlrm` model in the  `HugeCTR_DLRM_Inference` notebook to be able to send the request. All the models should load successfully. If a model fails to load the status will report the failure and a reason for the failure. 

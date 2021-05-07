@@ -71,7 +71,11 @@ For deploy the HugeCTR model, Some customized configuration items need to be add
   key: "config"
   value: { string_value: "/model/deepfm/1/deepfm.json" }
   },
-   {
+  {
+  key: "hit_rate_threshold"
+  value: { string_value: "0.8" }
+  },
+  {
   key: "gpucache"
   value: { string_value: "true" }
   },
@@ -160,10 +164,10 @@ root@2efa5b50b909: source activate merlin
 Launch the Triton server to load the DCN model by running the following command:   
 
 ```shell.
- (merlin)root@2efa5b50b909: tritonserver --model-repository=/model/ \    
+ (merlin)root@2efa5b50b909: tritonserver --model-repository=/model/ --model-control-mode=explicit \ 
+ --load-model=dcn --load-model=deepfm \
  --backend-directory=/usr/local/hugectr/backends/ \  
- --backend-config=hugectr,dcn=/model/dcn/1/dcn.json \   
- --backend-config=hugectr,deepfm=/model/deepfm/1/deepfm.json
+ --backend-config=hugectr,ps=/model/ps.json    
 ```
 All the models should show "READY" status to indicate that they loaded correctly. If a model fails to load the status will report the failure and a reason for the failure. If your model is not displayed in the table check the path to the model repository and your CUDA drivers.
 ```shell.
