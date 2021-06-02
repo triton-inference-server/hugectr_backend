@@ -41,7 +41,7 @@ tritonserver --model-repository=/model/ --backend-directory=/usr/local/hugectr/b
 --backend-config=hugectr,supportlonglong=true &
 
  echo "starting triton....."
- sleep 300
+ sleep 600
  echo "start triton server success" 
 
 }
