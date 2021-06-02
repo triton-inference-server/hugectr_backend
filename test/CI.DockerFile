@@ -1,4 +1,4 @@
-FROM  gitlab-master.nvidia.com:5005/dl/hugectr/hugectr:v3.0.1-inference
+FROM  gitlab-master.nvidia.com:5005/dl/hugectr/hugectr_inference_backend:V3.1-itegration
 
 ARG HUGECTR_BRANCH=fix-inference-cuda-context-kingsleyl
 ARG INFERENCE_BRANCH=yingcan_integration
@@ -7,7 +7,7 @@ ARG INFERENCE_MODE=ON
 
 
 # HugeCTR
-RUN git clone -b $HUGECTR_BRANCH https://gitlab-master.nvidia.com/dl/hugectr/hugectr.git HugeCTR &&\
+RUN git clone -b $HUGECTR_BRANCH https://github.com/NVIDIA/HugeCTR.git HugeCTR &&\
     cd HugeCTR && \
     git submodule update --init --recursive && \
     mkdir -p build && cd build &&\
