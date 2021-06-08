@@ -1,7 +1,7 @@
 FROM  gitlab-master.nvidia.com:5005/dl/hugectr/hugectr_inference_backend:V3.1-itegration
 
-ARG HUGECTR_BRANCH=fix-inference-cuda-context-kingsleyl
-ARG INFERENCE_BRANCH=yingcan_integration
+ARG HUGECTR_BRANCH=main
+ARG INFERENCE_BRANCH=main
 ARG TRITON_BRANCH=r21.04
 ARG INFERENCE_MODE=ON
 
