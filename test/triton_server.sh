@@ -46,7 +46,7 @@ tritonserver --model-repository=/model/ --backend-directory=/usr/local/hugectr/b
 
 }
 
-status=$(GetContainerStatus gitlab-master.nvidia.com:5005/dl/hugectr/hugectr:v3.0.1-inference )
+status=$(GetContainerStatus gitlab-master.nvidia.com:5005/dl/hugectr/hugectr_inference_backend:V3.1-itegration )
 echo ${status}
 containerid=$(docker ps |grep $1 | awk '{print $1}')
 if [ "${status}" == ${statusLived} ]
