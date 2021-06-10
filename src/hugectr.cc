@@ -803,7 +803,7 @@ class ModelInstanceState {
   static TRITONSERVER_Error* Create(
       ModelState* model_state,
       TRITONBACKEND_ModelInstance* triton_model_instance,
-      ModelInstanceState** state);
+      ModelInstanceState** state,HugeCTR::InferenceParams instance_params);
     
     ~ModelInstanceState();
 
@@ -841,7 +841,7 @@ private:
 ModelInstanceState(
       ModelState* model_state,
       TRITONBACKEND_ModelInstance* triton_model_instance, const char* name,
-      const TRITONSERVER_InstanceGroupKind kind, const int32_t device_id);
+      const TRITONSERVER_InstanceGroupKind kind, const int32_t device_id,HugeCTR::InferenceParams instance_params);
 
     ModelState* model_state_;
     TRITONBACKEND_ModelInstance* triton_model_instance_;
@@ -858,7 +858,7 @@ ModelInstanceState(
     std::shared_ptr<HugeCTRBuffer<int>> row_ptr_buf;
     std::shared_ptr<HugeCTRBuffer<float>> prediction_buf;
     std::shared_ptr<HugeCTR::embedding_interface> embedding_cache;
-    
+    HugeCTR::InferenceParams instance_params_;
 
     HugeCTR::HugeCTRModel* hugectrmodel_;
 
@@ -867,7 +867,7 @@ ModelInstanceState(
 TRITONSERVER_Error*
 ModelInstanceState::Create(
     ModelState* model_state, TRITONBACKEND_ModelInstance* triton_model_instance,
-    ModelInstanceState** state)
+    ModelInstanceState** state,HugeCTR::InferenceParams instance_params)
 {
   const char* instance_name;
   RETURN_IF_ERROR(
@@ -886,7 +886,7 @@ ModelInstanceState::Create(
 
   *state = new ModelInstanceState(
       model_state, triton_model_instance, instance_name, instance_kind,
-      device_id);
+      device_id,instance_params);
 
   return nullptr;  // success
 }
@@ -894,9 +894,9 @@ ModelInstanceState::Create(
 ModelInstanceState::ModelInstanceState(
     ModelState* model_state, TRITONBACKEND_ModelInstance* triton_model_instance,
     const char* name, const TRITONSERVER_InstanceGroupKind kind,
-    const int32_t device_id)
+    const int32_t device_id,HugeCTR::InferenceParams instance_params)
     : model_state_(model_state), triton_model_instance_(triton_model_instance),
-      name_(model_state->Name()), kind_(kind), device_id_(device_id)
+      name_(model_state->Name()), kind_(kind), device_id_(device_id),instance_params_(instance_params)
 {
 
   	LOG_MESSAGE(
@@ -907,7 +907,8 @@ ModelInstanceState::ModelInstanceState(
         std::cerr << "failed to set CUDA device to " << device_id << ": "
             << cudaGetErrorString(cuerr);
     }
-  
+    //Set current model instance device id as triton provieded
+    instance_params_.device_id=device_id;
     //Alloc the cuda memory
     LOG_MESSAGE(TRITONSERVER_LOG_INFO,(std::string("Dense Feature buffer allocation: ")).c_str());
     dense_value_buf=HugeCTRBuffer<float>::create();
@@ -956,7 +957,7 @@ TRITONSERVER_Error* ModelInstanceState::LoadHugeCTRModel(){
   HugeCTR::INFER_TYPE type=HugeCTR::INFER_TYPE::TRITON;
   LOG_MESSAGE(TRITONSERVER_LOG_INFO,(std::string("model origin josn config path: " + model_state_->HugeCTRJsonConfig())).c_str());
   embedding_cache = model_state_->GetEmbeddingCache(device_id_);
-  hugectrmodel_=HugeCTR::HugeCTRModel::load_model(type,model_state_->HugeCTRJsonConfig(),model_state_->ModelInferencePara(), embedding_cache);
+  hugectrmodel_=HugeCTR::HugeCTRModel::load_model(type,model_state_->HugeCTRJsonConfig(),instance_params_, embedding_cache);
   LOG_MESSAGE(TRITONSERVER_LOG_INFO,(std::string("******Loading Hugectr model successfully")).c_str());
   return nullptr;
 }
@@ -1227,7 +1228,7 @@ TRITONBACKEND_ModelInstanceInitialize(TRITONBACKEND_ModelInstance* instance)
   // associate it with the TRITONBACKEND_ModelInstance.
   ModelInstanceState* instance_state;
   RETURN_IF_ERROR(
-      ModelInstanceState::Create(model_state, instance, &instance_state));
+      ModelInstanceState::Create(model_state, instance, &instance_state,model_state->ModelInferencePara()));
   RETURN_IF_ERROR(TRITONBACKEND_ModelInstanceSetState(
       instance, reinterpret_cast<void*>(instance_state)));
 
