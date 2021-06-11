@@ -44,6 +44,10 @@ parameters [
   value: { string_value: "true" }
   },
   {
+  key: "hit_rate_threshold"
+  value: { string_value: "0.8" }
+  },
+  {
   key: "gpucacheper"
   value: { string_value: "0.5" }
   },

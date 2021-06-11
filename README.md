@@ -55,7 +55,7 @@ All NVIDIA Merlin components are available as open-source projects. However, a m
 
 Docker images for the HugeCTR Backend are available in the NVIDIA container repository on https://ngc.nvidia.com/catalog/containers/nvidia:merlin:merlin-inference. You can pull and launch the container by running the following command:
 ```
-docker run --gpus=1 --rm -it nvcr.io/nvidia/merlin/merlin-inference:0.5  # Start interaction mode  
+docker run --gpus=1 --rm -it nvcr.io/nvidia/merlin/merlin-inference:0.5.2  # Start interaction mode  
 ```
 
 **NOTE**: As of HugeCTR version 3.0, the HugeCTR container is no longer being released separately. If you're an advanced user, you should use the unified Merlin container to build the HugeCTR Training or Inference Docker image from scratch based on your own specific requirements. You can obtain the unified Merlin container by logging into NGC or by going [here](https://github.com/NVIDIA/HugeCTR/tree/master/tools/dockerfiles). 
@@ -100,3 +100,6 @@ The following should be noted when using Model Repository Extension functions:
  - [The load API](https://github.com/triton-inference-server/server/blob/master/docs/protocol/extension_model_repository.md#load) will load the network weight as part of the 
 HugeCTR model (not including embedding tables), which means the Parameter server will independently provide an updated mechanism for existing embedding tables. If you need to load a new model, you can refer to the [samples](samples/dcn/README.md) to launch the Triton server again.
  - [The unload API](https://github.com/triton-inference-server/server/blob/master/docs/protocol/extension_model_repository.md#unload) will request that the HugeCTR model network's weights be unloaded from Triton (not including embedding tables), which means the embedding tables corresponding to the model will still remain in the Parameter server.
+
+ ## Metrix
+ Triton provides Prometheus metrics indicating GPU and request statistics. Use Prometheus to gather metrics into usable, actionable entries, giving you the data you need to manage alerts and performance information in your environment. Prometheus is usually used along side Grafana. Grafana is a visualization tool that pulls Prometheus metrics and makes it easier to monitor. You can build your own metrix system based on our example, see [HugeCTR Backend Metrics](docs/metrics.md).  
