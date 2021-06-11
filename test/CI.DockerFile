@@ -1,7 +1,8 @@
-FROM  gitlab-master.nvidia.com:5005/dl/hugectr/hugectr:v3.0.1-inference
+FROM  gitlab-master.nvidia.com:5005/dl/hugectr/hugectr_inference_backend:V3.1-itegration
 
 ARG HUGECTR_BRANCH=main
 ARG INFERENCE_BRANCH=main
+ARG TRITON_BRANCH=r21.04
 ARG INFERENCE_MODE=ON
 
 
@@ -27,7 +28,7 @@ ENV PYTHONPATH /usr/local/hugectr/lib:$PYTHONPATH
 RUN git clone -b $INFERENCE_BRANCH https://gitlab-master.nvidia.com/dl/hugectr/hugectr_inference_backend.git hugectr_inference_backend &&\
     cd hugectr_inference_backend && \
     mkdir build && cd build &&\
-    cmake -DCMAKE_INSTALL_PREFIX:PATH=/usr/local/hugectr .. && \
+    cmake -DCMAKE_INSTALL_PREFIX:PATH=/usr/local/hugectr -DTRITON_COMMON_REPO_TAG=$TRITON_BRANCH  -DTRITON_CORE_REPO_TAG=$TRITON_BRANCH     -DTRITON_BACKEND_REPO_TAG=$TRITON_BRANCH  .. && \
     make  &&\
     make install &&\ 
     rm -rf hugectr_inference_backend

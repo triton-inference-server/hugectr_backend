@@ -34,11 +34,11 @@ function StopContainer(){
 }
 
 function StartContainer(){
-nohup docker run --gpus=2 --rm  -p 8005:8000 -p 8004:8001 -p 8003:8002  \
+nohup docker run --gpus=4 --rm  -p 8000:8000 -p 8001:8001 -p 8002:8002  \
 -v $mode_repo:/model $dockername \
 tritonserver --model-repository=/model/ --backend-directory=/usr/local/hugectr/backends/ \
---backend-config=hugectr,hugectr_model1=/model/hugectr_model1/1/simple_inference_config.json  \
---backend-config=hugectr,identity=/model/identity/1/simple_inference_config.json &
+--backend-config=hugectr,ps=/model/ps.json  \
+--backend-config=hugectr,supportlonglong=true &
 
  echo "starting triton....."
  sleep 900
@@ -46,7 +46,7 @@ tritonserver --model-repository=/model/ --backend-directory=/usr/local/hugectr/b
 
 }
 
-status=$(GetContainerStatus xiaoleishi/hugectr:infer )
+status=$(GetContainerStatus gitlab-master.nvidia.com:5005/dl/hugectr/hugectr_inference_backend:V3.1-itegration )
 echo ${status}
 containerid=$(docker ps |grep $1 | awk '{print $1}')
 if [ "${status}" == ${statusLived} ]

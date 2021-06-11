@@ -23,7 +23,7 @@ Merlin containers are available in the NVIDIA container repository at the follow
 You can pull the `Merlin-Training` container by running the following command:
 
 ```
-docker run --gpus=all -it -v ${PWD}:/dlrm_train/ --net=host nvcr.io/nvidia/merlin/merlin-training:0.5 /bin/bash
+docker run --gpus=all -it -v ${PWD}:/dlrm_train/ --net=host nvcr.io/nvidia/merlin/merlin-training:0.5.2 /bin/bash
 ```
 
 The container will open a shell when the run command execution is completed. You'll have to start the jupyter lab on the Docker container. It should look similar to this:
@@ -33,14 +33,10 @@ The container will open a shell when the run command execution is completed. You
 root@2efa5b50b909:
 ```
 
-Activate the merlin conda environment by running the following command:
-```
-root@2efa5b50b909: source activate merlin
-```
 You should receive the following response, indicating that the environment has been activated:
 
 ```
-(merlin)root@2efa5b50b909:
+root@2efa5b50b909:
 ```
 
 1) Install Required Libraries:
@@ -92,16 +88,11 @@ mkdir -p /dlrm_infer
 
 2) Launch Merlin Triton Inference Server container:
 ```
-docker run -it --gpus=all --shm-size=1g --ulimit memlock=-1 --ulimit stack=67108864 --net=host -v dlrm_infer:/dlrm_infer/ -v dlrm_train:/dlrm_train/ nvcr.io/nvidia/merlin/merlin-inference:0.5
+docker run -it --gpus=all --shm-size=1g --ulimit memlock=-1 --ulimit stack=67108864 --net=host -v dlrm_infer:/dlrm_infer/ -v dlrm_train:/dlrm_train/ nvcr.io/nvidia/merlin/merlin-inference:0.5.2
 ```
 The container will open a shell when the run command execution is completed. It should look similar to this:
 ```
 root@02d56ff0738f:/opt/tritonserver# 
-```
-
-Activate the merlin conda environment by running the following command:
-```
-root@02d56ff0738f:/opt/tritonserver#  source activate merlin
 ```
 
 3) Your saved model should be in the `dlrm_infer/model` directory. 
@@ -111,9 +102,8 @@ root@02d56ff0738f:/opt/tritonserver#  source activate merlin
 tritonserver --model-repository=/dlrm_infer/model/ --load-model=dlrm \
      --model-control-mode=explicit \
     --backend-directory=/usr/local/hugectr/backends \
-    --backend-config=hugectr,dlrm=/dlrm_infer/model/dlrm/1/dlrm.json  \
-    --backend-config=hugectr,supportlonglong=true
-Note: The model-repository path is /dlrm_infer/model/
+    --backend-config=hugectr,ps=/dlrm_infer/model/ps.json
+Note: The model-repository path is /dlrm_infer/model/. The path for the dlrm model network json file is /dlrm_infer/model/dlrm/1/dlrm.json. The path for the parameter server configuration file is /dlrm_infer/model/ps.json.
 ```
 
 After you start Triton you will see output on the console showing the server starting up. At this stage you have loaded the `dlrm` model in the  `HugeCTR_DLRM_Inference` notebook to be able to send the request. All the models should load successfully. If a model fails to load the status will report the failure and a reason for the failure. 

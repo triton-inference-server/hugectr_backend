@@ -60,7 +60,7 @@ Go to [(DCN training sample))](https://github.com/NVIDIA/HugeCTR/tree/master/sam
 
 ## 3. Create inference configuration files
 ### DCN model network configuration 
-Check the stored model files that will be used in the inference, and create the JSON file for inference. We should remove the solver and optimizer clauses and add the inference clause in the JSON file. The paths of the stored dense model and sparse model(s) should be specified at "dense_model_file" and "sparse_model_file" within the inference clause. We need to make some modifications to "data" in the layers clause. Besides, we need to change the last layer from BinaryCrossEntropyLoss to Sigmoid. The rest of "layers" should be exactly the same as that in the training JSON file. You may go to "${project_home}/samples/dcn/1/dcn.json" for reference.
+Check the stored model files that will be used in the inference, and create the JSON file for inference. We should remove the solver and optimizer clauses. The paths of the stored dense model and sparse model(s) should be specified at "dense_model_file" and "sparse_model_file" within the inference clause. We need to make some modifications to "data" in the layers clause. Besides, we need to change the last layer from BinaryCrossEntropyLoss to Sigmoid. The rest of "layers" should be exactly the same as that in the training JSON file. You may go to "${project_home}/samples/dcn/1/dcn.json" for reference. All inference-related network configurations will be automatically generated after training.
 
 ### HugeCTR Backend configuration 
 Please refer to  [(Triton model configuration))](https://github.com/triton-inference-server/server/blob/master/docs/model_configuration.md) first and  clarify the required configuration of the model in the specific inference scenario.
@@ -71,7 +71,11 @@ In order to deploy the HugeCTR model, some customized configuration items need t
   key: "config"
   value: { string_value: "/model/dcn/1/dcn.json" }
   },
-   {
+  {
+  key: "hit_rate_threshold"
+  value: { string_value: "0.8" }
+  },
+  {
   key: "gpucache"
   value: { string_value: "true" }
   },
@@ -111,6 +115,24 @@ In order to deploy the HugeCTR model, some customized configuration items need t
 ```  
 The configuration items described above have been added to the sample "${project_home}/samples/dcn/config.pbtxt".  
 
+The model files (the path of the embedded table file) needs to be configured in a separate "${project_home}/samples/ps.json", because the localized parameter server will pre-load the embedding tables independently.
+
+```json.
+{
+    "supportlonglong":false,
+    "models":[
+        {
+            "model":"dcn",
+            "sparse_files":["/model/dcn/1/0_sparse_file.model"],
+            "dense_file":"/model/dcn/1/_dense_file.model",
+            "network_file":"/model/dcn/1/dcn.json"
+        }
+    ]  
+}
+
+]
+``` 
+
 If you use Parquet format data as input to train the model in [**2. Get DCN trained model files**](https://gitlab-master.nvidia.com/dl/hugectr/hugectr_inference_backend/-/blob/main/samples/dcn/README.md#2-get-dcn-trained-model-files), it means that the key type of the embedding table is I64 (the default is I32), so the configuration file needs to be modified as follows:  
 ```json.
  parameters [
@@ -123,12 +145,14 @@ If you use Parquet format data as input to train the model in [**2. Get DCN trai
 ]
 ```  
 
-Add the **input_key_type** to "${project_home}/samples/dcn/1/dcn.json" as follows:
+Add the **supportlonglong** to "${project_home}/samples/ps.json" as follows:
 ```json.
-"inference": {
+ {
+    "supportlonglong":true,
     ...
-    "input_key_type": "I64",
+    models":[
     ...
+    ]
   }
 ```  
 
@@ -137,7 +161,7 @@ Before you can use the HugeCTR Docker image you must install Docker. If you plan
 
 Pull the image using the following command.
 ```shell.
-$ docker pull nvcr.io/nvidia/merlin/merlin-inference:0.5
+$ docker pull nvcr.io/nvidia/merlin/merlin-inference:0.5.2
 ```
 Use the following command to run Triton with the dcn sample model repository. If the deepfm model files are not trained and exported before, please remove the "${project_home}/samples/deepfm". The NVIDIA Container Toolkit must be installed for Docker to recognize the GPU(s). The --gpus=1 flag indicates that 1 system GPU should be made available to Triton for inferencing.   
 
@@ -148,19 +172,14 @@ You can pull the `Merlin-Inference` container by running the following command:
 
 ```shell.
 docker run --gpus=1 --rm  -p 8005:8000 -p 8004:8001 -p 8003:8002 \    
--v /hugectr_backend/samples/:/model  nvcr.io/nvidia/merlin/merlin-inference:0.5 /bin/bash
-```
-
-Activate the merlin conda environment by running the following command:  
-```shell.
-root@2efa5b50b909: source activate merlin
+-v /hugectr_backend/samples/:/model  nvcr.io/nvidia/merlin/merlin-inference:0.5.2 /bin/bash
 ```
 
 Launch the Triton server to load the DCN model by running the following command:  
 ```shell.
-(merlin)root@2efa5b50b909: tritonserver --model-repository=/model/ --load-model=dcn --model-control-mode=explicit \   
+root@2efa5b50b909: tritonserver --model-repository=/model/ --load-model=dcn --model-control-mode=explicit \   
  --backend-directory=/usr/local/hugectr/backends/ \  
- --backend-config=hugectr,dcn=/model/dcn/1/dcn.json 
+ --backend-config=hugectr,ps=/model/ps.json 
 ```
 All the models should show "READY" status to indicate that they loaded correctly. If a model fails to load the status will report the failure and a reason for the failure. If your model is not displayed in the table check the path to the model repository and your CUDA drivers.
 ```shell.
