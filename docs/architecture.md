@@ -98,7 +98,7 @@ The Variant Compressed Sparse Row (CSR) data format is used as input for the Hug
 #### Single Embedding Table Per Model
 Take the **Row 0**, a sample, of the figure above as an example. The input data contains four slots and HugeCTR parses the Row 0 slot information according to the "Row ptr" input. All the embedding vectors are stored in a single embedding table.
 
-<div align=center><img src ="user_guide_src/HugeCTR_Inference_VCSR_Example1.png"/></div>
+<div align=center><img img width="80%" height="80%" src ="user_guide_src/HugeCTR_Inference_VCSR_Example1.png"/></div>
 <div align=center>Fig. 4. HugeCTR Inference VCSR Example for Single Embedding Table per Model</div>
 
 * slot 1: Contains **1** categorical feature and the embedding key is 1. 
@@ -110,7 +110,7 @@ Take the **Row 0**, a sample, of the figure above as an example. The input data 
 
 Take the **Row 0**, a sample, of the figure above as an example. The input data contains four slots and the first two slots(slot1 and slot2) belong to the first embedding table, the last two slots(slot3 and slot4) belong to the second table. So two independent **Row prts** are required to form a complete **Row prts** in the input data.
 
-<div align=center><img src ="user_guide_src/HugeCTR_Inference_VCSR_Example2.png"/></div>
+<div align=center><img img width="80%" height="80%" src ="user_guide_src/HugeCTR_Inference_VCSR_Example2.png"/></div>
 <div align=center>Fig. 5. HugeCTR Inference VCSR Example for Muliple Embedding Tables per Model</div>
 
 * slot 1: Contains **1** categorical feature and the embedding key is 1 and corresponding embedding vector is stored in embedding table 1.  
