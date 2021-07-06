@@ -41,6 +41,7 @@ We support the following compute capabilities for inference deployment:
 | 7.0                | NVIDIA V100 (Volta)  | 70 |
 | 7.5                | NVIDIA T4 (Turing)   | 75 |
 | 8.0                | NVIDIA A100 (Ampere) | 80 |
+| 8.6                | NVIDIA A10 (Ampere)  | 72 |
 
 The following prerequisites must be met before installing or building the HugeCTR Backend from scratch:
 * Docker version 19 and higher
