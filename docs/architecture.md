@@ -95,12 +95,25 @@ The Variant Compressed Sparse Row (CSR) data format is used as input for the Hug
 <div align=center>Fig. 3. HugeCTR Inference VCSR Input Format</div>
 
 ### VCSR Example
-Take the **Row 0**, a sample, of the figure above as an example. The input data contains four slots and HugeCTR parses the Row 0 slot information according to the "Row ptr" input. 
+#### Single Embedding Table Per Model
+Take the **Row 0**, a sample, of the figure above as an example. The input data contains four slots and HugeCTR parses the Row 0 slot information according to the "Row ptr" input. All the embedding vectors are stored in a single embedding table.
 
-<div align=center><img src ="user_guide_src/HugeCTR_Inference_VCSR_Example.png" width="562" height="225" /></div>
-<div align=center>Fig. 4. HugeCTR Inference VCSR Example</div>
+<div align=center><img img width="80%" height="80%" src ="user_guide_src/HugeCTR_Inference_VCSR_Example1.png"/></div>
+<div align=center>Fig. 4. HugeCTR Inference VCSR Example for Single Embedding Table per Model</div>
 
 * slot 1: Contains **1** categorical feature and the embedding key is 1. 
 * slot 2: Contains **1** categorical feature and the embedding key is 3.
 * slot 3: Contains **0** categorical features.
-* slot 4: Contains **2** categorical features and the embedding keys are 8 and 9. HugeCTR will look up two embedding vectors from the GPU embedding cache or the Parameter Server and end up with one final embedding vector for slot 4.
+* slot 4: Contains **2** categorical features and the embedding keys are 8 and 9. HugeCTR will look up two embedding vectors from the GPU's embedding cache or the Parameter Server and end up with one final embedding vector for slot 4.
+
+#### Multiple Embedding Table Per Model
+
+Take the **Row 0**, a sample, of the figure above as an example. The input data contains four slots and the first two slots(slot1 and slot2) belong to the first embedding table, the last two slots(slot3 and slot4) belong to the second table. So two independent **Row prts** are required to form a complete **Row prts** in the input data.
+
+<div align=center><img img width="80%" height="80%" src ="user_guide_src/HugeCTR_Inference_VCSR_Example2.png"/></div>
+<div align=center>Fig. 5. HugeCTR Inference VCSR Example for Muliple Embedding Tables per Model</div>
+
+* slot 1: Contains **1** categorical feature and the embedding key is 1 and corresponding embedding vector is stored in embedding table 1.  
+* slot 2: Contains **1** categorical feature and the embedding key is 3 and and corresponding embedding vector is stored in embedding table 1.
+* slot 3: Contains **0** categorical features.
+* slot 4: Contains **2** categorical features and the embedding keys are 8 and 9, the corresponding embedding vectors is stored in embedding table 2.HugeCTR will look up two embedding vectors from the GPU's embedding cache or the Parameter Server and end up with one final embedding vector for slot 4.
