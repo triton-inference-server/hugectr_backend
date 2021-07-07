@@ -81,12 +81,11 @@ After you've built HugeCTR from scratch, do the following:
    ```
    $ mkdir build
    $ cd build
-   $ cmake -DCMAKE_INSTALL_PREFIX:PATH=`pwd`/install ..
+   $ cmake -DCMAKE_INSTALL_PREFIX:PATH=`pwd`/install -DTRITON_COMMON_REPO_TAG=<rxx.yy>  -DTRITON_CORE_REPO_TAG=<rxx.yy> -DTRITON_BACKEND_REPO_TAG=<rxx.yy> ..
    $ make install
    ```
    
-   **NOTE**: Please remember to specify the absolute path of the local directory that installs the HugeCTR Backend for the `--backend-directory` argument when launching the 
-   Triton server.
+   **NOTE**: Where <rxx.yy> is the version of Triton that you want to deploy, like `r21.04`. Please remember to specify the absolute path of the local directory that installs the HugeCTR Backend for the `--backend-directory` argument when launching the Triton server.
    
    The following Triton repositories, which are required, will be pulled and used in the build. By default, the "main" branch/tag will be used for each repository. However, the 
    following cmake arguments can be used to override the "main" branch/tag:
