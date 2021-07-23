@@ -41,6 +41,7 @@ We support the following compute capabilities for inference deployment:
 | 7.0                | NVIDIA V100 (Volta)  | 70 |
 | 7.5                | NVIDIA T4 (Turing)   | 75 |
 | 8.0                | NVIDIA A100 (Ampere) | 80 |
+| 8.6                | NVIDIA A10 (Ampere)  | 72 |
 
 The following prerequisites must be met before installing or building the HugeCTR Backend from scratch:
 * Docker version 19 and higher
@@ -103,3 +104,30 @@ HugeCTR model (not including embedding tables), which means the Parameter server
 
  ## Metrix
  Triton provides Prometheus metrics indicating GPU and request statistics. Use Prometheus to gather metrics into usable, actionable entries, giving you the data you need to manage alerts and performance information in your environment. Prometheus is usually used along side Grafana. Grafana is a visualization tool that pulls Prometheus metrics and makes it easier to monitor. You can build your own metrix system based on our example, see [HugeCTR Backend Metrics](docs/metrics.md).  
+
+## Independent Parameter Server Configuration
+In the latest version, Hugectr backend has decoupled the Parameter Server-related configuration from the Triton configuration file(config.pbtxt), making it easier to configure the embedding table-related parameters per model. Especially for the configuration of multiple embedded tables per model, avoid too many command parameters when launching the Triton server.
+
+In order to deploy the HugeCTR model, some customized configuration items need to be added as follows：
+The configuration file of Parameter Server should be formatted using the JSON format. 
+
+**NOTE**: The Models clause needs to be included as a list, the specific configuration of each model as an item. **sparse_file** can be filled with multiple embedding table paths to support multiple embedding tables per model. Please refer to [VCSR Example](docs/architecture.md) for modifying the input data format to support multiple embedding tables per model.   
+
+```json.
+{
+    "supportlonglong":false,
+    "models":[
+        {
+            "model":"dcn",
+            "sparse_files":["/model/dcn/1/0_sparse_file.model"],
+            "dense_file":"/model/dcn/1/_dense_file.model",
+            "network_file":"/model/dcn/1/dcn.json"
+        },
+        {
+            "model":"wdl",
+            "sparse_files":["/model/wdl/1/0_sparse_2000.model","/model/wdl/1/1_sparse_2000.model"],
+            "dense_file":"/model/wdl/1/_dense_2000.model",
+            "network_file":"/model/wdl/1/wdl_infer.json"
+        }
+    ]  
+}
