@@ -1,4 +1,4 @@
-FROM  gitlab-master.nvidia.com:5005/dl/hugectr/hugectr_inference_backend:V3.1-itegration
+FROM  gitlab-master.nvidia.com:5005/dl/hugectr/hugectr:devel_inference
 
 ARG HUGECTR_BRANCH=main
 ARG INFERENCE_BRANCH=main
