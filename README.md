@@ -56,7 +56,7 @@ All NVIDIA Merlin components are available as open-source projects. However, a m
 
 Docker images for the HugeCTR Backend are available in the NVIDIA container repository on https://ngc.nvidia.com/catalog/containers/nvidia:merlin:merlin-inference. You can pull and launch the container by running the following command:
 ```
-docker run --gpus=1 --rm -it nvcr.io/nvidia/merlin/merlin-inference:0.5  # Start interaction mode  
+docker run --gpus=1 --rm -it nvcr.io/nvidia/merlin/merlin-inference:0.6  # Start interaction mode  
 ```
 
 **NOTE**: As of HugeCTR version 3.0, the HugeCTR container is no longer being released separately. If you're an advanced user, you should use the unified Merlin container to build the HugeCTR Training or Inference Docker image from scratch based on your own specific requirements. You can obtain the unified Merlin container by logging into NGC or by going [here](https://github.com/NVIDIA/HugeCTR/tree/master/tools/dockerfiles). 
@@ -81,12 +81,11 @@ After you've built HugeCTR from scratch, do the following:
    ```
    $ mkdir build
    $ cd build
-   $ cmake -DCMAKE_INSTALL_PREFIX:PATH=`pwd`/install ..
+   $ cmake -DCMAKE_INSTALL_PREFIX:PATH=`pwd`/install -DTRITON_COMMON_REPO_TAG=<rxx.yy>  -DTRITON_CORE_REPO_TAG=<rxx.yy> -DTRITON_BACKEND_REPO_TAG=<rxx.yy> ..
    $ make install
    ```
    
-   **NOTE**: Please remember to specify the absolute path of the local directory that installs the HugeCTR Backend for the `--backend-directory` argument when launching the 
-   Triton server.
+   **NOTE**: Where <rxx.yy> is the version of Triton that you want to deploy, like `r21.04`. Please remember to specify the absolute path of the local directory that installs the HugeCTR Backend for the `--backend-directory` argument when launching the Triton server.
    
    The following Triton repositories, which are required, will be pulled and used in the build. By default, the "main" branch/tag will be used for each repository. However, the 
    following cmake arguments can be used to override the "main" branch/tag:
