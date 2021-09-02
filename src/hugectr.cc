@@ -293,6 +293,18 @@ HugeCTRBackend::ParseParameterServer(const std::string& path){
   parameter_server_config.MemberAsBool("supportlonglong", &support_int64_key_);
   LOG_MESSAGE(TRITONSERVER_LOG_INFO,(std::string("Enable support for Int64 embedding key: ") + std::to_string(support_int64_key_)).c_str());
 
+  std::string db_type="local";
+  parameter_server_config.MemberAsString("db_type", &db_type);
+  LOG_MESSAGE(TRITONSERVER_LOG_INFO,(std::string("The depolyment Data base type is: ") + db_type).c_str());
+
+  std::string redis_ip="127.0.0.1:7000";
+  parameter_server_config.MemberAsString("redis_ip", &redis_ip);
+  LOG_MESSAGE(TRITONSERVER_LOG_INFO,(std::string("Redis ip is: ") + redis_ip).c_str());
+
+  std::string rocksdb_path="";
+  parameter_server_config.MemberAsString("rocksdb_path", &rocksdb_path);
+  LOG_MESSAGE(TRITONSERVER_LOG_INFO,(std::string("Local RocksDB path is: ") + rocksdb_path).c_str());
+
   common::TritonJson::Value models;
   parameter_server_config.MemberAsArray("models", &models);
   for (size_t i=0; i<models.ArraySize(); i++)
@@ -322,6 +334,18 @@ HugeCTRBackend::ParseParameterServer(const std::string& path){
     }
 
     HugeCTR::InferenceParams infer_param(modelname, 64, 0.55, dense, sparses, 0, true, 0.55, support_int64_key_);
+    if(db_type== "local"){
+      infer_param.db_type=HugeCTR::DATABASE_TYPE::LOCAL;
+    }
+    if(db_type== "rocksdb")
+      infer_param.db_type=HugeCTR::DATABASE_TYPE::ROCKSDB;
+    if(db_type==  "redis" )
+      infer_param.db_type=HugeCTR::DATABASE_TYPE::REDIS;
+    if(db_type== "hierarchy")
+      infer_param.db_type=HugeCTR::DATABASE_TYPE::HIERARCHY;
+  
+    infer_param.redis_ip =redis_ip;
+    infer_param.rocksdb_path = rocksdb_path;
     inference_params_map.insert(std::pair<std::string, HugeCTR::InferenceParams>(modelname, infer_param));
   }
   return nullptr;
