@@ -297,6 +297,12 @@ HugeCTRBackend::ParseParameterServer(const std::string& path){
   parameter_server_config.MemberAsString("db_type", &db_type);
   LOG_MESSAGE(TRITONSERVER_LOG_INFO,(std::string("The depolyment Data base type is: ") + db_type).c_str());
 
+  float cache_size_percentage_redis=0.1;
+  std::string cpu_cache_per;
+  parameter_server_config.MemberAsString("cache_size_percentage_redis", &cpu_cache_per);
+  cache_size_percentage_redis=std::atof(cpu_cache_per.c_str());
+  LOG_MESSAGE(TRITONSERVER_LOG_INFO,(std::string("The depolyment cache_size_percentage_redis is: ") + cpu_cache_per).c_str());
+
   std::string redis_ip="127.0.0.1:7000";
   parameter_server_config.MemberAsString("redis_ip", &redis_ip);
   LOG_MESSAGE(TRITONSERVER_LOG_INFO,(std::string("Redis ip is: ") + redis_ip).c_str());
@@ -346,6 +352,7 @@ HugeCTRBackend::ParseParameterServer(const std::string& path){
   
     infer_param.redis_ip =redis_ip;
     infer_param.rocksdb_path = rocksdb_path;
+    infer_param.cache_size_percentage_redis = cache_size_percentage_redis;
     inference_params_map.insert(std::pair<std::string, HugeCTR::InferenceParams>(modelname, infer_param));
   }
   return nullptr;
