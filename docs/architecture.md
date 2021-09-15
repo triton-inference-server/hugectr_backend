@@ -65,7 +65,7 @@ The following parameters have to be set in the config.pbtxt file for the HugeCTR
 ]
 ```
 
-* **hit_rate_threshold**: Use this option to determine the Updating mechanism of the embedding cache and Parameter Server based on the hit rate. If the hit rate of an embedding vector lookup is lower than the set threshold, the GPU embedding cache will update the missing vector on the Parameter Server. The GPU embedding cache also supports the embedding vector updates from the Parameter Server in a fixed hit ratio. The hit rate threshold must be set in the model inference configuration JSON file. For example, [dcn.json](https://gitlab-master.nvidia.com/dl/hugectr/hugectr_inference_backend/-/blob/main/samples/dcn/1/dcn.json) and [deepfm.json](https://gitlab-master.nvidia.com/dl/hugectr/hugectr_inference_backend/-/blob/main/samples/deepfm/1/deepfm.json). 
+* **hit_rate_threshold**: Use this option to determine the updating mechanism of the embedding cache and Parameter Server based on the hit rate. If the hit rate of an embedding vector lookup is lower than the set threshold, the GPU embedding cache will update the missing vector on the Parameter Server. The GPU embedding cache also supports the embedding vector updates from the Parameter Server in a fixed hit ratio. The hit rate threshold must be set in the model inference configuration JSON file. For example, [dcn.json](https://gitlab-master.nvidia.com/dl/hugectr/hugectr_inference_backend/-/blob/main/samples/dcn/1/dcn.json) and [deepfm.json](https://gitlab-master.nvidia.com/dl/hugectr/hugectr_inference_backend/-/blob/main/samples/deepfm/1/deepfm.json). 
 
 ### Disabling the GPU Embedding Cache
 When the GPU embedding cache mechanism is disabled ("gpucache" is set to false), the model will look up the embedding vector from the Parameter Server directly. All settings related to the GPU embedding cache will be invalid.  
@@ -82,7 +82,65 @@ The Parameter Server implements localized deployment on the same nodes and clust
 * Scenario 4: Multiple GPUs (Node 4) deploys multiple models, and with this being the most complicated scenario for localized deployment, it is necessary to ensure that different embedding caches can share the same Parameter Server and different models can share embedding caches on the same node.  
 
 <div align=center><img src ="user_guide_src/HugeCTR_Inference_Localized_Deployment.png"/></div>
-<div align=center>Fig. 2. HugeCTR Inference Localized Deployment Architecture</div>
+<div align=center>Fig. 2. HugeCTR Inference Localized Deployment Architecture</div>  
+  
+    
+## Distributed Deployment-Hierarchical HugeCTR Parameter Server
+The distributed Redis cluster is introduced as a CPU cache to store larger embedding tables and interact with the GPU embedding cache directly. The local RocksDB serves as a query engine to back up the complete embedding table on the local SSDs in order to assist the Redis cluster to perform missing embedding keys look up.
+If users want to enable hierarchical service, they need to add the `"db_type"` configuration item to ps.json as `"hierarchy"` .
+
+```
+{
+    "supportlonglong":false,
+    ...
+    "db_type":"hierarchy",
+    ...
+    "models":[
+      ...
+    ]
+}
+```
+* **Distributed Redis Cluster**  
+Synchronous query for Redis cluster: Model Instance looks up the embedding keys from the localized GPU cache, which will also store the missing embedding keys(Keys not found in the GPU cache) into missing key buffer.The missing buffer is exchanged to the Redis Instance synchronously, and Redis cluster client performs the look up operation on the missing embedding keys. The distributed Redis cluster as the 2nd-level CPU cache will completely replace the localized parameter server for loading the complete embedded table of all models.  
+However, the Redis cluster as a distributed memory cache is still limited by the size of CPU memory in each node, in other words, the size of the embedded table of all models still cannot exceed the total CPU memory of the cluster. Therefore, the user can use `"cache_size_percentage_redis"` to control the size of the model embedding table loaded into the Redis cluster. Users only need to set the ip and port of each node to enable the Redis cluster service into the HugeCTR Hierarchical Parameter Server.
+The configuration of the Redis cluster needs to be added to ps.json as shown below:  
+
+
+```
+{
+    "supportlonglong":false,
+    ...
+    "db_type":"hierarchy",
+    "redis_ip":"node1_ip:port,node2_ip:port,node3_ip:port,...",
+    "cache_size_percentage_redis":"0.5",
+    ...
+    "models":[
+      ...
+    ]
+}
+```
+* **Locaized RocksDB (Key-Value Store)**:  
+For ultra-large-scale embedding tables that still cannot fully load into the Redis cluster, we will enable local key-value storage on each node.
+Synchronous query for RocksDB: Redis cluster client looks up the embedding keys from the distributed GPU cache, which will also store the missing embedding keys(Keys not found in the Redis cluster) into missing key buffer.The missing buffer is exchanged to the local RocksDB client synchronously, which will continue to look up the missing embedding keys in the local SSDs. The localized RocksDB as the 3rd-level SSD query engine will perform the third look up operation for the missing embedded keys of all models.  
+For the model repository that have been stored in the cloud, RocksDB will be used as a local SSDs cache to store the remaining parts that cannot be loaded by the Redis cluster.  
+The configuration of the localized RocksDB needs to be added to ps.json as shown below:
+
+```
+{
+    "supportlonglong":false,
+    ...
+    "db_type":"hierarchy",
+    "rocksdb_path":"/current_node/rocksdb_path",
+    ...
+    "models":[
+      ...
+    ]
+}
+```
+
+
+<div align=center><img src ="user_guide_src/HugeCTR_Inference_Hierarchy.png"/></div>
+<div align=center>Fig. 3. HugeCTR Inference Distributed Deployment Architecture</div>
 
 ## Variant Compressed Sparse Row Input 
 The Variant Compressed Sparse Row (CSR) data format is used as input for the HugeCTR model to efficiently read the data, obtain data semantic information from the raw data, and avoid consuming too much time for data parsing. NVTabular has to output the corresponding slot information to indicate the feature files for the categorical data. Using the variant CSR data format, the model obtains the feature field information when reading data from the request, and the inference process is sped up since analysis redundancy is avoided. For each sample, there are three main types of input data: 
@@ -92,14 +150,14 @@ The Variant Compressed Sparse Row (CSR) data format is used as input for the Hug
 * **Row ptr**: Provides the number of categorical features in each slot. 
 
 <div align=center><img src ="user_guide_src/HugeCTR_Inference_Input_Format.png"/></div>
-<div align=center>Fig. 3. HugeCTR Inference VCSR Input Format</div>
+<div align=center>Fig. 4. HugeCTR Inference VCSR Input Format</div>
 
 ### VCSR Example
 #### Single Embedding Table Per Model
 Take the **Row 0**, a sample, of the figure above as an example. The input data contains four slots and HugeCTR parses the Row 0 slot information according to the "Row ptr" input. All the embedding vectors are stored in a single embedding table.
 
 <div align=center><img img width="80%" height="80%" src ="user_guide_src/HugeCTR_Inference_VCSR_Example1.png"/></div>
-<div align=center>Fig. 4. HugeCTR Inference VCSR Example for Single Embedding Table per Model</div>
+<div align=center>Fig. 5. HugeCTR Inference VCSR Example for Single Embedding Table per Model</div>
 
 * slot 1: Contains **1** categorical feature and the embedding key is 1. 
 * slot 2: Contains **1** categorical feature and the embedding key is 3.
