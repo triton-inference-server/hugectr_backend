@@ -24,7 +24,7 @@ variables:
 ### Stage: build
 build:
   tags:
-    - vm-builder
+    - 1GPU
   stage: build
   script:
     - docker login -u ${CI_PRIVATE_USER} -p "${CI_PRIVATE_KEY}" "${CI_REGISTRY}"
