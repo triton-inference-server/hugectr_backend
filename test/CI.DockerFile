@@ -11,7 +11,7 @@ RUN git clone -b $HUGECTR_BRANCH https://github.com/NVIDIA/HugeCTR.git HugeCTR &
     cd HugeCTR && \
     git submodule update --init --recursive && \
     mkdir -p build && cd build &&\
-    cmake -DENABLE_INFERENCE=$INFERENCE_MODE .. && \
+    cmake -DENABLE_INFERENCE=$INFERENCE_MODE -DCMAKE_BUILD_TYPE=Release -DSM="60;61;70;75;80" -DCLANGFORMAT=OFF .. && \
     make -j$(nproc) && \
     mkdir -p /usr/local/hugectr &&\
     make install && \

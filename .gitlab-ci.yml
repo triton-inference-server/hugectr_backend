@@ -42,7 +42,7 @@ build:
     - docker push "${IMAGE_VERSIONED}"
     - docker tag ${IMAGE_VERSIONED} ${IMAGE_LATEST}
     - docker push ${IMAGE_LATEST}
-  only:
+  # only:
   #   - pushes
   #   - merge_requests
   #   - web
