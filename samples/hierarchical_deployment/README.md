@@ -1,8 +1,7 @@
 # Deployment with HugeCTR Hierarchical Parameter Server
 
 ## Overview
-HugeCTR Hierarchical Parameter Server  
-implemented a hierarchical storage mechanism between local SSDs and CPU memory, which breaks the convention that the embedding table must be stored in local CPU memory. The distributed Redis cluster is introduced as a CPU cache to store larger embedding tables and interact with the GPU embedding cache directly. The local RocksDB serves as a query engine to back up the complete embedding table on the local SSDs in order to assist the Redis cluster to perform missing embedding keys look up.
+HugeCTR Hierarchical Parameter Server implemented a hierarchical storage mechanism between local SSDs and CPU memory, which breaks the convention that the embedding table must be stored in local CPU memory. The distributed Redis cluster is introduced as a CPU cache to store larger embedding tables and interact with the GPU embedding cache directly. The local RocksDB serves as a query engine to back up the complete embedding table on the local SSDs in order to assist the Redis cluster to perform missing embedding keys look up.
  
 
 ## Getting Started 
@@ -11,13 +10,24 @@ We provide an HugeCTR model deployment examples, which explain the steps to depl
 
 There are two containers that are needed in order to train and deploy the HugeCTR Model. The first one is for preprocessing with NVTabular and training a model with the HugeCTR framework. The other one is for serving/inference using Triton. 
 
-Before  script for model deployment, please make sure that the wdl model is trained normally and the rediscluster startup is executed correctly
-Before running [HugeCTR_Hierarchy_Deployment.ipynb](https://github.com/triton-inference-server/hugectr_backend/blob/v3.1.1/samples/hierarchical_depolyment/HugeCTR__WDL_Training.ipynb) please make sure that the wdl model is trained  successfully by [HugeCTR_WDL_Training.ipynb](https://github.com/triton-inference-server/hugectr_backend/blob/v3.1/samples/wdl/HugeCTR__WDL_Training.ipynb). `And the Redis Cluster and Local RocksDB service has been started normally according to the following steps.`
+Before script for model deployment, please make sure that the wdl model is trained normally and the rediscluster startup is executed correctly
+Before running [HugeCTR_Hierarchy_Deployment.ipynb](./HugeCTR_Hierarchy_Deployment.ipynb) please make sure that the wdl model is trained  successfully by [HugeCTR_WDL_Training.ipynb](../wdl/HugeCTR_WDL_Training.ipynb). `And the Redis Cluster and Local RocksDB service has been started normally according to the following steps.`
 
 ### 1. Launch the Redis Cluster Service:
 #### 1.1 Building and Running Redis
+Please make sure redis can be compiled normally according to the following command:
+```
+git clone https://github.com/redis/redis.git
+cd redis
+make
+```
+The ```redis-server``` will be found in the src file after successful compilation 
+```
+cd src
+./redis-server
+```
 Please refer to [Build Redis](https://github.com/redis/redis#building-redis) and
-[Running Redis](https://github.com/redis/redis#running-redis) to ensure that the redis client can be run normally.
+[Running Redis](https://github.com/redis/redis#running-redis) more details.
 
 #### 1.2 Redis Instance configuration
 To create a cluster, the first thing we need is to have a few empty Redis instances running in cluster mode. This basically means that clusters are not created using normal Redis instances as a special mode needs to be configured so that the Redis instance will enable the Cluster specific features and commands.
@@ -81,7 +91,7 @@ Since we are simulating cluster services through local nodes, create a RocksDB d
 ```
 mkdir -p -m 700 your_rocksdb_path
 ```
-`Note:` If you are creating a rocksdb service on a real multi-node,  please make sure to create a corresponding rocksdb storage path on each node.
+`Note:` If you are creating a rocksdb service on a real multi-node, please make sure to create a corresponding rocksdb storage path on each node.
 
 ### 3. Run the Triton Inference Server container:
 1) Before launch Triton server, first create a `wdl_infer` directory on your host machine:
@@ -95,7 +105,7 @@ mkdir -p wdl_infer
 
 Wide&Deep model inference container:
 ```
-docker run -it --gpus=all --shm-size=1g --ulimit memlock=-1 --ulimit stack=67108864 --net=host -v wdl_infer:/wdl_infer/ -v wdl_train:/wdl_train/ nvcr.io/nvidia/merlin/merlin-inference:0.6
+docker run -it --gpus=all --shm-size=1g --ulimit memlock=-1 --ulimit stack=67108864 --net=host -v wdl_infer:/wdl_infer/ -v wdl_train:/wdl_train/ -v your_rocksdb_path:/wdl_infer/rocksdb/ nvcr.io/nvidia/merlin/merlin-inference:0.6
 ```
 The container will open a shell when the run command execution is completed. It should look similar to this:
 ```
