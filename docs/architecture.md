@@ -85,7 +85,7 @@ The Parameter Server implements localized deployment on the same nodes and clust
 <div align=center>Fig. 2. HugeCTR Inference Localized Deployment Architecture</div>  
   
     
-## Distributed Deployment-Hierarchical HugeCTR Parameter Server
+## Distributed Deployment with Hierarchical HugeCTR Parameter Server ##
 The distributed Redis cluster is introduced as a CPU cache to store larger embedding tables and interact with the GPU embedding cache directly. The local RocksDB serves as a query engine to back up the complete embedding table on the local SSDs in order to assist the Redis cluster to perform missing embedding keys look up.
 To enable this kind of hierarchical lookup service, you haved to add the `"db_type"` configuration item to ps.json as `"hierarchy"` .
 
@@ -145,7 +145,7 @@ For ultra-large-scale embedding tables that still cannot fully load into the Red
 <div align=center><img src ="user_guide_src/HugeCTR_Inference_Hierarchy.png"/></div>
 <div align=center>Fig. 3. HugeCTR Inference Distributed Deployment Architecture</div>
 
-## Variant Compressed Sparse Row Input 
+## Variant Compressed Sparse Row Input ##
 The Variant Compressed Sparse Row (CSR) data format is typically used as input for HugeCTR models. It allows efficiently reading the data, obtaining data semantic information from the raw data, and avoids consuming too much time for data parsing. NVTabular has to output the corresponding slot information to indicate the feature files for the categorical data. Using the variant CSR data format, the model obtains the feature field information when reading data from the request. Addtionally, the inference process is sped up by avoiding excessive request data processing. For each sample, there are three main types of input data: 
  
 * **Dense Feature**: Represents the actual numerical data.

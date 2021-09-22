@@ -110,7 +110,7 @@ In the latest version, Hugectr backend has decoupled the Parameter Server-relate
 In order to deploy the HugeCTR model, some customized configuration items need to be added as follows.
 The configuration file of Parameter Server should be formatted using the JSON format. 
 
-**NOTE**: The Models clause needs to be included as a list, the specific configuration of each model as an item. **sparse_file** can be filled with multiple embedding table paths to support multiple embedding tables per model. Please refer to [VCSR Example](docs/architecture.md) for modifying the input data format to support multiple embedding tables per model.   
+**NOTE**: The Models clause needs to be included as a list, the specific configuration of each model as an item. **sparse_file** can be filled with multiple embedding table paths to support multiple embedding tables per model. Please refer to [VCSR Example](docs/architecture.md#variant-compressed-sparse-row-input) for modifying the input data format to support multiple embedding tables per model.   
 
 ```json.
 {
@@ -134,6 +134,6 @@ The configuration file of Parameter Server should be formatted using the JSON fo
 ```
 
 ## HugeCTR Hierarchical Parameter Server 
-HugeCTR Hierarchical Parameter Server implemented a hierarchical storage mechanism between local SSDs and CPU memory, which breaks the convention that the embedding table must be stored in local CPU memory. The distributed Redis cluster is introduced as a CPU cache to store larger embedding tables and interact with the GPU embedding cache directly. The local RocksDB serves as a query engine to back up the complete embedding table on the local SSDs in order to assist the Redis cluster to perform missing embedding keys look up. see [Distributed Deployment](docs/architecture.md) for more details.
+HugeCTR Hierarchical Parameter Server implemented a hierarchical storage mechanism between local SSDs and CPU memory, which breaks the convention that the embedding table must be stored in local CPU memory. The distributed Redis cluster is introduced as a CPU cache to store larger embedding tables and interact with the GPU embedding cache directly. The local RocksDB serves as a query engine to back up the complete embedding table on the local SSDs in order to assist the Redis cluster to perform missing embedding keys look up. see [Distributed Deployment](docs/architecture.md#distributed-deployment-with-hierarchical-hugectr-parameter-server) for more details.
 
 
