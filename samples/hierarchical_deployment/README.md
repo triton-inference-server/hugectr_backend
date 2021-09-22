@@ -105,7 +105,7 @@ mkdir -p wdl_infer
 
 Wide&Deep model inference container:
 ```
-docker run -it --gpus=all --shm-size=1g --ulimit memlock=-1 --ulimit stack=67108864 --net=host -v wdl_infer:/wdl_infer/ -v wdl_train:/wdl_train/ -v your_rocksdb_path:/wdl_infer/rocksdb/ nvcr.io/nvidia/merlin/merlin-inference:0.6
+docker run -it --gpus=all --shm-size=1g --ulimit memlock=-1 --ulimit stack=67108864 --net=host -v wdl_infer:/wdl_infer/ -v wdl_train:/wdl_train/ -v your_rocksdb_path:/wdl_infer/rocksdb/ nvcr.io/nvidia/merlin/merlin-inference:0.7
 ```
 The container will open a shell when the run command execution is completed. It should look similar to this:
 ```
