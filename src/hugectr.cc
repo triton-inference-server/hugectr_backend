@@ -431,6 +431,9 @@ class ModelState {
   // Support GPU cache for embedding table.
   bool GPUCache() { return support_gpu_cache_; }
 
+  // Support mixed_precision for inference.
+  bool MixedPrecision() { return use_mixed_precision_; }
+
   //Support int64 embedding key
   bool SupportLongEmbeddingKey() { return support_int64_key_; }
   
@@ -490,6 +493,7 @@ class ModelState {
 
   bool support_int64_key_=false;
   bool support_gpu_cache_=true;
+  bool use_mixed_precision_ =false;
 
   HugeCTR::HugectrUtility<unsigned int>* EmbeddingTable_int32;
   HugeCTR::HugectrUtility<long long>* EmbeddingTable_int64;
@@ -743,6 +747,18 @@ ModelState::ParseModelConfig()
       }
       LOG_MESSAGE(TRITONSERVER_LOG_INFO,(std::string("support gpu cache is ")+ std::to_string(support_gpu_cache_)).c_str());
     }
+
+    common::TritonJson::Value mixed_precision;
+    if (parameters.Find("mixed_precision", &mixed_precision)) {
+      std::string mixed_precision_value;
+      (mixed_precision.MemberAsString("string_value", &mixed_precision_value));
+      if ((mixed_precision_value)=="true"){
+        use_mixed_precision_ =true;
+        Model_Inference_Para.use_mixed_precision=true;
+      }
+      LOG_MESSAGE(TRITONSERVER_LOG_INFO,(std::string("support mixed_precision is  ")+ std::to_string(use_mixed_precision_)).c_str());
+    }
+
     common::TritonJson::Value gpucacheper;
     if (parameters.Find("gpucacheper", &gpucacheper)) {
       std::string gpu_cache_per;
