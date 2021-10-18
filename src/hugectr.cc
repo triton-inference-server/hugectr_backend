@@ -815,18 +815,12 @@ ModelState::Create_EmbeddingCache()
       if(support_int64_key_)
       {
         Model_Inference_Para.device_id=gpu_shape[i];
-        embedding_cache_map[gpu_shape[i]] = std::shared_ptr<HugeCTR::embedding_interface>(HugeCTR::embedding_interface::Create_Embedding_Cache(
-        hugectr_config_,
-        Model_Inference_Para,
-        EmbeddingTable_int64));
+        embedding_cache_map[gpu_shape[i]] = EmbeddingTable_int64->GetEmbeddingCache(name_,gpu_shape[i]);
       }
       else
       {
         Model_Inference_Para.device_id=gpu_shape[i];
-        embedding_cache_map[gpu_shape[i]] = std::shared_ptr<HugeCTR::embedding_interface>(HugeCTR::embedding_interface::Create_Embedding_Cache(
-        hugectr_config_,
-        Model_Inference_Para,
-        EmbeddingTable_int32));
+        embedding_cache_map[gpu_shape[i]] = EmbeddingTable_int32->GetEmbeddingCache(name_,gpu_shape[i]);
       }  
     } 
   }
