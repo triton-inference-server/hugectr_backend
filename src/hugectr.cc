@@ -349,7 +349,19 @@ HugeCTRBackend::ParseParameterServer(const std::string& path){
       infer_param.db_type=HugeCTR::DATABASE_TYPE::REDIS;
     if(db_type== "hierarchy")
       infer_param.db_type=HugeCTR::DATABASE_TYPE::HIERARCHY;
-  
+
+    std::string num_of_buffer_in_pool;
+    (model.MemberAsString("num_of_buffer_in_pool", &num_of_buffer_in_pool));
+    infer_param.number_of_buffers_in_pool=std::atoi(num_of_buffer_in_pool.c_str());
+
+    common::TritonJson::Value device_list;
+    std::vector<int> deployed_device_list;
+    model.MemberAsArray("deployed_device_list", &device_list);
+    for (size_t i = 0; i < device_list.ArraySize(); ++i) {
+      std::string d;
+      device_list.IndexAsString(i, &d);
+      deployed_device_list.push_back(std::atoi(d.c_str()));
+    }
     infer_param.redis_ip =redis_ip;
     infer_param.rocksdb_path = rocksdb_path;
     infer_param.cache_size_percentage_redis = cache_size_percentage_redis;
