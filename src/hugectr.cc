@@ -339,7 +339,11 @@ HugeCTRBackend::ParseParameterServer(const std::string& path){
       sparses.push_back(d);
     }
 
-    HugeCTR::InferenceParams infer_param(modelname, 64, 0.55, dense, sparses, 0, true, 0.55, support_int64_key_);
+    std::string batch_size;
+    (model.MemberAsString("max_batch_size", &batch_size));
+    size_t max_batch_size=std::atoi(batch_size.c_str());
+
+    HugeCTR::InferenceParams infer_param(modelname, max_batch_size, 0.55, dense, sparses, 0, true, 0.55, support_int64_key_);
     if(db_type== "local"){
       infer_param.db_type=HugeCTR::DATABASE_TYPE::LOCAL;
     }
@@ -352,7 +356,7 @@ HugeCTRBackend::ParseParameterServer(const std::string& path){
 
     std::string num_of_buffer_in_pool;
     (model.MemberAsString("num_of_buffer_in_pool", &num_of_buffer_in_pool));
-    infer_param.number_of_buffers_in_pool=std::atoi(num_of_buffer_in_pool.c_str());
+    infer_param.number_of_worker_buffers_in_pool=std::atoi(num_of_buffer_in_pool.c_str());
 
     common::TritonJson::Value device_list;
     std::vector<int> deployed_device_list;
