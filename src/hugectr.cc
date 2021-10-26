@@ -347,16 +347,36 @@ HugeCTRBackend::ParseParameterServer(const std::string& path){
     if(db_type== "local"){
       infer_param.db_type=HugeCTR::DATABASE_TYPE::LOCAL;
     }
-    if(db_type== "rocksdb")
+    if(db_type== "rocksdb"){
       infer_param.db_type=HugeCTR::DATABASE_TYPE::ROCKSDB;
-    if(db_type==  "redis" )
+    }
+    if(db_type==  "redis" ){
       infer_param.db_type=HugeCTR::DATABASE_TYPE::REDIS;
-    if(db_type== "hierarchy")
+    }
+    if(db_type== "hierarchy"){
       infer_param.db_type=HugeCTR::DATABASE_TYPE::HIERARCHY;
+    }
 
-    std::string num_of_buffer_in_pool;
-    (model.MemberAsString("num_of_buffer_in_pool", &num_of_buffer_in_pool));
-    infer_param.number_of_worker_buffers_in_pool=std::atoi(num_of_buffer_in_pool.c_str());
+    common::TritonJson::Value default_values;
+    (model.MemberAsArray("default_value_for_each_table", &default_values));
+    infer_param.default_value_for_each_table.clear();
+    for (size_t i = 0; i < default_values.ArraySize(); ++i) {
+      std::string d;
+      default_values.IndexAsString(i, &d);
+      infer_param.default_value_for_each_table.push_back(std::atof(d.c_str()));
+    }
+
+    std::string cache_refresh_percentage_per_iteration;
+    (model.MemberAsString("cache_refresh_percentage_per_iteration", &cache_refresh_percentage_per_iteration));
+    infer_param.cache_refresh_percentage_per_iteration=std::atoi(cache_refresh_percentage_per_iteration.c_str());
+
+    std::string num_of_worker_buffer_in_pool;
+    (model.MemberAsString("num_of_worker_buffer_in_pool", &num_of_worker_buffer_in_pool));
+    infer_param.number_of_worker_buffers_in_pool=std::atoi(num_of_worker_buffer_in_pool.c_str());
+
+    std::string num_of_refresher_buffer_in_pool;
+    (model.MemberAsString("num_of_refresher_buffer_in_pool", &num_of_refresher_buffer_in_pool));
+    infer_param.number_of_refresh_buffers_in_pool =std::atoi(num_of_refresher_buffer_in_pool.c_str());
 
     common::TritonJson::Value device_list;
     std::vector<int> deployed_device_list;
@@ -685,11 +705,16 @@ ModelState::ParseModelConfig()
   for(unsigned int i=0;i<instance_group.ArraySize();i++){
     common::TritonJson::Value instance;
     std::string kind;
+    int64_t count; 
     std::vector<int64_t> gpu_list;
     RETURN_IF_ERROR(instance_group.IndexAsObject(i, &instance));
     RETURN_IF_ERROR(instance.MemberAsString("kind", &kind));
     RETURN_ERROR_IF_FALSE(kind=="KIND_GPU", TRITONSERVER_ERROR_INVALID_ARG,
     std::string("expect GPU kind instance in instance group , got ")+kind);
+    RETURN_IF_ERROR(instance.MemberAsInt("count", &count));
+    RETURN_ERROR_IF_FALSE(count < Model_Inference_Para.number_of_worker_buffers_in_pool, TRITONSERVER_ERROR_INVALID_ARG,
+      std::string("expect the number of instance(in instance_group) less than number_of_worker_buffers_in_pool that confifured in Parameter Server json file , got ") +
+      std::to_string(count));
     RETURN_IF_ERROR(backend::ParseShape(instance, "gpus", &gpu_list));
     for (auto id : gpu_list) {
         gpu_shape.push_back(id);
@@ -814,8 +839,12 @@ ModelState::ParseModelConfig()
     }
   }
   model_config_.MemberAsInt("max_batch_size", &max_batch_size_);
+  RETURN_ERROR_IF_FALSE((size_t)max_batch_size_ <= Model_Inference_Para.max_batchsize, TRITONSERVER_ERROR_INVALID_ARG,
+      std::string("expected max_batch_size less than ") + std::to_string(Model_Inference_Para.max_batchsize)+std::string(" (configured in Parameter Server json file), got ") +
+      std::to_string(max_batch_size_));
+      std::cout<<"Model_Inference_Para.max_batchsize:"<<Model_Inference_Para.max_batchsize<<std::endl;
   Model_Inference_Para.max_batchsize=max_batch_size_;
-  LOG_MESSAGE(TRITONSERVER_LOG_INFO,(std::string("max_batch_size is ") + std::to_string(max_batch_size_)).c_str());
+  LOG_MESSAGE(TRITONSERVER_LOG_INFO,(std::string("max_batch_size in model config.pbtxt is ") + std::to_string(max_batch_size_)).c_str());
   return nullptr;
 }
 
