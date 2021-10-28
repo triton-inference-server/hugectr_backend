@@ -410,12 +410,12 @@ HugeCTRBackend::ParseParameterServer(const std::string& path){
     infer_param.number_of_refresh_buffers_in_pool =std::atoi(num_of_refresher_buffer_in_pool.c_str());
 
     common::TritonJson::Value device_list;
-    std::vector<int> deployed_device_list;
     model.MemberAsArray("deployed_device_list", &device_list);
     for (size_t i = 0; i < device_list.ArraySize(); ++i) {
       std::string d;
       device_list.IndexAsString(i, &d);
-      deployed_device_list.push_back(std::atoi(d.c_str()));
+      std::cout << "Deployed devcie list [" << i << "] = " << d << std::endl;
+      infer_param.depolyed_devices.push_back(std::atoi(d.c_str()));
     }
     infer_param.redis_ip =redis_ip;
     infer_param.rocksdb_path = rocksdb_path;
