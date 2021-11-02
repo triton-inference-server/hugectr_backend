@@ -415,7 +415,8 @@ HugeCTRBackend::ParseParameterServer(const std::string& path){
       std::string d;
       device_list.IndexAsString(i, &d);
       std::cout << "Deployed devcie list [" << i << "] = " << d << std::endl;
-      infer_param.depolyed_devices.push_back(std::atoi(d.c_str()));
+      infer_param.deployed_devices.push_back(std::atoi(d.c_str()));
+      infer_param.device_id = std::atoi(d.c_str());
     }
     infer_param.redis_ip =redis_ip;
     infer_param.rocksdb_path = rocksdb_path;
