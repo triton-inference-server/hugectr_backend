@@ -112,9 +112,11 @@ enum MEMORY_TYPE { GPU, CPU, PIN };
 // An internal abstraction for cuda memory allocation
 class CudaAllocator {
  public:
-  void* allocate(size_t size, MEMORY_TYPE type = MEMORY_TYPE::GPU) const {
+  CudaAllocator(MEMORY_TYPE type) : type_{type} {}
+
+  void* allocate(size_t size) const {
     void* ptr;
-    if (type == MEMORY_TYPE::GPU) {
+    if (type_ == MEMORY_TYPE::GPU) {
       CK_CUDA_THROW_(cudaMalloc(&ptr, size));
     }
     else { 
@@ -122,14 +124,18 @@ class CudaAllocator {
     }
     return ptr;
   }
-  void deallocate(void* ptr, MEMORY_TYPE type = MEMORY_TYPE::GPU) const {
-    if (type == MEMORY_TYPE::GPU) {
+
+  void deallocate(void* ptr) const {
+    if (type_ == MEMORY_TYPE::GPU) {
       CK_CUDA_THROW_(cudaFree(ptr));
     }
     else { 
       CK_CUDA_THROW_(cudaFreeHost(ptr));
     }
   }
+
+ private:
+  MEMORY_TYPE type_;
 };
 
 //
@@ -146,17 +152,16 @@ class HugeCTRBuffer : public std::enable_shared_from_this<HugeCTRBuffer<T>> {
   CudaAllocator allocator_;
   void* ptr_ = nullptr;
   size_t total_size_in_bytes_ = 0;
-  MEMORY_TYPE type;
 
  public:
   static std::shared_ptr<HugeCTRBuffer> create(MEMORY_TYPE m_type = MEMORY_TYPE::GPU) {
     return std::make_shared<HugeCTRBuffer>(m_type);
   }
   
-  HugeCTRBuffer(MEMORY_TYPE m_type) : ptr_(nullptr), total_size_in_bytes_(0), type(m_type) {}
+  HugeCTRBuffer(MEMORY_TYPE type) : allocator_{type}, ptr_{nullptr}, total_size_in_bytes_{0} {}
   ~HugeCTRBuffer() {
     if (allocated()) {
-      allocator_.deallocate(ptr_,type);
+      allocator_.deallocate(ptr_);
     }
   }
 
@@ -177,7 +182,7 @@ class HugeCTRBuffer : public std::enable_shared_from_this<HugeCTRBuffer<T>> {
     total_size_in_bytes_ = offset;
 
     if (total_size_in_bytes_ != 0) {
-      ptr_ = allocator_.allocate(total_size_in_bytes_, type);
+      ptr_ = allocator_.allocate(total_size_in_bytes_);
     }
   }
 
