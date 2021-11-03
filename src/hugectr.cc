@@ -53,7 +53,7 @@ namespace triton { namespace backend { namespace hugectr {
 // inference before returning from TRITONBACKED_ModelInstanceExecute.
 
 // Memory type that HugeCTR model support for buffer
-enum MEMORY_TYPE { GPU, CPU, PIN };
+enum class MemoryType_t { GPU, CPU, PIN };
 
 
 // HugeCTR Backend supports any model that trained by HugeCTR, which
@@ -112,11 +112,11 @@ enum MEMORY_TYPE { GPU, CPU, PIN };
 // An internal abstraction for cuda memory allocation
 class CudaAllocator {
  public:
-  CudaAllocator(MEMORY_TYPE type) : type_{type} {}
+  CudaAllocator(MemoryType_t type) : type_{type} {}
 
   void* allocate(size_t size) const {
     void* ptr;
-    if (type_ == MEMORY_TYPE::GPU) {
+    if (type_ == MemoryType_t::GPU) {
       CK_CUDA_THROW_(cudaMalloc(&ptr, size));
     }
     else { 
@@ -126,7 +126,7 @@ class CudaAllocator {
   }
 
   void deallocate(void* ptr) const {
-    if (type_ == MEMORY_TYPE::GPU) {
+    if (type_ == MemoryType_t::GPU) {
       CK_CUDA_THROW_(cudaFree(ptr));
     }
     else { 
@@ -135,7 +135,7 @@ class CudaAllocator {
   }
 
  private:
-  MEMORY_TYPE type_;
+  MemoryType_t type_;
 };
 
 //
@@ -154,11 +154,11 @@ class HugeCTRBuffer : public std::enable_shared_from_this<HugeCTRBuffer<T>> {
   size_t total_size_in_bytes_ = 0;
 
  public:
-  static std::shared_ptr<HugeCTRBuffer> create(MEMORY_TYPE m_type = MEMORY_TYPE::GPU) {
-    return std::make_shared<HugeCTRBuffer>(m_type);
+  static std::shared_ptr<HugeCTRBuffer> create(MemoryType_t type = MemoryType_t::GPU) {
+    return std::make_shared<HugeCTRBuffer>(type);
   }
   
-  HugeCTRBuffer(MEMORY_TYPE type) : allocator_{type}, ptr_{nullptr}, total_size_in_bytes_{0} {}
+  HugeCTRBuffer(MemoryType_t type) : allocator_{type}, ptr_{nullptr}, total_size_in_bytes_{0} {}
   ~HugeCTRBuffer() {
     if (allocated()) {
       allocator_.deallocate(ptr_);
@@ -221,7 +221,7 @@ class HugeCTRBuffer : public std::enable_shared_from_this<HugeCTRBuffer<T>> {
 // of this class is created and associated with each
 // TRITONBACKEND_Backend.
 //
-class HugeCTRBackend{
+class HugeCTRBackend {
  public:
   static TRITONSERVER_Error* Create(
       TRITONBACKEND_Backend* triton_backend_, HugeCTRBackend** backend);
@@ -525,7 +525,8 @@ TRITONSERVER_Error* HugeCTRBackend::ParseParameterServer(const std::string& path
     infer_param.kafka_brokers = kafka_brokers;
     
     // Done!
-    inference_params_map.insert(std::pair<std::string, HugeCTR::InferenceParams>(model_name, infer_param));
+    inference_params_map.emplace(
+      std::piecewise_construct, std::forward_as_tuple(model_name), std::forward_as_tuple(infer_param));
   }
 
   return nullptr;
@@ -533,21 +534,23 @@ TRITONSERVER_Error* HugeCTRBackend::ParseParameterServer(const std::string& path
 
 // HugeCTR EmbeddingTable
 TRITONSERVER_Error* HugeCTRBackend::HugeCTREmbedding_backend() {
-  LOG_MESSAGE(TRITONSERVER_LOG_INFO,(std::string("*****The HugeCTR Backend Parameter Server is creating...*****") ).c_str());
-  HugeCTR::INFER_TYPE type= HugeCTR::INFER_TYPE::TRITON;
+  LOG_MESSAGE(TRITONSERVER_LOG_INFO, "*****The HugeCTR Backend Parameter Server is creating... *****");
+  HugeCTR::INFER_TYPE type = HugeCTR::INFER_TYPE::TRITON;
   std::vector<HugeCTR::InferenceParams> model_vet;
   for (const auto &s : HugeCTRModelConfigurationMap()) {
     model_vet.push_back(s.second);
   }
   if (support_int64_key_) {
-    LOG_MESSAGE(TRITONSERVER_LOG_INFO,(std::string("***** Parameter Server(Int64) is creating...***** ") ).c_str());
-    EmbeddingTable_int64=HugeCTR::HugectrUtility<long long>::Create_Parameter_Server(type,model_network_files,model_vet);
+    LOG_MESSAGE(TRITONSERVER_LOG_INFO, "***** Parameter Server(Int64) is creating... *****");
+    EmbeddingTable_int32 = nullptr;
+    EmbeddingTable_int64 = HugeCTR::HugectrUtility<long long>::Create_Parameter_Server(type, model_network_files, model_vet);
   }
   else {
-    LOG_MESSAGE(TRITONSERVER_LOG_INFO,(std::string("*****The HugeCTR Backend Backend Parameter Server(Int32) is creating...***** ") ).c_str());
-    EmbeddingTable_int32 =HugeCTR::HugectrUtility<unsigned int>::Create_Parameter_Server(type,model_network_files,model_vet);
+    LOG_MESSAGE(TRITONSERVER_LOG_INFO, "***** The HugeCTR Backend Backend Parameter Server(Int32) is creating... *****");
+    EmbeddingTable_int32 = HugeCTR::HugectrUtility<unsigned int>::Create_Parameter_Server(type, model_network_files, model_vet);
+    EmbeddingTable_int64 = nullptr;
   }
-  LOG_MESSAGE(TRITONSERVER_LOG_INFO,(std::string("*****The HugeCTR Backend Backend created the Parameter Server successfully!*****") ).c_str());
+  LOG_MESSAGE(TRITONSERVER_LOG_INFO, "*****The HugeCTR Backend Backend created the Parameter Server successfully! *****");
   return nullptr;
 }
 
@@ -725,10 +728,11 @@ ModelState::ModelState(
     TRITONSERVER_Server* triton_server, TRITONBACKEND_Model* triton_model,
     const char* name, const uint64_t version, const uint64_t model_ps_version,
     common::TritonJson::Value&& model_config, HugeCTR::HugectrUtility<unsigned int>* EmbeddingTable_int32,
-    HugeCTR::HugectrUtility<long long>* EmbeddingTable_int64,HugeCTR::InferenceParams Model_Inference_Para )
+    HugeCTR::HugectrUtility<long long>* EmbeddingTable_int64, HugeCTR::InferenceParams Model_Inference_Para)
     : triton_server_(triton_server), triton_model_(triton_model), name_(name),
       version_(version), version_ps_(model_ps_version), model_config_(std::move(model_config)),
-      EmbeddingTable_int32(EmbeddingTable_int32),EmbeddingTable_int64(EmbeddingTable_int64), Model_Inference_Para(Model_Inference_Para) {
+      EmbeddingTable_int32(EmbeddingTable_int32), EmbeddingTable_int64(EmbeddingTable_int64),
+      Model_Inference_Para(Model_Inference_Para) {
     // current much model initialization work handled by TritonBackend_Model
 }
 
@@ -1120,14 +1124,14 @@ ModelInstanceState::ModelInstanceState(
 
     LOG_MESSAGE(TRITONSERVER_LOG_INFO, "Categorical Feature buffer allocation: ");
     if (model_state_->SupportLongEmbeddingKey()) {
-      cat_column_index_buf_int64 = HugeCTRBuffer<long long>::create(MEMORY_TYPE::PIN);
+      cat_column_index_buf_int64 = HugeCTRBuffer<long long>::create(MemoryType_t::PIN);
       std::vector<size_t> cat_column_index_dims = { static_cast<size_t>(model_state_->BatchSize() * model_state_->CatNum()) }; 
       cat_column_index_buf_int64->reserve(cat_column_index_dims);
       cat_column_index_buf_int64->allocate();
 
     }
     else {
-      cat_column_index_buf_int32 = HugeCTRBuffer<unsigned int>::create(MEMORY_TYPE::PIN);
+      cat_column_index_buf_int32 = HugeCTRBuffer<unsigned int>::create(MemoryType_t::PIN);
       std::vector<size_t> cat_column_index_dims = { static_cast<size_t>(model_state_->BatchSize() * model_state_->CatNum()) }; 
       cat_column_index_buf_int32->reserve(cat_column_index_dims);
       cat_column_index_buf_int32->allocate();
