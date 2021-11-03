@@ -638,12 +638,14 @@ ModelState::ModelState(
 void ModelState::EmbeddingCacheRefresh(const std::string& model_name, int device_id){
   LOG_MESSAGE(TRITONSERVER_LOG_INFO,(std::string("The model ")+ model_name + std::string("is refreshing the embedding cache asynchronously on device ")
   + std::to_string(device_id)).c_str());
-  if(support_int64_key_ ){
-    EmbeddingTable_int64->refresh_embedding_cache(model_name,device_id);
+  if(support_gpu_cache_){
+    if(support_int64_key_ ){
+      EmbeddingTable_int64->refresh_embedding_cache(model_name,device_id);
+    }
+    else{
+      EmbeddingTable_int32->refresh_embedding_cache(model_name,device_id);
+    } 
   }
-  else{
-    EmbeddingTable_int32->refresh_embedding_cache(model_name,device_id);
-  } 
   LOG_MESSAGE(TRITONSERVER_LOG_INFO,(std::string("The model ")+ model_name + std::string(" has refreshed the embedding cache asynchronously on device ")
   + std::to_string(device_id)).c_str());
 }
