@@ -121,13 +121,21 @@ The configuration file of Parameter Server should be formatted using the JSON fo
             "model":"dcn",
             "sparse_files":["/model/dcn/1/0_sparse_file.model"],
             "dense_file":"/model/dcn/1/_dense_file.model",
-            "network_file":"/model/dcn/1/dcn.json"
+            "network_file":"/model/dcn/1/dcn.json",
+            "num_of_worker_buffer_in_pool": "4"
+			"deployed_device_list":["0"],
+			"max_batch_size":"1024",
+			"default_value_for_each_table":["0.0"]
         },
         {
             "model":"wdl",
             "sparse_files":["/model/wdl/1/0_sparse_2000.model","/model/wdl/1/1_sparse_2000.model"],
             "dense_file":"/model/wdl/1/_dense_2000.model",
-            "network_file":"/model/wdl/1/wdl_infer.json"
+            "network_file":"/model/wdl/1/wdl_infer.json",
+            "num_of_worker_buffer_in_pool": "4",
+			"deployed_device_list":["1"],
+			"max_batch_size":"1024",
+			"default_value_for_each_table":["0.0","0.0"]
         }
     ]  
 }
@@ -135,5 +143,15 @@ The configuration file of Parameter Server should be formatted using the JSON fo
 
 ## HugeCTR Hierarchical Parameter Server 
 HugeCTR Hierarchical Parameter Server implemented a hierarchical storage mechanism between local SSDs and CPU memory, which breaks the convention that the embedding table must be stored in local CPU memory. The distributed Redis cluster is introduced as a CPU cache to store larger embedding tables and interact with the GPU embedding cache directly. The local RocksDB serves as a query engine to back up the complete embedding table on the local SSDs in order to assist the Redis cluster to perform missing embedding keys look up. see [Distributed Deployment](docs/architecture.md#distributed-deployment-with-hierarchical-hugectr-parameter-server) for more details.
+
+* ### Performance optimization of Parameter Server
+We have added support for multiple database interfaces to our parameter server. In particular, we added an “in memory” database, that utilizes the local CPU memory for storing and recalling embeddings and uses multi-threading to accelerate look-up and storage.  
+Further, we revised support for “distributed” storage of embeddings in a Redis cluster. This way, you can use the combined CPU-accessible memory of your cluster for storing embeddings. The new implementation is up over two orders of magnitude faster than the previous.  
+Further, we performance-optimized support for the “persistent” storage and retrieval of embeddings via RocksDB through the structured use of column families.
+Creating a hierarchical storage (i.e. using Redis as distributed cache, and RocksDB as fallback), is supported as well. These advantages are free to end-users, as there is no need to adjust the PS configuration.  
+We plan to further integrate the hierarchical parameter server with other features, such as the GPU backed embedding caches in upcoming releases. Stay tuned!  
+
+* ### Embedding Cache Asynchronous Insertion Mechanism  
+We have supported the asynchronous  insertion of missing embedding keys into  the embedding cache. This feature can be activated automatically through user-defined hit rate threshold in configuration file.When the real hit rate of the embedding cache is higher than the user-defined threshold, the embedding cache will insert the missing key asynchronously, and vice versa, it will still be inserted in a synchronous way to ensure high accuracy of inference requests. Through the asynchronous insertion method, compared with the previous synchronous method, the real hit rate of the embedding cache can be further improved after the embedding cache reaches the user-defined threshold.
 
 
