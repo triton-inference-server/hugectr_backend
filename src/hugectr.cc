@@ -49,10 +49,10 @@ namespace triton { namespace backend { namespace hugectr {
 //
 // HugeCTR Inference backend that demonstrates the TRITONBACKEND API for 
 // models that trained by HugeCTR(https://github.com/NVIDIA/HugeCTR). 
-//A general backend completes execution of the
+// A general backend completes execution of the
 // inference before returning from TRITONBACKED_ModelInstanceExecute.
 
-//Memory type that HugeCTR model support for buffer
+// Memory type that HugeCTR model support for buffer
 enum MEMORY_TYPE { GPU, CPU, PIN };
 
 
@@ -63,10 +63,10 @@ enum MEMORY_TYPE { GPU, CPU, PIN };
 // match. The backend  responds with the output tensor contains the prediction result
 // 
 
-#define GUARDED_RESPOND_IF_ERROR(RESPONSES, IDX, X)                     \
+#define GUARDED_RESPOND_IF_ERROR(RESPONSES, IDX, EXPR)                  \
   do {                                                                  \
     if ((RESPONSES)[IDX] != nullptr) {                                  \
-      TRITONSERVER_Error* err__ = (X);                                  \
+      TRITONSERVER_Error* err__ = (EXPR);                               \
       if (err__ != nullptr) {                                           \
         LOG_IF_ERROR(                                                   \
             TRITONBACKEND_ResponseSend(                                 \
@@ -79,19 +79,19 @@ enum MEMORY_TYPE { GPU, CPU, PIN };
     }                                                                   \
   } while (false)
 
-//An internal exception to carry the HugeCTR CUDA error code
-#define CK_CUDA_THROW_(x)                                                                          \
+// An internal exception to carry the HugeCTR CUDA error code
+#define CK_CUDA_THROW_(EXPR)                                                                       \
   do {                                                                                             \
-    const cudaError_t retval = (x);                                                                \
+    const cudaError_t retval = (EXPR);                                                             \
     if (retval != cudaSuccess) {                                                                   \
-      throw std::runtime_error(std::string("Runtime error: ") + (cudaGetErrorString(retval)) +     \
+      throw std::runtime_error(std::string{"Runtime error: "} + cudaGetErrorString(retval) +       \
                                        " " + __FILE__ + ":" + std::to_string(__LINE__) + " \n");   \
     }                                                                                              \
   } while (0)
 
-#define RESPOND_AND_RETURN_IF_ERROR(REQUEST, X)                         \
+#define RESPOND_AND_RETURN_IF_ERROR(REQUEST, EXPR)                      \
   do {                                                                  \
-    TRITONSERVER_Error* rarie_err__ = (X);                              \
+    TRITONSERVER_Error* rarie_err__ = (EXPR);                           \
     if (rarie_err__ != nullptr) {                                       \
       TRITONBACKEND_Response* rarie_response__ = nullptr;               \
       LOG_IF_ERROR(                                                     \
@@ -109,21 +109,20 @@ enum MEMORY_TYPE { GPU, CPU, PIN };
     }                                                                   \
   } while (false)
 
-//An internal abstraction for cuda memory allocation
+// An internal abstraction for cuda memory allocation
 class CudaAllocator {
  public:
-  void *allocate(size_t size,MEMORY_TYPE type = MEMORY_TYPE::GPU) const {
-    void *ptr;
+  void* allocate(size_t size, MEMORY_TYPE type = MEMORY_TYPE::GPU) const {
+    void* ptr;
     if (type == MEMORY_TYPE::GPU) {
       CK_CUDA_THROW_(cudaMalloc(&ptr, size));
     }
     else { 
       CK_CUDA_THROW_(cudaMallocHost(&ptr, size));
     }
-    
     return ptr;
   }
-  void deallocate(void *ptr,MEMORY_TYPE type = MEMORY_TYPE::GPU) const {
+  void deallocate(void* ptr, MEMORY_TYPE type = MEMORY_TYPE::GPU) const {
     if (type == MEMORY_TYPE::GPU) {
       CK_CUDA_THROW_(cudaFree(ptr));
     }
@@ -134,12 +133,11 @@ class CudaAllocator {
 };
 
 //
-//HugeCTRBUffer
+// HugeCTRBUffer
 //
-//Hugectr Buffer 
 // Hugectr Buffer associated with a model instance that is using this backend. An object
 // of this class is created and associated with each TRITONBACKEND_Instance 
-//for storing input data from client request
+// for storing input data from client request
 template <typename T>
 class HugeCTRBuffer : public std::enable_shared_from_this<HugeCTRBuffer<T>> {
  private:
@@ -152,14 +150,16 @@ class HugeCTRBuffer : public std::enable_shared_from_this<HugeCTRBuffer<T>> {
 
  public:
   static std::shared_ptr<HugeCTRBuffer> create(MEMORY_TYPE m_type = MEMORY_TYPE::GPU) {
-    return std::shared_ptr<HugeCTRBuffer>(new HugeCTRBuffer(m_type));
+    return std::make_shared<HugeCTRBuffer>(m_type);
   }
-  HugeCTRBuffer(MEMORY_TYPE m_type) : ptr_(nullptr), total_size_in_bytes_(0),type(m_type) {}
+  
+  HugeCTRBuffer(MEMORY_TYPE m_type) : ptr_(nullptr), total_size_in_bytes_(0), type(m_type) {}
   ~HugeCTRBuffer() {
     if (allocated()) {
       allocator_.deallocate(ptr_,type);
     }
   }
+
   bool allocated() const { return total_size_in_bytes_ != 0 && ptr_ != nullptr; }
   void allocate() {
     if (ptr_ != nullptr) {
@@ -184,16 +184,14 @@ class HugeCTRBuffer : public std::enable_shared_from_this<HugeCTRBuffer<T>> {
   size_t get_buffer_size() const { return total_size_in_bytes_; }
 
   T* get_ptr() { return reinterpret_cast<T*>(ptr_); }
-
   const T* get_ptr() const { return reinterpret_cast<const T*>(ptr_); }
   
   void* get_raw_ptr() { return ptr_; }
-
   const void* get_raw_ptr() const { return ptr_; }
   
-  size_t get_num_elements_from_dimensions(const std::vector<size_t>& dimensions) {
+  static size_t get_num_elements_from_dimensions(const std::vector<size_t>& dimensions) {
     size_t elements = 1;
-    for (size_t dim : dimensions) {
+    for (const size_t dim : dimensions) {
       elements *= dim;
     }
     return elements;
@@ -203,8 +201,8 @@ class HugeCTRBuffer : public std::enable_shared_from_this<HugeCTRBuffer<T>> {
     if (allocated()) {
       std::cerr << "IllegalCall: Buffer is finalized.";
     }
-    size_t num_elements = get_num_elements_from_dimensions(dimensions);
-    size_t size_in_bytes = num_elements * sizeof(T);
+    const size_t num_elements = get_num_elements_from_dimensions(dimensions);
+    const size_t size_in_bytes = num_elements * sizeof(T);
 
     reserved_buffers_.push_back(size_in_bytes);
     total_num_elements_ += num_elements;
@@ -229,14 +227,14 @@ class HugeCTRBackend{
   ~HugeCTRBackend();
 
   //HugeCTR unit type Parameter  Server
-  HugeCTR::HugectrUtility<unsigned int>* HugeCTRParameterServerInt32(){return EmbeddingTable_int32;}
+  HugeCTR::HugectrUtility<unsigned int>* HugeCTRParameterServerInt32() { return EmbeddingTable_int32; }
 
   //HugeCTR long long type Parameter Server
-  HugeCTR::HugectrUtility<long long>* HugeCTRParameterServerInt64(){return EmbeddingTable_int64;}
+  HugeCTR::HugectrUtility<long long>* HugeCTRParameterServerInt64() { return EmbeddingTable_int64; }
 
-  HugeCTR::InferenceParams HugeCTRModelConfiguration(std::string modelname){return inference_params_map.at(modelname);}
+  HugeCTR::InferenceParams HugeCTRModelConfiguration(std::string modelname) { return inference_params_map.at(modelname); }
 
-  std::map<std::string, HugeCTR::InferenceParams> HugeCTRModelConfigurationMap() {return inference_params_map;}
+  std::map<std::string, HugeCTR::InferenceParams> HugeCTRModelConfigurationMap() { return inference_params_map; }
 
   //Initialize HugeCTR Embedding Table 
   TRITONSERVER_Error* HugeCTREmbedding_backend();
@@ -259,8 +257,8 @@ class HugeCTRBackend{
   common::TritonJson::Value parameter_server_config;
 
   bool support_int64_key_ = false;
-  HugeCTRBackend(TRITONBACKEND_Backend* triton_backend_);
 
+  HugeCTRBackend(TRITONBACKEND_Backend* triton_backend_);
 };
 
 TRITONSERVER_Error* HugeCTRBackend::Create(TRITONBACKEND_Backend* triton_backend_, HugeCTRBackend** backend) {
@@ -284,7 +282,7 @@ bool HugeCTRBackend::UpdateModelVersion(const std::string& model_name, uint64_t 
 
 HugeCTRBackend::HugeCTRBackend(TRITONBACKEND_Backend* triton_backend)
   : triton_backend_(triton_backend) {
-  //current much Model Backend initialization handled by TritonBackend_Backend
+  // current much Model Backend initialization handled by TritonBackend_Backend
 }
 
 HugeCTRBackend::~HugeCTRBackend() {
@@ -528,7 +526,7 @@ TRITONSERVER_Error* HugeCTRBackend::ParseParameterServer(const std::string& path
   return nullptr;
 }
 
-//HugeCTR EmbeddingTable
+// HugeCTR EmbeddingTable
 TRITONSERVER_Error* HugeCTRBackend::HugeCTREmbedding_backend() {
   LOG_MESSAGE(TRITONSERVER_LOG_INFO,(std::string("*****The HugeCTR Backend Parameter Server is creating...*****") ).c_str());
   HugeCTR::INFER_TYPE type= HugeCTR::INFER_TYPE::TRITON;
@@ -583,11 +581,11 @@ class ModelState {
   // Get the HugeCTR model Embedding size.
   int64_t EmbeddingSize() const { return embedding_size_; }
 
-  //Get Embedding Cache
+  // Get Embedding Cache
   std::shared_ptr<HugeCTR::embedding_interface> GetEmbeddingCache(int64_t device_id) { return embedding_cache_map[device_id]; }
 
-  //Get input data entry map
-  std::map<std::string,size_t> GetInputmap() { return input_map_; }
+  // Get input data entry map
+  std::map<std::string, size_t> GetInputmap() { return input_map_; }
 
   // Get the HugeCTR cache size percentage.
   float CacheSizePer() const {return cache_size_per;}
@@ -620,19 +618,19 @@ class ModelState {
   // Parse that model configuration is supported by this backend.
   TRITONSERVER_Error* ParseModelConfig();
 
-  //Embedding cache asynchronous refresh 
+  // Embedding cache asynchronous refresh 
   void EmbeddingCacheRefresh(const std::string& model_name, int device_id);
 
-  //Create Embedding_cache
+  // Create Embedding_cache
   TRITONSERVER_Error* Create_EmbeddingCache();
 
-  //HugeCTR unit PS
+  // HugeCTR unit PS
   HugeCTR::HugectrUtility<unsigned int>* HugeCTRParameterServerInt32() { return EmbeddingTable_int32; }
 
-  //HugeCTR long long PS
+  // HugeCTR long long PS
   HugeCTR::HugectrUtility<long long>* HugeCTRParameterServerInt64() { return EmbeddingTable_int64; }
 
-  //Model Inference Inference Parameter Configuration 
+  // Model Inference Inference Parameter Configuration 
   HugeCTR::InferenceParams ModelInferencePara() { return Model_Inference_Para; }
 
  private:
@@ -661,7 +659,7 @@ class ModelState {
   std::vector<std::string> model_config_path;
   std::vector<std::string> model_name;
   std::vector<int64_t> gpu_shape;
-  //Multi-thread for embedding cache refresh when reload model
+  // Multi-thread for embedding cache refresh when reload model
   std::vector<std::thread> cache_refresh_threads;
 
   bool support_int64_key_ = false;
@@ -726,7 +724,7 @@ ModelState::ModelState(
     : triton_server_(triton_server), triton_model_(triton_model), name_(name),
       version_(version), version_ps_(model_ps_version), model_config_(std::move(model_config)),
       EmbeddingTable_int32(EmbeddingTable_int32),EmbeddingTable_int64(EmbeddingTable_int64), Model_Inference_Para(Model_Inference_Para) {
-    //current much model initialization work handled by TritonBackend_Model
+    // current much model initialization work handled by TritonBackend_Model
 }
 
 void ModelState::EmbeddingCacheRefresh(const std::string& model_name, int device_id) {
@@ -1031,7 +1029,7 @@ class ModelInstanceState {
   // Get the prediction result that corresponds to this instance.
   TRITONSERVER_Error* ProcessRequest(int64_t numofsamples);
 
-  //Create Embedding_cache
+  // Create Embedding_cache
   TRITONSERVER_Error* LoadHugeCTRModel();
 
   std::shared_ptr<HugeCTRBuffer<float>> GetDeseBuffer() { return dense_value_buf; }
@@ -1054,10 +1052,9 @@ class ModelInstanceState {
     const std::string name_;
     const TRITONSERVER_InstanceGroupKind kind_;
     const int32_t device_id_;
-    //common::TritonJson::Value model_config_;
 
-    //HugeCTR Model buffer for input and output
-    //There buffers will be shared for all the requests
+    // HugeCTR Model buffer for input and output
+    // There buffers will be shared for all the requests
     std::shared_ptr<HugeCTRBuffer<float>> dense_value_buf;
     std::shared_ptr<HugeCTRBuffer<unsigned int>> cat_column_index_buf_int32;
     std::shared_ptr<HugeCTRBuffer<long long>> cat_column_index_buf_int64;
@@ -1239,8 +1236,8 @@ TRITONSERVER_Error* TRITONBACKEND_Initialize(TRITONBACKEND_Backend* backend) {
       TRITONSERVER_LOG_INFO,
       (std::string{"The HugeCTR backend Repository location: "} + clocation).c_str());
 
-  //Backend configuration message contains model configuration  with json format
-  //example format: {"cmdline":{"model1":"/json_path1","model2":"/json_path2"}}
+  // Backend configuration message contains model configuration  with json format
+  // example format: {"cmdline":{"model1":"/json_path1","model2":"/json_path2"}}
   const char* buffer;
   size_t byte_size;
   RETURN_IF_ERROR(TRITONSERVER_MessageSerializeToJson(
@@ -1249,7 +1246,7 @@ TRITONSERVER_Error* TRITONBACKEND_Initialize(TRITONBACKEND_Backend* backend) {
       TRITONSERVER_LOG_INFO,
       (std::string{"The HugeCTR backend configuration:\n"} + buffer).c_str());
 
-  //Parse the command-line argument to determine the type of embedding table Key
+  // Parse the command-line argument to determine the type of embedding table Key
   common::TritonJson::Value backend_config;
   TRITONSERVER_Error* err = backend_config.Parse(buffer, byte_size);
   RETURN_IF_ERROR(err);
@@ -1868,7 +1865,7 @@ TRITONSERVER_Error* TRITONBACKEND_ModelInstanceExecute(TRITONBACKEND_ModelInstan
         uint64_t exec_end_ns = 0;
         SET_TIMESTAMP(exec_end_ns);
         max_exec_end_ns = std::max(max_exec_end_ns, exec_end_ns);
-        //Get the prediction execution time (ms) 
+        // Get the prediction execution time (ms) 
         int64_t exe_time = (max_exec_end_ns - min_exec_start_ns) / 1000000;
         LOG_MESSAGE(
             TRITONSERVER_LOG_INFO,
