@@ -1,115 +1,233 @@
-# Deployment with HugeCTR Hierarchical Parameter Server
+# Training and Inference with HugeCTR Model
 
-## Overview
-HugeCTR Hierarchical Parameter Server implemented a hierarchical storage mechanism between local SSDs and CPU memory, which breaks the convention that the embedding table must be stored in local CPU memory. The distributed Redis cluster is introduced as a CPU cache to store larger embedding tables and interact with the GPU embedding cache directly. The local RocksDB serves as a query engine to back up the complete embedding table on the local SSDs in order to assist the Redis cluster to perform missing embedding keys look up.
- 
+## Dataset and preprocess
+The data is provided by CriteoLabs (http://azuremlsampleexperiments.blob.core.windows.net/criteo/day_1.gz).
+Each example contains a label (1 if the ad was clicked, otherwise 0) and 39 features (13 integer features and 26 categorical features).
+The dataset also has the significant amounts of missing values across the feature columns, which should be preprocessed accordingly.
+The original test set doesn't contain labels, so it's not used.
+
+Requirements
+
+- Python >= 3.6.9
+- Pandas 1.0.1
+- Sklearn 0.22.1
+- CPU MEMORY >= 10GB 
 
 ## Getting Started 
 
-We provide an HugeCTR model deployment examples, which explain the steps to deploy HugeCTR model using Triton in hierarchical parameter server framework.
+We provide two end-to-end model (DLRM nad Wide&Deep) training and deployment examples, including two training notebooks ( [HugeCTR_DLRM_Training.ipynb](https://github.com/triton-inference-server/hugectr_backend/blob/v3.1/samples/dlrm/HugeCTR_DLRM_Training.ipynb), [HugeCTR_WDL_Training.ipynb](https://github.com/triton-inference-server/hugectr_backend/blob/v3.1/samples/wdl/HugeCTR__WDL_Training.ipynb) ) and two inference notebooks ( [HugeCTR_DLRM_Inference.ipynb](https://github.com/triton-inference-server/hugectr_backend/blob/v3.1/samples/dlrm/HugeCTR_DLRM_Inference.ipynb),     [HugeCTR_WDL_Inference.ipynb](https://github.com/triton-inference-server/hugectr_backend/blob/v3.1/samples/wdl/HugeCTR__WDL_Inference.ipynb) ), which explain the steps to do train and inference with HugeCTR and NVTabular in Merlin framework.
 
 There are two containers that are needed in order to train and deploy the HugeCTR Model. The first one is for preprocessing with NVTabular and training a model with the HugeCTR framework. The other one is for serving/inference using Triton. 
 
-Before script for model deployment, please make sure that the wdl model is trained normally and the rediscluster startup is executed correctly
-Before running [HugeCTR_Hierarchy_Deployment.ipynb](./HugeCTR_Hierarchy_Deployment.ipynb) please make sure that the wdl model is trained  successfully by [HugeCTR_WDL_Training.ipynb](../wdl/HugeCTR_WDL_Training.ipynb). `And the Redis Cluster and Local RocksDB service has been started normally according to the following steps.`
+### 1. Pull the Merlin Training Docker Container:
 
-### 1. Launch the Redis Cluster Service:
-#### 1.1 Building and Running Redis
-Please make sure redis can be compiled normally according to the following command:
-```
-git clone https://github.com/redis/redis.git
-cd redis
-make
-```
-The ```redis-server``` will be found in the src file after successful compilation 
-```
-cd src
-./redis-server
-```
-Please refer to [Build Redis](https://github.com/redis/redis#building-redis) and
-[Running Redis](https://github.com/redis/redis#running-redis) more details.
+We start with pulling the `Merlin-Training` container. This is to do preprocessing, feature engineering on our datasets using NVTabular, and then to train a DLRM (Wide&Deep) model with HugeCTR framework with processed datasets.
 
-#### 1.2 Redis Instance configuration
-To create a cluster, the first thing we need is to have a few empty Redis instances running in cluster mode. This basically means that clusters are not created using normal Redis instances as a special mode needs to be configured so that the Redis instance will enable the Cluster specific features and commands.
-
-The following is a minimal Redis cluster configuration file:
-```
-port 7000
-cluster-enabled yes
-cluster-config-file nodes.conf
-cluster-node-timeout 5000
-appendonly yes
-```
-
-`Note` that the minimal cluster that works as expected requires to contain at least three master nodes. 
-For your benchmark tests it is strongly suggested to use your stable cluster directly. `The remaining steps are only to verify the correctness of the framework, without adding any Redis cluster optimization work`
-
-Something like:
-```
-mkdir cluster-test
-cd cluster-test
-mkdir 7000 7001 7002 
-```
-Create a redis.conf file inside each of the directories, from 7000 to 7002. As a template for your configuration file just use the small example above, but make sure to replace the port number 7000 with the right port number according to the directory name.
-
-#### 1.3 Run Each Redis Instance
-Now copy your redis-server executable, `compiled from the latest sources at GitHub in step 1.1`, into the cluster-test directory, and finally open 3 terminal tabs in your favorite terminal application.
-
-Start every instance like that, one every tab:
-```
-cd 7000
-../redis-server ./redis.conf
-```
-As you can see from the logs of every instance, since no nodes.conf file existed, every node assigns itself a new ID.
-```
-[82462] 26 Nov 11:56:55.329 * No cluster configuration found, I'm 97a3a64667477371c4479320d683e4c8db5858b1
-```
-`Note` This ID will be used forever by this specific instance in order for the instance to have a unique name in the context of the cluster. Every node remembers every other node using this IDs, and not by IP or port. IP addresses and ports may change, but the unique node identifier will never change for all the life of the node. 
-
-#### 1.4. Creating the Cluster
-Now that we have a number of instances running, we need to create our cluster by writing some meaningful configuration to the nodes.
-
-If you are using Redis 5 or higher, this is very easy to accomplish as we are helped by the Redis Cluster command line utility embedded into redis-cli, that can be used to create new clusters, check or reshard an existing cluster, and so forth.
-
-To create your cluster for Redis 5 with redis-cli simply type:
+Before starting docker container, first create a `dlrm_train` directory for DLRM mode (`wdl_train` for Wide&Deep model) on your host machine:
 
 ```
-redis-cli --cluster create 127.0.0.1:7000 127.0.0.1:7001 \
-127.0.0.1:7002
+mkdir -p dlrm_train
+cd dlrm_train
+```
+or
+
+```
+mkdir -p wdl_train
+cd wdl_train
 ```
 
-Redis-cli will propose you a configuration. Accept the proposed configuration by typing yes. The cluster will be configured and joined, which means, instances will be bootstrapped into talking with each other. Finally, if everything went well, you'll see a message like that:
+We will mount `dlrm_train` ( `wdl_train` ) directory into the training docker container.
+
+Merlin containers are available in the NVIDIA container repository at the following location: https://ngc.nvidia.com/catalog/containers/nvidia:merlin.
+
+You can pull the `Merlin-Training` container by running the following command:
+
+DLRM model traning:
 
 ```
-[OK] All 16384 slots covered
-This means that there is at least a master instance serving each of the 16384 slots available.
+docker run --gpus=all -it -v ${PWD}:/dlrm_train/ --net=host nvcr.io/nvidia/merlin/merlin-training:21.09 /bin/bash
 ```
-`Note`: if you can't create Redis cluster successfully, you may need to delete files other than configuration files, such as node.info to keep each folder clean.
 
-### 2. Create RocksDB Storage Folder:
-Since we are simulating cluster services through local nodes, create a RocksDB directory with read and write permissions for storing model embedded tables.  
+Wide&Deep model training:
 ```
-mkdir -p -m 700 your_rocksdb_path
+docker run --gpus=all -it -v ${PWD}:/wdl_train/ --net=host nvcr.io/nvidia/merlin/merlin-training:21.09 /bin/bash
 ```
-`Note:` If you are creating a rocksdb service on a real multi-node, please make sure to create a corresponding rocksdb storage path on each node.
 
-### 3. Run the Triton Inference Server container:
-1) Before launch Triton server, first create a `wdl_infer` directory on your host machine:
+The container will open a shell when the run command execution is completed. You'll have to start the jupyter lab on the Docker container. It should look similar to this:
+
+
+```
+root@2efa5b50b909:
+```
+
+You should receive the following response, indicating that the environment has been activated:
+
+```
+root@2efa5b50b909:
+```
+
+1) Install Required Libraries:
+
+You might need to install `unzip`, `graphviz`, and `curl` packages if they are missing. You can do that with the following commands:
+
+```
+apt-get update
+apt-get install unzip -y
+apt-get install curl -y
+pip install graphviz 
+pip install pandas
+pip install pyarrow
+```
+
+2) Start the jupyter-lab server by running the following command. In case the container does not have `JupyterLab`, you can easily [install](https://jupyterlab.readthedocs.io/en/stable/getting_started/installation.html) it either using conda or pip.
+```
+jupyter-lab --allow-root --ip='0.0.0.0' --NotebookApp.token='<password>'
+```
+
+Open any browser to access the jupyter-lab server using `https://<host IP-Address>:8888`.
+
+### 2. Run example notebooks:
+
+There are two example notebooks for each model that should be run in order. The first one is training notebook [HugeCTR_DLRM_Training.ipynb](https://github.com/triton-inference-server/hugectr_backend/blob/v3.1/samples/dlrm/HugeCTR_DLRM_Training.ipynb) ( [HugeCTR_WDL_Training.ipynb](https://github.com/triton-inference-server/hugectr_backend/blob/v3.1/samples/wdl/HugeCTR__WDL_Training.ipynb) )  shows how to
+- Dataset Preprocessing with NVTabular
+- DLRM(Wide&Deep) Model Training
+- Save the Model Files in the `dlrm_train` ( `wdl_train` ) directory  
+
+**If jupyter-lab can be launched normally in the first part above, then you can run `HugeCTR_DLRM_Training` ( `HugeCTR_WDL_Training` ) successfully**  
+
+The following notebook [HugeCTR_DLRM_Inference.ipynb](https://github.com/triton-inference-server/hugectr_backend/blob/v3.1/samples/dlrm/HugeCTR_DLRM_Inference.ipynb) ([HugeCTR_WDL_Inference.ipynb](https://github.com/triton-inference-server/hugectr_backend/blob/v3.1/samples/wdl/HugeCTR__WDL_Inference.ipynb)) shows how to send request to Triton IS 
+- Generate the DLRM (Wide&Deep) Deployment Configuration
+- Load Models on Triton Server
+- Prepare Inference Input Data 
+- Inference Benchmark by Triton Performance Tool (Send Inference Request to Triton Server)   
+
+**After completing the Step 1 and step 3 correctly, you can successfully run the `HugeCTR_DLRM_Inference` (`HugeCTR_WDL_Inference`) notebook**  
+
+
+Now you can start `HugeCTR_DLRM_Inference` (`HugeCTR_WDL_Inference`) notebooks. Note that you need to save your workflow and DLRM model in the `dlrm_infer/model` `wdl_infer/model` directory before launching the `tritonserver` as defined below, the details you could refer to `HugeCTR_DLRM_Inference` (`HugeCTR_WDL_Inference`) example notebook once the server is started.
+
+### 3. Build and Run the Triton Inference Server container:
+
+1) Before launch Triton server, first create a `dlrm_infer` (`wdl_infer`) directory on your host machine:
+```
+mkdir -p dlrm_infer
+```
+or
+
 ```
 mkdir -p wdl_infer
-
 ```
-`Note` that you need to save your workflow and WDL model, trained from [HugeCTR_WDL_Training.ipynb](https://github.com/triton-inference-server/hugectr_backend/blob/v3.1/samples/wdl/HugeCTR__WDL_Training.ipynb) in the `wdl_infer/model` first or mount the `wdl_train` folder to inference container.
 
 2) Launch Merlin Triton Inference Server container:  
 
+DLRM model inference container:
+```
+docker run -it --gpus=all --shm-size=1g --ulimit memlock=-1 --ulimit stack=67108864 --net=host -v dlrm_infer:/dlrm_infer/ -v dlrm_train:/dlrm_train/ nvcr.io/nvidia/merlin/merlin-inference:21.09
+```
+
 Wide&Deep model inference container:
 ```
-docker run -it --gpus=all --shm-size=1g --ulimit memlock=-1 --ulimit stack=67108864 --net=host -v wdl_infer:/wdl_infer/ -v wdl_train:/wdl_train/ -v your_rocksdb_path:/wdl_infer/rocksdb/ nvcr.io/nvidia/merlin/merlin-inference:0.6
+docker run -it --gpus=all --shm-size=1g --ulimit memlock=-1 --ulimit stack=67108864 --net=host -v wdl_infer:/wdl_infer/ -v wdl_train:/wdl_train/ nvcr.io/nvidia/merlin/merlin-inference:21.09
 ```
 The container will open a shell when the run command execution is completed. It should look similar to this:
 ```
 root@02d56ff0738f:/opt/tritonserver# 
 ```
 
-Now you can start `HugeCTR_Hierarchical_Deployment`  notebooks.  
+3) Your saved model should be in the `dlrm_infer/model` ( `wdl_infer/model` ) directory. 
+
+4) Start the triton server and run Triton with the example model repository you just created. Note that you need to provide correct path for the models directory, and `dlrm.json` ( `wdl.json` ) file.  
+
+DLRM model deployment:
+```
+tritonserver --model-repository=/dlrm_infer/model/ --load-model=dlrm \
+     --model-control-mode=explicit \
+    --backend-directory=/usr/local/hugectr/backends \
+    --backend-config=hugectr,ps=/dlrm_infer/model/ps.json
+```
+
+Wide&Deep model deployment:
+```
+tritonserver --model-repository=/wdl_infer/model/ --load-model=wdl \
+     --model-control-mode=explicit \
+    --backend-directory=/usr/local/hugectr/backends \
+    --backend-config=hugectr,ps=/wdl_infer/model/ps.json
+```
+
+Note: The model-repository path is /`model_name`_infer/model/. The path for the DLRM (Wide&Deep) model network json file is /`model_name`_infer/model/`model_name`/1/`model_name`.json. The path for the parameter server configuration file is /`model_name`/model/ps.json.
+
+After you start Triton you will see output on the console showing the server starting up. At this stage you have loaded the `dlrm` model in the  `HugeCTR_DLRM_Inference` notebook to be able to send the request. All the models should load successfully. If a model fails to load the status will report the failure and a reason for the failure. 
+
+Once the models are successfully loaded, you can launch jupyter-lab again in the same container and run the `HugeCTR_DLRM_Inference` notebook to test the benchmark of DLRM model inference on Triton. Note that, by default Triton will not start if models are not loaded successfully.  
+
+## Reference
+### HugeCTR Backend configuration
+Please refer to  [(Triton model configuration)](https://github.com/triton-inference-server/server/blob/master/docs/model_configuration.md) first and  clarify the required configuration of the model in the specific inference scenario.
+In order to deploy the HugeCTR model, some customized configuration items need to be added as follows：
+```json.
+ parameters [
+  {
+  key: "config"
+  value: { string_value: "/model/dcn/1/dcn.json" }
+  },
+  {
+  key: "hit_rate_threshold"
+  value: { string_value: "0.8" }
+  },
+  {
+  key: "gpucache"
+  value: { string_value: "true" }
+  },
+  {
+  key: "gpucacheper"
+  value: { string_value: "0.5" }
+  },
+  {
+  key: "label_dim"
+  value: { string_value: "1" }
+  },
+  {
+  key: "slots"
+  value: { string_value: "26" }
+  },
+  {
+  key: "cat_feature_num"
+  value: { string_value: "26" }
+  },
+  {
+  key: "des_feature_num"
+  value: { string_value: "13" }
+  },
+  {
+  key: "max_nnz"
+  value: { string_value: "2" }
+  },
+  {
+  key: "embedding_vector_size"
+  value: { string_value: "32" }
+  },
+  {
+  key: "embeddingkey_long_type"
+  value: { string_value: "false" }
+  }
+]
+```  
+The model files (the path of the embedded table file) needs to be configured in a separate "`modelname`_infer/model/ps.json", because the localized parameter server will pre-load the embedding tables independently.
+
+```json.
+{
+    "supportlonglong":true,
+    "models":[
+        {
+            "model":"wdl",
+            "sparse_files":["/wdl_infer/model/wdl/1/wdl0_sparse_20000.model", "/wdl_infer/model/wdl/1/wdl1_sparse_20000.model"],
+            "dense_file":"/wdl_infer/model/wdl/1/wdl_dense_20000.model",
+            "network_file":"/wdl_infer/model/wdl/1/wdl.json",
+            "num_of_worker_buffer_in_pool": "4",
+			"deployed_device_list":["1"],
+			"max_batch_size":"1024",
+			"default_value_for_each_table":["0.0","0.0"]
+        }
+    ]  
+}
+```   
