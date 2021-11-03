@@ -146,7 +146,7 @@ class HugeCTRBuffer : public std::enable_shared_from_this<HugeCTRBuffer<T>> {
   std::vector<size_t> reserved_buffers_;
   size_t total_num_elements_;
   CudaAllocator allocator_;
-  void *ptr_=nullptr;
+  void* ptr_ = nullptr;
   size_t total_size_in_bytes_ = 0;
   MEMORY_TYPE type;
 
@@ -163,11 +163,11 @@ class HugeCTRBuffer : public std::enable_shared_from_this<HugeCTRBuffer<T>> {
   bool allocated() const { return total_size_in_bytes_ != 0 && ptr_ != nullptr; }
   void allocate() {
     if (ptr_ != nullptr) {
-      std::cerr <<"WrongInput:Memory has already been allocated.";
+      std::cerr << "WrongInput: Memory has already been allocated.";
     }
     size_t offset = 0;
     for (const size_t buffer : reserved_buffers_) {
-      size_t size=buffer;
+      size_t size = buffer;
       if (size % 32 != 0) {
         size += (32 - size % 32);
       }
@@ -177,19 +177,21 @@ class HugeCTRBuffer : public std::enable_shared_from_this<HugeCTRBuffer<T>> {
     total_size_in_bytes_ = offset;
 
     if (total_size_in_bytes_ != 0) {
-      ptr_ = allocator_.allocate(total_size_in_bytes_,type);
+      ptr_ = allocator_.allocate(total_size_in_bytes_, type);
     }
   }
 
-  size_t get_buffer_size() {
-    return total_size_in_bytes_;
-  }
+  size_t get_buffer_size() const { return total_size_in_bytes_; }
 
-  void *get_ptr() { 
-    return reinterpret_cast<T*>(ptr_) ;
-  }
+  T* get_ptr() { return reinterpret_cast<T*>(ptr_); }
+
+  const T* get_ptr() const { return reinterpret_cast<const T*>(ptr_); }
   
-  size_t get_num_elements_from_dimensions(const std::vector<size_t> &dimensions) {
+  void* get_raw_ptr() { return ptr_; }
+
+  const void* get_raw_ptr() const { return ptr_; }
+  
+  size_t get_num_elements_from_dimensions(const std::vector<size_t>& dimensions) {
     size_t elements = 1;
     for (size_t dim : dimensions) {
       elements *= dim;
@@ -197,7 +199,7 @@ class HugeCTRBuffer : public std::enable_shared_from_this<HugeCTRBuffer<T>> {
     return elements;
   }
 
-  void reserve(const std::vector<size_t> &dimensions) {
+  void reserve(const std::vector<size_t>& dimensions) {
     if (allocated()) {
       std::cerr << "IllegalCall: Buffer is finalized.";
     }
@@ -1161,10 +1163,20 @@ TRITONSERVER_Error* ModelInstanceState::LoadHugeCTRModel() {
 
 TRITONSERVER_Error* ModelInstanceState::ProcessRequest(int64_t numofsamples) {
   if(model_state_->SupportLongEmbeddingKey()) {
-    hugectrmodel_->predict((float*)dense_value_buf->get_ptr(), cat_column_index_buf_int64->get_ptr(), (int*)row_ptr_buf->get_ptr(), (float*)prediction_buf->get_ptr(), numofsamples);
+    hugectrmodel_->predict(
+      dense_value_buf->get_ptr(),
+      cat_column_index_buf_int64->get_raw_ptr(), 
+      row_ptr_buf->get_ptr(),
+      prediction_buf->get_ptr(),
+      numofsamples);
   }
   else{
-    hugectrmodel_->predict((float*)dense_value_buf->get_ptr(), cat_column_index_buf_int32->get_ptr(), (int*)row_ptr_buf->get_ptr(), (float*)prediction_buf->get_ptr(), numofsamples);
+    hugectrmodel_->predict(
+      dense_value_buf->get_ptr(),
+      cat_column_index_buf_int32->get_raw_ptr(),
+      row_ptr_buf->get_ptr(),
+      prediction_buf->get_ptr(),
+      numofsamples);
   }
   return nullptr;
 }
@@ -1624,8 +1636,8 @@ TRITONSERVER_Error* TRITONBACKEND_ModelInstanceExecute(TRITONBACKEND_ModelInstan
     int64_t num_of_samples = 0;
     int64_t numofdes;
     int64_t numofcat;
-    int64_t num_of_sample_des=1;
-    int64_t num_of_sample_cat=1;
+    int64_t num_of_sample_des = 1;
+    int64_t num_of_sample_cat = 1;
    
 
     GUARDED_RESPOND_IF_ERROR(
@@ -1719,7 +1731,7 @@ TRITONSERVER_Error* TRITONBACKEND_ModelInstanceExecute(TRITONBACKEND_ModelInstan
       TRITONBACKEND_Output* output;
       
       numofdes = des_byte_size / sizeof(float);
-      if (instance_state->StateForModel()->SupportLongEmbeddingKey()){
+      if (instance_state->StateForModel()->SupportLongEmbeddingKey()) {
         numofcat = cat_byte_size / sizeof(long long);
       }
       else{
@@ -1796,7 +1808,7 @@ TRITONSERVER_Error* TRITONBACKEND_ModelInstanceExecute(TRITONBACKEND_ModelInstan
       size_t output_buffer_offset = 0;
       for (uint32_t b = 0; b < cat_input_buffer_count; ++b) {
 
-        const void* des_buffer=nullptr;
+        const void* des_buffer = nullptr;
         uint64_t buffer_byte_size = des_byte_size;
         TRITONSERVER_MemoryType input_memory_type = TRITONSERVER_MEMORY_GPU;
         int64_t input_memory_type_id = 0;
@@ -1805,7 +1817,8 @@ TRITONSERVER_Error* TRITONBACKEND_ModelInstanceExecute(TRITONBACKEND_ModelInstan
             TRITONBACKEND_InputBuffer(
                 des_input, b, &des_buffer, &buffer_byte_size, &input_memory_type,
                 &input_memory_type_id));
-        CK_CUDA_THROW_(cudaMemcpy(instance_state->GetDeseBuffer()->get_ptr(), des_buffer, des_byte_size, cudaMemcpyHostToDevice));
+        CK_CUDA_THROW_(cudaMemcpy(
+          instance_state->GetDeseBuffer()->get_raw_ptr(), des_buffer, des_byte_size, cudaMemcpyHostToDevice));
 
         const void* cat_buffer=nullptr;
         GUARDED_RESPOND_IF_ERROR(
@@ -1815,10 +1828,12 @@ TRITONSERVER_Error* TRITONBACKEND_ModelInstanceExecute(TRITONBACKEND_ModelInstan
                 &input_memory_type_id));
         if (instance_state->StateForModel()->SupportLongEmbeddingKey())
         {
-          CK_CUDA_THROW_(cudaMemcpy(instance_state->GetCatColBuffer_int64()->get_ptr(), cat_buffer, cat_byte_size, cudaMemcpyHostToHost));
+          CK_CUDA_THROW_(cudaMemcpy(
+            instance_state->GetCatColBuffer_int64()->get_raw_ptr(), cat_buffer, cat_byte_size, cudaMemcpyHostToHost));
         }
         else{
-          CK_CUDA_THROW_(cudaMemcpy(instance_state->GetCatColBuffer_int32()->get_ptr(), cat_buffer, cat_byte_size, cudaMemcpyHostToHost));
+          CK_CUDA_THROW_(cudaMemcpy(
+            instance_state->GetCatColBuffer_int32()->get_raw_ptr(), cat_buffer, cat_byte_size, cudaMemcpyHostToHost));
         }
         
         const void* row_buffer=nullptr;
@@ -1827,7 +1842,8 @@ TRITONSERVER_Error* TRITONBACKEND_ModelInstanceExecute(TRITONBACKEND_ModelInstan
             TRITONBACKEND_InputBuffer(
                 row_input, b, &row_buffer, &row_byte_size, &input_memory_type,
                 &input_memory_type_id));
-        CK_CUDA_THROW_(cudaMemcpy(instance_state->GetRowBuffer()->get_ptr(), row_buffer, row_byte_size, cudaMemcpyHostToDevice));
+        CK_CUDA_THROW_(cudaMemcpy(
+          instance_state->GetRowBuffer()->get_raw_ptr(), row_buffer, row_byte_size, cudaMemcpyHostToDevice));
         
 
         if (responses[r] == nullptr) {
@@ -1846,13 +1862,14 @@ TRITONSERVER_Error* TRITONBACKEND_ModelInstanceExecute(TRITONBACKEND_ModelInstan
         RETURN_IF_ERROR(instance_state->ProcessRequest(num_of_samples));
         LOG_MESSAGE(TRITONSERVER_LOG_INFO, "******Processing request completed!******");
         output_buffer_offset += buffer_byte_size; 
-        CK_CUDA_THROW_(cudaMemcpy(output_buffer, instance_state->GetPredictBuffer()->get_ptr(), num_of_samples * sizeof(float), cudaMemcpyDeviceToHost));
+        CK_CUDA_THROW_(cudaMemcpy(
+          output_buffer, instance_state->GetPredictBuffer()->get_raw_ptr(), num_of_samples * sizeof(float), cudaMemcpyDeviceToHost));
 
         uint64_t exec_end_ns = 0;
         SET_TIMESTAMP(exec_end_ns);
         max_exec_end_ns = std::max(max_exec_end_ns, exec_end_ns);
         //Get the prediction execution time (ms) 
-        int64_t exe_time=(max_exec_end_ns-min_exec_start_ns)/1000000;
+        int64_t exe_time = (max_exec_end_ns - min_exec_start_ns) / 1000000;
         LOG_MESSAGE(
             TRITONSERVER_LOG_INFO,
             (std::string{"Prediction execution time is "} + std::to_string(exe_time) + " ms")
