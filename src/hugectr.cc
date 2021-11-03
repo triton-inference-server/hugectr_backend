@@ -371,7 +371,8 @@ HugeCTRBackend::ParseParameterServer(const std::string& path){
     }
 
     std::string batch_size;
-    (model.MemberAsString("max_batch_size", &batch_size));
+    model.MemberAsString("max_batch_size", &batch_size);
+    RETURN_ERROR_IF_TRUE(batch_size == "", TRITONSERVER_ERROR_INVALID_ARG, std::string("Please confirm that 'max_batch_size' is added to the ps configuration file"));
     size_t max_batch_size=std::atoi(batch_size.c_str());
 
     HugeCTR::InferenceParams infer_param(modelname, max_batch_size, 0.55, dense, sparses, 0, true, 0.55, support_int64_key_);
@@ -637,12 +638,14 @@ ModelState::ModelState(
 void ModelState::EmbeddingCacheRefresh(const std::string& model_name, int device_id){
   LOG_MESSAGE(TRITONSERVER_LOG_INFO,(std::string("The model ")+ model_name + std::string("is refreshing the embedding cache asynchronously on device ")
   + std::to_string(device_id)).c_str());
-  if(support_int64_key_ ){
-    EmbeddingTable_int64->refresh_embedding_cache(model_name,device_id);
+  if(support_gpu_cache_){
+    if(support_int64_key_ ){
+      EmbeddingTable_int64->refresh_embedding_cache(model_name,device_id);
+    }
+    else{
+      EmbeddingTable_int32->refresh_embedding_cache(model_name,device_id);
+    } 
   }
-  else{
-    EmbeddingTable_int32->refresh_embedding_cache(model_name,device_id);
-  } 
   LOG_MESSAGE(TRITONSERVER_LOG_INFO,(std::string("The model ")+ model_name + std::string(" has refreshed the embedding cache asynchronously on device ")
   + std::to_string(device_id)).c_str());
 }
@@ -907,6 +910,8 @@ ModelState::Create_EmbeddingCache()
   int64_t count = gpu_shape.size();
   for (int i = 0; i < count;i++)
   {
+    std::vector<int>::iterator iter=find(Model_Inference_Para.deployed_devices.begin(),Model_Inference_Para.deployed_devices.end(),gpu_shape[i]);
+    RETURN_ERROR_IF_TRUE(iter == Model_Inference_Para.deployed_devices.end(), TRITONSERVER_ERROR_INVALID_ARG, std::string("Please confirm that device ") + std::to_string(gpu_shape[i]) + std::string(" is added to 'deployed_device_list' in the ps configuration file"));
     if (embedding_cache_map.find(gpu_shape[i]) == embedding_cache_map.end()){
       LOG_MESSAGE(TRITONSERVER_LOG_INFO,(std::string("******Creating Embedding Cache for model ") + 
       std::string(name_)+ std::string(" in device ")+ std::to_string(gpu_shape[i])).c_str());
