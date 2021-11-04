@@ -343,8 +343,8 @@ TRITONSERVER_Error* HugeCTRBackend::ParseParameterServer(const std::string& path
       cpu_memory_db_update_source = HugeCTR::PSUpdateSource_t::Kafka;
     }
     else {
-      return TRITONSERVER_ErrorNew(TRITONSERVER_ERROR_INVALID_ARG,
-        "Configured value for cpu_memory_db_update_source is invalid!");
+      return HCTR_TRITON_ERROR(
+        INVALID_ARG, "Configured value for cpu_memory_db_update_source is invalid!");
     }
   }
   
@@ -361,8 +361,8 @@ TRITONSERVER_Error* HugeCTRBackend::ParseParameterServer(const std::string& path
       distributed_db_update_source = HugeCTR::PSUpdateSource_t::Kafka;
     }
     else {
-      return TRITONSERVER_ErrorNew(TRITONSERVER_ERROR_INVALID_ARG,
-        "Configured value for distributed_db_update_source is invalid!");
+      return HCTR_TRITON_ERROR(
+        INVALID_ARG, "Configured value for distributed_db_update_source is invalid!");
     }
   }
 
@@ -379,8 +379,8 @@ TRITONSERVER_Error* HugeCTRBackend::ParseParameterServer(const std::string& path
       persistent_db_update_source = HugeCTR::PSUpdateSource_t::Kafka;
     }
     else {
-      return TRITONSERVER_ErrorNew(TRITONSERVER_ERROR_INVALID_ARG,
-        "Configured value for persistent_db_update_source is invalid!");
+      return HCTR_TRITON_ERROR(
+        INVALID_ARG, "Configured value for persistent_db_update_source is invalid!");
     }
   }
 
@@ -481,8 +481,7 @@ TRITONSERVER_Error* HugeCTRBackend::ParseParameterServer(const std::string& path
         infer_param.db_type = HugeCTR::DATABASE_TYPE::HIERARCHY;
       }
       else {
-        return TRITONSERVER_ErrorNew(TRITONSERVER_ERROR_INVALID_ARG,
-          "Configured value for db_type is invalid!");
+        return HCTR_TRITON_ERROR(INVALID_ARG, "Configured value for db_type is invalid!");
       }
     }
 
