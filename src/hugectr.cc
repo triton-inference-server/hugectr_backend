@@ -1414,7 +1414,7 @@ TRITONSERVER_Error* TRITONBACKEND_ModelInstanceInitialize(TRITONBACKEND_ModelIns
   RETURN_IF_ERROR(TRITONBACKEND_ModelInstanceSetState(
       instance, reinterpret_cast<void*>(instance_state)));
 
-  LOG_MESSAGE(TRITONSERVER_LOG_INFO, "******Loading HugeCTR Model******");
+  HCTR_TRITON_LOG(INFO, "******Loading HugeCTR Model******");
   RETURN_IF_ERROR(instance_state->LoadHugeCTRModel());
 
   return nullptr;  // success
