@@ -27,9 +27,28 @@
 #pragma once
 
 #include <functional>
+#include <sstream>
 #include "triton/backend/backend_common.h"
 
 namespace triton { namespace backend { namespace hugectr {
+
+template <typename ...Args>
+inline std::string TRITON_LOG_STR_CONCAT(Args&& ...args) {
+  std::stringstream msg;
+  (msg << ... << args);
+  return msg.str();
+}
+
+/**
+ * Allows comfortably logging to the Triton LOG.
+ */
+#define TRITON_LOG(LEVEL, ...)                                                               \
+  do {                                                                                       \
+    const std::string& msg = TRITON_LOG_STR_CONCAT(__VA_ARGS__);                             \
+    LOG_IF_ERROR(                                                                            \
+        TRITONSERVER_LogMessage(TRITONSERVER_LOG_##LEVEL, __FILE__, __LINE__, msg.c_str()),  \
+        ("failed to log message: "));                                                        \
+  } while (false)
 
 class TritonJsonHelper {
  public:

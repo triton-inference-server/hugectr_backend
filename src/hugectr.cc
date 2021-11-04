@@ -1209,9 +1209,7 @@ TRITONSERVER_Error* TRITONBACKEND_Initialize(TRITONBACKEND_Backend* backend) {
   const char* name;
   RETURN_IF_ERROR(TRITONBACKEND_BackendName(backend, &name));
 
-  LOG_MESSAGE(
-      TRITONSERVER_LOG_INFO,
-      (std::string{"TRITONBACKEND_Initialize: "} + name).c_str());
+  TRITON_LOG(INFO, "TRITONBACKEND_Initialize: ", name);
 
   // We should check the backend API version that Triton supports
   // vs. what this backend was compiled against.
@@ -1219,24 +1217,14 @@ TRITONSERVER_Error* TRITONBACKEND_Initialize(TRITONBACKEND_Backend* backend) {
   RETURN_IF_ERROR(
       TRITONBACKEND_ApiVersion(&api_version_major, &api_version_minor));
 
-  LOG_MESSAGE(
-      TRITONSERVER_LOG_INFO,
-      (std::string{"Triton TRITONBACKEND API version: "} +
-       std::to_string(api_version_major) + "." +
-       std::to_string(api_version_minor))
-          .c_str());
-  LOG_MESSAGE(
-      TRITONSERVER_LOG_INFO,
-      (std::string{"'"} + name + "' TRITONBACKEND API version: " +
-       std::to_string(TRITONBACKEND_API_VERSION_MAJOR) + "." +
-       std::to_string(TRITONBACKEND_API_VERSION_MINOR))
-          .c_str());
+  TRITON_LOG(INFO, "Triton TRITONBACKEND API version: ", api_version_major, ".", api_version_minor);
+  TRITON_LOG(INFO, "'", name, "' TRITONBACKEND API version: ",
+                   TRITONBACKEND_API_VERSION_MAJOR, ".", TRITONBACKEND_API_VERSION_MINOR);
 
   if ((api_version_major != TRITONBACKEND_API_VERSION_MAJOR) ||
       (api_version_minor < TRITONBACKEND_API_VERSION_MINOR)) {
     return TRITONSERVER_ErrorNew(
-        TRITONSERVER_ERROR_UNSUPPORTED,
-        "triton backend API version does not support this backend");
+      TRITONSERVER_ERROR_UNSUPPORTED, "Triton backend API version does not support this backend");
   }
 
   // The backend configuration may contain information needed by the
@@ -1249,10 +1237,8 @@ TRITONSERVER_Error* TRITONBACKEND_Initialize(TRITONBACKEND_Backend* backend) {
   TRITONBACKEND_ArtifactType artifact_type;
   const char* clocation;
   RETURN_IF_ERROR(
-      TRITONBACKEND_BackendArtifacts(backend, &artifact_type, &clocation));
-  LOG_MESSAGE(
-      TRITONSERVER_LOG_INFO,
-      (std::string{"The HugeCTR backend Repository location: "} + clocation).c_str());
+    TRITONBACKEND_BackendArtifacts(backend, &artifact_type, &clocation));
+  TRITON_LOG(INFO, "The HugeCTR backend Repository location: ", clocation);
 
   // Backend configuration message contains model configuration  with json format
   // example format: {"cmdline":{"model1":"/json_path1","model2":"/json_path2"}}
@@ -1260,9 +1246,7 @@ TRITONSERVER_Error* TRITONBACKEND_Initialize(TRITONBACKEND_Backend* backend) {
   size_t byte_size;
   RETURN_IF_ERROR(TRITONSERVER_MessageSerializeToJson(
       backend_config_message, &buffer, &byte_size));
-  LOG_MESSAGE(
-      TRITONSERVER_LOG_INFO,
-      (std::string{"The HugeCTR backend configuration:\n"} + buffer).c_str());
+  TRITON_LOG(INFO, "The HugeCTR backend configuration: ", buffer);
 
   // Parse the command-line argument to determine the type of embedding table Key
   common::TritonJson::Value backend_config;
