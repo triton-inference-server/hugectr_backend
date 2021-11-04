@@ -1213,11 +1213,11 @@ TRITONSERVER_Error* TRITONBACKEND_Initialize(TRITONBACKEND_Backend* backend) {
   // vs. what this backend was compiled against.
   uint32_t api_version_major, api_version_minor;
   RETURN_IF_ERROR(TRITONBACKEND_ApiVersion(&api_version_major, &api_version_minor));
-  HCTR_TRITON_LOG(
-    INFO, "Triton TRITONBACKEND API version: ", api_version_major, ".", api_version_minor);
+  HCTR_TRITON_LOG(INFO,
+    "Triton TRITONBACKEND API version: ", api_version_major, ".", api_version_minor);
   
-  HCTR_TRITON_LOG(
-    INFO, "'", name, "' TRITONBACKEND API version: ",
+  HCTR_TRITON_LOG(INFO,
+    "'", name, "' TRITONBACKEND API version: ",
     TRITONBACKEND_API_VERSION_MAJOR, ".", TRITONBACKEND_API_VERSION_MINOR);
   if ((api_version_major != TRITONBACKEND_API_VERSION_MAJOR) ||
       (api_version_minor < TRITONBACKEND_API_VERSION_MINOR)) {
@@ -1604,12 +1604,8 @@ TRITONSERVER_Error* TRITONBACKEND_ModelInstanceExecute(TRITONBACKEND_ModelInstan
     // requested output name then display an error message and move on
     // to next request.
     if (responses[r] == nullptr) {
-      LOG_MESSAGE(
-          TRITONSERVER_LOG_ERROR,
-          (std::string{"request "} + std::to_string(r) +
-           ": failed to read input or requested output name, error response "
-           "sent")
-              .c_str());
+      HCTR_TRITON_LOG(ERROR,
+        "request ", r, ": failed to read input or requested output name, error response sent");
       continue;
     }
 
@@ -1638,63 +1634,49 @@ TRITONSERVER_Error* TRITONBACKEND_ModelInstanceExecute(TRITONBACKEND_ModelInstan
         TRITONBACKEND_InputProperties(
             catcol_input, nullptr /* input_name */, &cat_datatype, &input_shape,
             &cat_dims_count, &cat_byte_size, &cat_input_buffer_count));
-    LOG_MESSAGE(
-        TRITONSERVER_LOG_INFO,
-        (std::string{"\tinput "} + catcol_input_name +
-         ": datatype = " + TRITONSERVER_DataTypeString(cat_datatype) +
-         ", shape = " + backend::ShapeToString(input_shape, cat_dims_count) +
-         ", byte_size = " + std::to_string(cat_byte_size) +
-         ", buffer_count = " + std::to_string(cat_input_buffer_count))
-            .c_str());
-    
+    HCTR_TRITON_LOG(INFO,
+      "\tinput ", catcol_input_name,
+      ": datatype = ", TRITONSERVER_DataTypeString(cat_datatype),
+      ", shape = ", backend::ShapeToString(input_shape, cat_dims_count),
+      ", byte_size = ", std::to_string(cat_byte_size),
+      ", buffer_count = ", std::to_string(cat_input_buffer_count));
 
     GUARDED_RESPOND_IF_ERROR(
         responses, r,
         TRITONBACKEND_InputProperties(
             row_input, nullptr /* input_name */, &row_datatype, &input_shape,
             &row_dims_count, &row_byte_size, &rowindex_input_buffer_count));
-    LOG_MESSAGE(
-        TRITONSERVER_LOG_INFO,
-        (std::string{"\tinput "} + row_input_name +
-         ": datatype = " + TRITONSERVER_DataTypeString(row_datatype) +
-         ", shape = " + backend::ShapeToString(input_shape, row_dims_count) +
-         ", byte_size = " + std::to_string(row_byte_size) +
-         ", buffer_count = " + std::to_string(rowindex_input_buffer_count))
-            .c_str());
+    HCTR_TRITON_LOG(INFO,
+      "\tinput ", row_input_name,
+      ": datatype = ", TRITONSERVER_DataTypeString(row_datatype),
+      ", shape = ", backend::ShapeToString(input_shape, row_dims_count),
+      ", byte_size = ", row_byte_size,
+      ", buffer_count = ", rowindex_input_buffer_count);
      
     GUARDED_RESPOND_IF_ERROR(
         responses, r,
         TRITONBACKEND_InputProperties(
             des_input, nullptr /* input_name */, &des_datatype, &input_shape,
             &des_dims_count, &des_byte_size, &des_input_buffer_count));
-    LOG_MESSAGE(
-        TRITONSERVER_LOG_INFO,
-        (std::string{"\tinput "} + des_input_name +
-         ": datatype = " + TRITONSERVER_DataTypeString(des_datatype) +
-         ", shape = " + backend::ShapeToString(input_shape, des_dims_count) +
-         ", byte_size = " + std::to_string(des_byte_size) +
-         ", buffer_count = " + std::to_string(des_input_buffer_count))
-            .c_str());
+    HCTR_TRITON_LOG(INFO,
+      "\tinput ", des_input_name,
+      ": datatype = ", TRITONSERVER_DataTypeString(des_datatype),
+      ", shape = ", backend::ShapeToString(input_shape, des_dims_count),
+      ", byte_size = ", des_byte_size,
+      ", buffer_count = ", des_input_buffer_count);
 
     if (instance_state->StateForModel()->DeseNum() != 0 && des_byte_size == 0) {
         GUARDED_RESPOND_IF_ERROR(responses, r, TRITONSERVER_ErrorNew(TRITONSERVER_ERROR_UNSUPPORTED,
-                  "The DES input in request is empty. The input input size should be an integer multiple(the number of samples) of the \"des_feature_num\" in config.pbtxt."));
+          "The DES input in request is empty. The input input size should be an integer multiple(the number of samples) of the \"des_feature_num\" in config.pbtxt."));
     }
 
     
     if (responses[r] == nullptr) {
-      LOG_MESSAGE(
-          TRITONSERVER_LOG_ERROR,
-          (std::string{"request "} + std::to_string(r) +
-           ": failed to read input properties, error response sent")
-              .c_str());
+      HCTR_TRITON_LOG(ERROR, "request ", r, ": failed to read input properties, error response sent");
       continue;
     }
 
-   
-    LOG_MESSAGE(
-        TRITONSERVER_LOG_INFO,
-        (std::string{"\trequested_output "} + requested_output_name).c_str());
+    HCTR_TRITON_LOG(INFO, "\trequested_output ", requested_output_name);
 
     // If the model doesn't support batching with two-dimension tensor then each
     // request is necessarily batch-size 1. So the first dimension of the shape is the batch
@@ -1765,11 +1747,7 @@ TRITONSERVER_Error* TRITONBACKEND_ModelInstanceExecute(TRITONBACKEND_ModelInstan
               response, &output, requested_output_name, des_datatype,
               out_putshape, 1));
       if (responses[r] == nullptr) {
-        LOG_MESSAGE(
-            TRITONSERVER_LOG_ERROR,
-            (std::string{"request "} + std::to_string(r) +
-             ": failed to create response output, error response sent")
-                .c_str());
+        HCTR_TRITON_LOG(ERROR, "request ", r, ": failed to create response output, error response sent");
         continue;
       }
 
@@ -1788,12 +1766,8 @@ TRITONSERVER_Error* TRITONBACKEND_ModelInstanceExecute(TRITONBACKEND_ModelInstan
             TRITONSERVER_ErrorNew(
                 TRITONSERVER_ERROR_UNSUPPORTED,
                 "failed to create output buffer in GPU memory"));
-        LOG_MESSAGE(
-            TRITONSERVER_LOG_ERROR,
-            (std::string{"request "} + std::to_string(r) +
-             ": failed to create output buffer in CPU memory, error response "
-             "sent")
-                .c_str());
+        HCTR_TRITON_LOG(ERROR,
+          "request ", r, ": failed to create output buffer in CPU memory, error response sent");
         continue;
       }
       // Step 3. Copy all input data -> Device Buffer. 
