@@ -80,15 +80,13 @@ enum class MemoryType_t { GPU, CPU, PIN };
   } while (false)
 
 // An internal exception to carry the HugeCTR CUDA error code
-#define CK_CUDA_THROW_(EXPR)                                   \
-  do {                                                         \
-    const cudaError_t retval = (EXPR);                         \
-    if (retval != cudaSuccess) {                               \
-      std::stringstream msg;                                   \
-      msg << "Runtime error: " << cudaGetErrorString(retval)   \
-          << " " << __FILE__ << ":" << __LINE__ << std::endl;  \
-      throw std::runtime_error(msg.str());                     \
-    }                                                          \
+#define CK_CUDA_THROW_(EXPR)                                                                  \
+  do {                                                                                        \
+    const cudaError_t retval = (EXPR);                                                        \
+    if (retval != cudaSuccess) {                                                              \
+      throw std::runtime_error(HCTR_TRITON_STR_CONCAT(                                        \
+        "Runtime error: ", cudaGetErrorString(retval), " ", __FILE__, ":", __LINE__, "\n"));  \
+    }                                                                                         \
   } while (0)
 
 #define RESPOND_AND_RETURN_IF_ERROR(REQUEST, EXPR)                      \
@@ -1832,12 +1830,11 @@ TRITONSERVER_Error* TRITONBACKEND_ModelInstanceExecute(TRITONBACKEND_ModelInstan
     // NumSample-> Number of samples in current request
     // DeviceID-> Current model initialized  on device ID
     LOG_IF_ERROR(
-        TRITONBACKEND_ResponseSetIntParameter(
-            responses[r], "NumSample", num_of_samples),
-        "failed return Number of samples");
+      TRITONBACKEND_ResponseSetIntParameter(responses[r], "NumSample", num_of_samples),
+      "failed return Number of samples");
     LOG_IF_ERROR(
-        TRITONBACKEND_ResponseSetIntParameter(responses[r], "DeviceID", instance_state->DeviceId()),
-        "failed return device id");
+      TRITONBACKEND_ResponseSetIntParameter(responses[r], "DeviceID", instance_state->DeviceId()),
+      "failed return device id");
 
     // If we get to this point then there hasn't been any error and
     // the response is complete and we can send it. This is the last
