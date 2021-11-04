@@ -291,7 +291,7 @@ HugeCTRBackend::HugeCTRBackend(TRITONBACKEND_Backend* triton_backend)
 }
 
 HugeCTRBackend::~HugeCTRBackend() {
-  if(support_int64_key_) {
+  if (support_int64_key_) {
     delete EmbeddingTable_int64;
   } else {
     delete EmbeddingTable_int32;
@@ -993,7 +993,7 @@ TRITONSERVER_Error* ModelState::Create_EmbeddingCache() {
                          std::string{"Please confirm that device "} + std::to_string(gpu_shape[i]) + " is added to 'deployed_device_list' in the ps configuration file");
     if (embedding_cache_map.find(gpu_shape[i]) == embedding_cache_map.end()) {
       LOG_MESSAGE(TRITONSERVER_LOG_INFO, (std::string{"******Creating Embedding Cache for model "} + name_ + " in device " + std::to_string(gpu_shape[i])).c_str());
-      if(support_int64_key_) {
+      if (support_int64_key_) {
         Model_Inference_Para.device_id = gpu_shape[i];
         embedding_cache_map[gpu_shape[i]] = EmbeddingTable_int64->GetEmbeddingCache(name_,gpu_shape[i]);
       }
@@ -1178,7 +1178,7 @@ TRITONSERVER_Error* ModelInstanceState::LoadHugeCTRModel() {
 }
 
 TRITONSERVER_Error* ModelInstanceState::ProcessRequest(int64_t numofsamples) {
-  if(model_state_->SupportLongEmbeddingKey()) {
+  if (model_state_->SupportLongEmbeddingKey()) {
     hugectrmodel_->predict(
       dense_value_buf->get_ptr(),
       cat_column_index_buf_int64->get_raw_ptr(), 
@@ -1186,7 +1186,7 @@ TRITONSERVER_Error* ModelInstanceState::ProcessRequest(int64_t numofsamples) {
       prediction_buf->get_ptr(),
       numofsamples);
   }
-  else{
+  else {
     hugectrmodel_->predict(
       dense_value_buf->get_ptr(),
       cat_column_index_buf_int32->get_raw_ptr(),
@@ -1273,9 +1273,9 @@ TRITONSERVER_Error* TRITONBACKEND_Initialize(TRITONBACKEND_Backend* backend) {
   std::string ps_path;
   if (backend_config.Find("cmdline", &cmdline)) {
     RETURN_IF_ERROR(cmdline.Members(&cmd_keys));
-    for (const auto& param_key : cmd_keys){
+    for (const auto& param_key : cmd_keys) {
       std::string value_string;
-      if(param_key == "ps"){
+      if (param_key == "ps") {
         RETURN_IF_ERROR(cmdline.MemberAsString(param_key.c_str(), &ps_path));
       }
     }
@@ -1697,7 +1697,7 @@ TRITONSERVER_Error* TRITONBACKEND_ModelInstanceExecute(TRITONBACKEND_ModelInstan
          ", buffer_count = " + std::to_string(des_input_buffer_count))
             .c_str());
 
-    if (instance_state->StateForModel()->DeseNum() != 0 && des_byte_size == 0){
+    if (instance_state->StateForModel()->DeseNum() != 0 && des_byte_size == 0) {
         GUARDED_RESPOND_IF_ERROR(responses, r, TRITONSERVER_ErrorNew(TRITONSERVER_ERROR_UNSUPPORTED,
                   "The DES input in request is empty. The input input size should be an integer multiple(the number of samples) of the \"des_feature_num\" in config.pbtxt."));
     }
@@ -1747,7 +1747,7 @@ TRITONSERVER_Error* TRITONBACKEND_ModelInstanceExecute(TRITONBACKEND_ModelInstan
       if (instance_state->StateForModel()->SupportLongEmbeddingKey()) {
         numofcat = cat_byte_size / sizeof(long long);
       }
-      else{
+      else {
         numofcat = cat_byte_size / sizeof(unsigned int);
       }
       
@@ -1760,14 +1760,14 @@ TRITONSERVER_Error* TRITONBACKEND_ModelInstanceExecute(TRITONBACKEND_ModelInstan
         GUARDED_RESPOND_IF_ERROR(responses, r, TRITONSERVER_ErrorNew(TRITONSERVER_ERROR_UNSUPPORTED,
                   "The CATCOLUMN input sample size in request is not match with configuration. The input sample size to be an integer multiple of the configuration."));
       }
-      if (instance_state->StateForModel()->DeseNum() != 0){
+      if (instance_state->StateForModel()->DeseNum() != 0) {
         num_of_sample_des = floor(numofdes / instance_state->StateForModel()->DeseNum());
       }
       
       num_of_sample_cat = floor(numofcat / instance_state->StateForModel()->CatNum());
       
       if (instance_state->StateForModel()->DeseNum() != 0 &&
-          num_of_sample_des != num_of_sample_cat){
+          num_of_sample_des != num_of_sample_cat) {
         GUARDED_RESPOND_IF_ERROR(responses, r, TRITONSERVER_ErrorNew(TRITONSERVER_ERROR_UNSUPPORTED,
                   "The input sample size in DES and CATCOLUMN is not match"));
       }
@@ -1844,7 +1844,7 @@ TRITONSERVER_Error* TRITONBACKEND_ModelInstanceExecute(TRITONBACKEND_ModelInstan
           CK_CUDA_THROW_(cudaMemcpy(
             instance_state->GetCatColBuffer_int64()->get_raw_ptr(), cat_buffer, cat_byte_size, cudaMemcpyHostToHost));
         }
-        else{
+        else {
           CK_CUDA_THROW_(cudaMemcpy(
             instance_state->GetCatColBuffer_int32()->get_raw_ptr(), cat_buffer, cat_byte_size, cudaMemcpyHostToHost));
         }
