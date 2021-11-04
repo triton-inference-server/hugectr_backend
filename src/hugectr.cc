@@ -80,13 +80,15 @@ enum class MemoryType_t { GPU, CPU, PIN };
   } while (false)
 
 // An internal exception to carry the HugeCTR CUDA error code
-#define CK_CUDA_THROW_(EXPR)                                                                       \
-  do {                                                                                             \
-    const cudaError_t retval = (EXPR);                                                             \
-    if (retval != cudaSuccess) {                                                                   \
-      throw std::runtime_error(std::string{"Runtime error: "} + cudaGetErrorString(retval) +       \
-                                       " " + __FILE__ + ":" + std::to_string(__LINE__) + " \n");   \
-    }                                                                                              \
+#define CK_CUDA_THROW_(EXPR)                                   \
+  do {                                                         \
+    const cudaError_t retval = (EXPR);                         \
+    if (retval != cudaSuccess) {                               \
+      std::stringstream msg;                                   \
+      msg << "Runtime error: " << cudaGetErrorString(retval)   \
+          << " " << __FILE__ << ":" << __LINE__ << std::endl;  \
+      throw std::runtime_error(msg.str());                     \
+    }                                                          \
   } while (0)
 
 #define RESPOND_AND_RETURN_IF_ERROR(REQUEST, EXPR)                      \
@@ -169,6 +171,7 @@ class HugeCTRBuffer : public std::enable_shared_from_this<HugeCTRBuffer<T>> {
   void allocate() {
     if (ptr_ != nullptr) {
       std::cerr << "WrongInput: Memory has already been allocated.";
+      // TODO: Memory leak!
     }
     size_t offset = 0;
     for (const size_t buffer : reserved_buffers_) {
@@ -205,6 +208,7 @@ class HugeCTRBuffer : public std::enable_shared_from_this<HugeCTRBuffer<T>> {
   void reserve(const std::vector<size_t>& dimensions) {
     if (allocated()) {
       std::cerr << "IllegalCall: Buffer is finalized.";
+      // TODO: Fix?!
     }
     const size_t num_elements = get_num_elements_from_dimensions(dimensions);
     const size_t size_in_bytes = num_elements * sizeof(T);
@@ -302,13 +306,15 @@ TRITONSERVER_Error* HugeCTRBackend::ParseParameterServer(const std::string& path
   HCTR_TRITON_LOG(INFO, "*****Parsing Parameter Server Configuration from ", path);
   {
     std::ifstream file_stream{path};
-    if (!file_stream.is_open()) {
-      HCTR_TRITON_LOG(INFO,
+    if (file_stream.is_open()) {
+      std::string filecontent{
+        std::istreambuf_iterator<char>{file_stream}, std::istreambuf_iterator<char>{}};
+      parameter_server_config.Parse(filecontent);
+    }
+    else {
+      HCTR_TRITON_LOG(WARN,
         "Failed to open Parameter Server Configuration, please check whether the file path is correct!");
     }
-
-    std::string filecontent{std::istreambuf_iterator<char>{file_stream}, std::istreambuf_iterator<char>{}};
-    parameter_server_config.Parse(filecontent);
   }
 
   RETURN_IF_ERROR(TritonJsonHelper::parse(
@@ -409,7 +415,7 @@ TRITONSERVER_Error* HugeCTRBackend::ParseParameterServer(const std::string& path
   for (size_t model_index = 0; model_index < models.ArraySize(); model_index++) {
     common::TritonJson::Value model;
     models.IndexAsObject(model_index, &model);
-    const std::string log_prefix = std::string{"model["} + std::to_string(model_index) + "]";
+    const std::string key_prefix = HCTR_TRITON_STR_CONCAT("model[", model_index, "].");
 
     // Network file.
     std::string network_file;
@@ -423,12 +429,12 @@ TRITONSERVER_Error* HugeCTRBackend::ParseParameterServer(const std::string& path
     // [0] const std::string& model_name
     std::string model_name;
     RETURN_IF_ERROR(TritonJsonHelper::parse(
-      model, "model", model_name, true, log_prefix));
+      model, "model", model_name, true, key_prefix));
 
     // [1] const size_t max_batch_size
     size_t max_batch_size = 0;
     RETURN_IF_ERROR(TritonJsonHelper::parse(
-      model, "max_batch_size", &max_batch_size, true, log_prefix));
+      model, "max_batch_size", &max_batch_size, true, key_prefix));
 
     // [2] const float hit_rate_threshold
     const float hit_rate_threshold = 0.55;
@@ -436,12 +442,12 @@ TRITONSERVER_Error* HugeCTRBackend::ParseParameterServer(const std::string& path
     // [3] const std::string& dense_model_file
     std::string dense_file;
     RETURN_IF_ERROR(TritonJsonHelper::parse(
-      model, "dense_file", dense_file, true, log_prefix));
+      model, "dense_file", dense_file, true, key_prefix));
 
     // [4] const std::vector<std::string>& sparse_model_files
     std::vector<std::string> sparse_files;
     RETURN_IF_ERROR(TritonJsonHelper::parse(
-      model, "sparse_files", sparse_files, true, log_prefix));
+      model, "sparse_files", sparse_files, true, key_prefix));
 
     // [5] const int device_id
     const int device_id = 0;
@@ -468,7 +474,7 @@ TRITONSERVER_Error* HugeCTRBackend::ParseParameterServer(const std::string& path
     // Field: "db_type"
     {
       std::string tmp = "local";
-      RETURN_IF_ERROR(TritonJsonHelper::parse(model, "db_type", tmp, false, log_prefix));
+      RETURN_IF_ERROR(TritonJsonHelper::parse(model, "db_type", tmp, false, key_prefix));
       if (tmp == "local") {
         infer_param.db_type = HugeCTR::DATABASE_TYPE::LOCAL;
       }
@@ -494,29 +500,29 @@ TRITONSERVER_Error* HugeCTRBackend::ParseParameterServer(const std::string& path
     // Field: number_of_worker_buffers_in_pool
     RETURN_IF_ERROR(TritonJsonHelper::parse(
       model, "num_of_worker_buffer_in_pool",
-      &infer_param.number_of_worker_buffers_in_pool, true, log_prefix));
+      &infer_param.number_of_worker_buffers_in_pool, true, key_prefix));
 
     // Field: number_of_refresh_buffers_in_pool
     RETURN_IF_ERROR(TritonJsonHelper::parse(
       model, "num_of_refresher_buffer_in_pool",
-      &infer_param.number_of_refresh_buffers_in_pool, true, log_prefix));
+      &infer_param.number_of_refresh_buffers_in_pool, true, key_prefix));
 
     // Field: cache_refresh_percentage_per_iteration
     RETURN_IF_ERROR(TritonJsonHelper::parse(
       model, "cache_refresh_percentage_per_iteration",
-      &infer_param.cache_refresh_percentage_per_iteration, true, log_prefix));
+      &infer_param.cache_refresh_percentage_per_iteration, true, key_prefix));
 
     // Field: deployed_devices
     infer_param.deployed_devices.clear();
     RETURN_IF_ERROR(TritonJsonHelper::parse(
-      model, "deployed_device_list", infer_param.deployed_devices, true, log_prefix));
+      model, "deployed_device_list", infer_param.deployed_devices, true, key_prefix));
     infer_param.device_id = infer_param.deployed_devices.back();
 
     // Field: "default_value_for_each_table"
     infer_param.default_value_for_each_table.clear();
     RETURN_IF_ERROR(TritonJsonHelper::parse(
       model, "default_value_for_each_table",
-      infer_param.default_value_for_each_table, true, log_prefix));
+      infer_param.default_value_for_each_table, true, key_prefix));
 
     // TODO: Move to paramter server common parameters!
     infer_param.cpu_memory_db_update_source = cpu_memory_db_update_source;
@@ -845,9 +851,8 @@ TRITONSERVER_Error* ModelState::ParseModelConfig() {
 
   common::TritonJson::Value instance_group;
   RETURN_IF_ERROR(model_config_.MemberAsArray("instance_group", &instance_group));
-  RETURN_ERROR_IF_FALSE(instance_group.ArraySize() > 0, TRITONSERVER_ERROR_INVALID_ARG,
-                        std::string{"expect at least one instance in instance group , got "} +
-                        std::to_string(instance_group.ArraySize()));
+  HCTR_RETURN_TRITON_ERROR_IF_FALSE(instance_group.ArraySize() > 0, INVALID_ARG,
+    "expect at least one instance in instance group , got ", instance_group.ArraySize());
 
   for (unsigned int i = 0; i < instance_group.ArraySize(); i++) {
     common::TritonJson::Value instance;
@@ -856,12 +861,13 @@ TRITONSERVER_Error* ModelState::ParseModelConfig() {
     std::vector<int64_t> gpu_list;
     RETURN_IF_ERROR(instance_group.IndexAsObject(i, &instance));
     RETURN_IF_ERROR(instance.MemberAsString("kind", &kind));
-    RETURN_ERROR_IF_FALSE(kind == "KIND_GPU", TRITONSERVER_ERROR_INVALID_ARG,
-                          std::string{"expect GPU kind instance in instance group , got "} + kind);
+    HCTR_RETURN_TRITON_ERROR_IF_FALSE(kind == "KIND_GPU", INVALID_ARG,
+      "expect GPU kind instance in instance group , got ", kind);
     RETURN_IF_ERROR(instance.MemberAsInt("count", &count));
-    RETURN_ERROR_IF_FALSE(count < Model_Inference_Para.number_of_worker_buffers_in_pool, TRITONSERVER_ERROR_INVALID_ARG,
-      std::string{"expect the number of instance(in instance_group) less than number_of_worker_buffers_in_pool that confifured in Parameter Server json file , got "} +
-      std::to_string(count));
+    HCTR_RETURN_TRITON_ERROR_IF_FALSE(
+      count < Model_Inference_Para.number_of_worker_buffers_in_pool, INVALID_ARG,
+      "expect the number of instance(in instance_group) less than number_of_worker_buffers_in_pool that configured in Parameter Server json file, got ",
+      count);
     RETURN_IF_ERROR(backend::ParseShape(instance, "gpus", &gpu_list));
     for (auto id : gpu_list) {
       gpu_shape.push_back(id);
@@ -892,8 +898,8 @@ TRITONSERVER_Error* ModelState::ParseModelConfig() {
       catfea.MemberAsString("string_value", &cat_str);
       cat_num_ = std::stoi(cat_str);
       HCTR_TRITON_LOG(INFO, "cat_feature number is : ", cat_num_);
-      RETURN_ERROR_IF_FALSE(cat_num_ != 0, TRITONSERVER_ERROR_INVALID_ARG,
-                            std::string{"expected at least one categorical feature, got "} + std::to_string(cat_num_));
+      HCTR_RETURN_TRITON_ERROR_IF_FALSE(cat_num_ != 0, INVALID_ARG,
+        "expected at least one categorical feature, got ", cat_num_);
     }
 
     common::TritonJson::Value embsize;
@@ -979,10 +985,12 @@ TRITONSERVER_Error* ModelState::ParseModelConfig() {
   }
 
   model_config_.MemberAsInt("max_batch_size", &max_batch_size_);
-  RETURN_ERROR_IF_FALSE((size_t)max_batch_size_ <= Model_Inference_Para.max_batchsize, TRITONSERVER_ERROR_INVALID_ARG,
-      std::string{"expected max_batch_size less than "} + std::to_string(Model_Inference_Para.max_batchsize) +
-      " (configured in Parameter Server json file), got " + std::to_string(max_batch_size_));
-  std::cout << "Model_Inference_Para.max_batchsize: " << Model_Inference_Para.max_batchsize << std::endl;
+  HCTR_RETURN_TRITON_ERROR_IF_FALSE(
+    static_cast<size_t>(max_batch_size_) <= Model_Inference_Para.max_batchsize, INVALID_ARG,
+    "expected max_batch_size less than ", Model_Inference_Para.max_batchsize,
+    " (configured in Parameter Server json file), got ", max_batch_size_);
+  HCTR_TRITON_LOG(INFO,
+    "Model_Inference_Para.max_batchsize: ", Model_Inference_Para.max_batchsize);
   Model_Inference_Para.max_batchsize = max_batch_size_;
   HCTR_TRITON_LOG(INFO, "max_batch_size in model config.pbtxt is ", max_batch_size_);
   return nullptr;
@@ -991,19 +999,22 @@ TRITONSERVER_Error* ModelState::ParseModelConfig() {
 TRITONSERVER_Error* ModelState::Create_EmbeddingCache() {
   int64_t count = gpu_shape.size();
   for (int i = 0; i < count; i++) {
-    std::vector<int>::iterator iter = find(Model_Inference_Para.deployed_devices.begin(), Model_Inference_Para.deployed_devices.end(), gpu_shape[i]);
-    RETURN_ERROR_IF_TRUE(iter == Model_Inference_Para.deployed_devices.end(), TRITONSERVER_ERROR_INVALID_ARG,
-                         std::string{"Please confirm that device "} + std::to_string(gpu_shape[i]) + " is added to 'deployed_device_list' in the ps configuration file");
+    std::vector<int>::iterator iter = find(
+      Model_Inference_Para.deployed_devices.begin(), Model_Inference_Para.deployed_devices.end(), gpu_shape[i]);
+    HCTR_RETURN_TRITION_ERROR_IF_TRUE(
+      iter == Model_Inference_Para.deployed_devices.end(), INVALID_ARG,
+      "Please confirm that device ", gpu_shape[i], " is added to 'deployed_device_list' in the ps configuration file");
+
     if (embedding_cache_map.find(gpu_shape[i]) == embedding_cache_map.end()) {
       HCTR_TRITON_LOG(INFO,
         "******Creating Embedding Cache for model ", name_, " in device ", gpu_shape[i]);
       if (support_int64_key_) {
         Model_Inference_Para.device_id = gpu_shape[i];
-        embedding_cache_map[gpu_shape[i]] = EmbeddingTable_int64->GetEmbeddingCache(name_,gpu_shape[i]);
+        embedding_cache_map[gpu_shape[i]] = EmbeddingTable_int64->GetEmbeddingCache(name_, gpu_shape[i]);
       }
       else {
         Model_Inference_Para.device_id = gpu_shape[i];
-        embedding_cache_map[gpu_shape[i]] = EmbeddingTable_int32->GetEmbeddingCache(name_,gpu_shape[i]);
+        embedding_cache_map[gpu_shape[i]] = EmbeddingTable_int32->GetEmbeddingCache(name_, gpu_shape[i]);
       }  
       if (version_ps_ > 0 && version_ps_ != version_) {
         cache_refresh_threads.push_back(std::thread(&ModelState::EmbeddingCacheRefresh, this, name_, gpu_shape[i]));
@@ -1527,38 +1538,35 @@ TRITONSERVER_Error* TRITONBACKEND_ModelInstanceExecute(TRITONBACKEND_ModelInstan
     GUARDED_RESPOND_IF_ERROR(
         responses, r,
         TRITONBACKEND_RequestInputName(request, 0 /* index */, &input_name));
-    RETURN_ERROR_IF_FALSE(
-      instance_state->StateForModel()->GetInputmap().count(input_name) > 0, TRITONSERVER_ERROR_INVALID_ARG,
-      std::string{"expected input name as DES, CATCOLUMN and ROWINDEX in request, but got "} + input_name);
+    HCTR_RETURN_TRITON_ERROR_IF_FALSE(
+      instance_state->StateForModel()->GetInputmap().count(input_name) > 0, INVALID_ARG,
+      "expected input name as DES, CATCOLUMN and ROWINDEX in request, but got ", input_name);
   
     GUARDED_RESPOND_IF_ERROR(
         responses, r,
         TRITONBACKEND_RequestInputName(request, 1 /* index */, &input_name));
-    RETURN_ERROR_IF_FALSE(
-      instance_state->StateForModel()->GetInputmap().count(input_name) > 0, TRITONSERVER_ERROR_INVALID_ARG,
-      std::string{"expected input name as DES, CATCOLUMN and ROWINDEX in request, but got "} + input_name);
+    HCTR_RETURN_TRITON_ERROR_IF_FALSE(
+      instance_state->StateForModel()->GetInputmap().count(input_name) > 0, INVALID_ARG,
+      "expected input name as DES, CATCOLUMN and ROWINDEX in request, but got ", input_name);
     
     GUARDED_RESPOND_IF_ERROR(
         responses, r,
         TRITONBACKEND_RequestInputName(request, 2 /* index */, &input_name));
-    RETURN_ERROR_IF_FALSE(
-      instance_state->StateForModel()->GetInputmap().count(input_name) > 0, TRITONSERVER_ERROR_INVALID_ARG,
-      std::string{"expected input name as DES, CATCOLUMN and ROWINDEX in request, but got "} + input_name);
+    HCTR_RETURN_TRITON_ERROR_IF_FALSE(
+      instance_state->StateForModel()->GetInputmap().count(input_name) > 0, INVALID_ARG,
+      "expected input name as DES, CATCOLUMN and ROWINDEX in request, but got ", input_name);
 
-    const char* des_input_name = "DES";
-
-    const char* catcol_input_name = "CATCOLUMN";
-
-    const char* row_input_name = "ROWINDEX";
-
+    const char des_input_name[] = "DES";
     TRITONBACKEND_Input* des_input = nullptr;
     GUARDED_RESPOND_IF_ERROR(
         responses, r, TRITONBACKEND_RequestInput(request, des_input_name, &des_input));
 
+    const char catcol_input_name[] = "CATCOLUMN";
     TRITONBACKEND_Input* catcol_input = nullptr;
     GUARDED_RESPOND_IF_ERROR(
         responses, r, TRITONBACKEND_RequestInput(request, catcol_input_name, &catcol_input));
     
+    const char row_input_name[] = "ROWINDEX";
     TRITONBACKEND_Input* row_input = nullptr;
     GUARDED_RESPOND_IF_ERROR(
         responses, r, TRITONBACKEND_RequestInput(request, row_input_name, &row_input));
@@ -1612,8 +1620,8 @@ TRITONSERVER_Error* TRITONBACKEND_ModelInstanceExecute(TRITONBACKEND_ModelInstan
       "\tinput ", catcol_input_name,
       ": datatype = ", TRITONSERVER_DataTypeString(cat_datatype),
       ", shape = ", backend::ShapeToString(input_shape, cat_dims_count),
-      ", byte_size = ", std::to_string(cat_byte_size),
-      ", buffer_count = ", std::to_string(cat_input_buffer_count));
+      ", byte_size = ", cat_byte_size,
+      ", buffer_count = ", cat_input_buffer_count);
 
     GUARDED_RESPOND_IF_ERROR(
         responses, r,
