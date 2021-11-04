@@ -80,6 +80,26 @@ inline std::string HCTR_TRITON_STR_CONCAT(const TArg0& arg0, Args&& ...args) {
   TRITONSERVER_ErrorNew(TRITONSERVER_ERROR_##CODE,                     \
                         HCTR_TRITON_STR_CONCAT(__VA_ARGS__).c_str())
 
+/**
+ * Like RETURN_ERROR_IF_TRUE, but with CPP style string concatenation.
+ * 
+ * REMARK For compatiblity! In most situations these make the code harder to read!
+ */
+#define HCTR_RETURN_TRITION_ERROR_IF_TRUE(PRED, CODE, ...)  \
+  do {                                                     \
+    if ((PRED)) {                                          \
+      return HCTR_TRITON_ERROR(CODE, ##__VA_ARGS__);       \
+    }                                                      \
+  } while (0)
+
+/**
+ * Like RETURN_ERROR_IF_TRUE, but with CPP style string concatenation.
+ * 
+ * REMARK For compatiblity! In most situations these make the code harder to read!
+ */
+#define HCTR_RETURN_TRITON_ERROR_IF_FALSE(PRED, CODE, ...)        \
+  HCTR_RETURN_TRITION_ERROR_IF_TRUE(!(PRED), CODE, ##__VA_ARGS__)
+
 class TritonJsonHelper {
  public:
   /**

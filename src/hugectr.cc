@@ -778,66 +778,60 @@ TRITONSERVER_Error* ModelState::ValidateModelConfig() {
   RETURN_IF_ERROR(model_config_.MemberAsArray("output", &outputs));
 
   // There must be 3 input and 1 output.
-  RETURN_ERROR_IF_FALSE(
-      inputs.ArraySize() == 3, TRITONSERVER_ERROR_INVALID_ARG,
-      std::string{"expect 3 input , got "} + std::to_string(inputs.ArraySize()));
-  RETURN_ERROR_IF_FALSE(
-      outputs.ArraySize() == 1, TRITONSERVER_ERROR_INVALID_ARG,
-      std::string{"expect 1 output, got "} + std::to_string(outputs.ArraySize()));
+  HCTR_RETURN_TRITON_ERROR_IF_FALSE(inputs.ArraySize() == 3, INVALID_ARG,
+    "expect 3 input, got ", inputs.ArraySize());
+  HCTR_RETURN_TRITON_ERROR_IF_FALSE(outputs.ArraySize() == 1, INVALID_ARG,
+    "expect 1 output, got ", outputs.ArraySize());
+
   for (int i = 0; i < 3; i++) {
     common::TritonJson::Value input;
     RETURN_IF_ERROR(inputs.IndexAsObject(i, &input));
-    // Checkout input data_type
+    
+    // Datatype.
     std::string input_dtype;
     RETURN_IF_ERROR(input.MemberAsString("data_type", &input_dtype));
 
+    // Input name.
     std::string input_name;
     RETURN_IF_ERROR(input.MemberAsString("name", &input_name));
-    RETURN_ERROR_IF_FALSE(
-      GetInputmap().count(input_name) > 0, TRITONSERVER_ERROR_INVALID_ARG,
-      std::string{"expected input name as DES,CATCOLUMN and ROWINDEX, but got "} + input_name);
+    HCTR_RETURN_TRITON_ERROR_IF_FALSE(GetInputmap().count(input_name) > 0, INVALID_ARG,
+      "expected input name as DES,CATCOLUMN and ROWINDEX, but got ", input_name);
     
     if (input_name == "DES") {
-      RETURN_ERROR_IF_FALSE(
-        input_dtype == "TYPE_FP32", TRITONSERVER_ERROR_INVALID_ARG,
-        std::string{"expected DES input datatype as TYPE_FP32, got "} + input_dtype);
+      HCTR_RETURN_TRITON_ERROR_IF_FALSE(input_dtype == "TYPE_FP32", INVALID_ARG,
+        "expected DES input datatype as TYPE_FP32, got ", input_dtype);
+    }
+    else if (input_name == "CATCOLUMN") {
+      HCTR_RETURN_TRITON_ERROR_IF_FALSE(
+        input_dtype == "TYPE_UINT32" || input_dtype == "TYPE_INT64", INVALID_ARG,
+        "expected CATCOLUMN input datatype as TYPE_UINT32 or TYPE_INT64, got ", input_dtype);
+    }
+    else if (input_name == "ROWINDEX") {
+      HCTR_RETURN_TRITON_ERROR_IF_FALSE(input_dtype == "TYPE_INT32", INVALID_ARG,
+        "expected ROWINDEX input datatype as TYPE_FP32, got ", input_dtype);
     }
     
-    if (input_name == "CATCOLUMN") {
-      RETURN_ERROR_IF_FALSE(
-        input_dtype == "TYPE_UINT32" || input_dtype == "TYPE_INT64", TRITONSERVER_ERROR_INVALID_ARG,
-        std::string{"expected CATCOLUMN input datatype as TYPE_UINT32 or TYPE_INT64, got "} + input_dtype);
-    }
-
-    if (input_name == "ROWINDEX") {
-      RETURN_ERROR_IF_FALSE(
-        input_dtype == "TYPE_INT32", TRITONSERVER_ERROR_INVALID_ARG,
-        std::string{"expected ROWINDEX input datatype as TYPE_FP32, got "} + input_dtype);
-    }
-    
+    // Input shape.
     std::vector<int64_t> input_shape;
     RETURN_IF_ERROR(backend::ParseShape(input, "dims", &input_shape));
 
-    RETURN_ERROR_IF_FALSE(
-      input_shape[0] == -1, TRITONSERVER_ERROR_INVALID_ARG,
-      std::string{"expected input shape equal -1, got "} + backend::ShapeToString(input_shape));
+    HCTR_RETURN_TRITON_ERROR_IF_FALSE(input_shape[0] == -1, INVALID_ARG,
+      "expected input shape equal -1, got ", backend::ShapeToString(input_shape));
   }
 
   common::TritonJson::Value output;
   RETURN_IF_ERROR(outputs.IndexAsObject(0, &output));
   std::string  output_dtype;
   RETURN_IF_ERROR(output.MemberAsString("data_type", &output_dtype));
-  RETURN_ERROR_IF_FALSE(
-    output_dtype == "TYPE_FP32", TRITONSERVER_ERROR_INVALID_ARG,
-    std::string{"expected  output datatype as TYPE_FP32, got "} + output_dtype);
+  HCTR_RETURN_TRITON_ERROR_IF_FALSE(output_dtype == "TYPE_FP32", INVALID_ARG,
+    "expected  output datatype as TYPE_FP32, got ", output_dtype);
 
   //  output must have -1 shape
   std::vector<int64_t> output_shape;
   RETURN_IF_ERROR(backend::ParseShape(output, "dims", &output_shape));
 
-  RETURN_ERROR_IF_FALSE(
-    output_shape[0] == -1, TRITONSERVER_ERROR_INVALID_ARG,
-    std::string{"expected  output shape equal -1, got "} + backend::ShapeToString(output_shape));
+  HCTR_RETURN_TRITON_ERROR_IF_FALSE(output_shape[0] == -1, INVALID_ARG,
+    "expected  output shape equal -1, got ", backend::ShapeToString(output_shape));
 
   return nullptr;  // success
 }
