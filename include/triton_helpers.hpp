@@ -32,9 +32,32 @@
 
 namespace triton { namespace backend { namespace hugectr {
 
-template <typename ...Args>
-inline std::string HCTR_TRITON_STR_CONCAT(Args&& ...args) {
+template <typename TArg0>
+inline std::string HCTR_TRITON_STR_CONCAT(const TArg0& arg0) {
   std::stringstream msg;
+  msg << arg0;
+  return msg.str();
+}
+
+template <>
+inline std::string HCTR_TRITON_STR_CONCAT(const char* const& arg0) {
+  return std::string{arg0};
+}
+
+template <size_t CLENGTH>
+inline std::string HCTR_TRITON_STR_CONCAT(const char (&arg0)[CLENGTH]) {
+  return std::string{arg0};
+}
+
+template <>
+inline std::string HCTR_TRITON_STR_CONCAT(const std::string& arg0) {
+  return arg0;
+}
+
+template <typename TArg0, typename ...Args>
+inline std::string HCTR_TRITON_STR_CONCAT(const TArg0& arg0, Args&& ...args) {
+  std::stringstream msg;
+  msg << arg0;
   (msg << ... << args);
   return msg.str();
 }
