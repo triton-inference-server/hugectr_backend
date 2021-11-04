@@ -33,22 +33,29 @@
 namespace triton { namespace backend { namespace hugectr {
 
 template <typename ...Args>
-inline std::string TRITON_LOG_STR_CONCAT(Args&& ...args) {
+inline std::string HCTR_TRITON_STR_CONCAT(Args&& ...args) {
   std::stringstream msg;
   (msg << ... << args);
   return msg.str();
 }
 
 /**
- * Allows comfortably logging to the Triton LOG.
+ * CPP style concats arguments to Triton log entry.
  */
-#define TRITON_LOG(LEVEL, ...)                                                               \
+#define HCTR_TRITON_LOG(LEVEL, ...)                                                          \
   do {                                                                                       \
-    const std::string& msg = TRITON_LOG_STR_CONCAT(__VA_ARGS__);                             \
+    const std::string& msg = HCTR_TRITON_STR_CONCAT(__VA_ARGS__);                            \
     LOG_IF_ERROR(                                                                            \
-        TRITONSERVER_LogMessage(TRITONSERVER_LOG_##LEVEL, __FILE__, __LINE__, msg.c_str()),  \
-        ("failed to log message: "));                                                        \
-  } while (false)
+      TRITONSERVER_LogMessage(TRITONSERVER_LOG_##LEVEL, __FILE__, __LINE__, msg.c_str()),  \
+      ("failed to log message: "));                                                        \
+  } while (0)
+
+/**
+ * CPP style concats arguments to create a Triton error object.
+ */
+#define HCTR_TRITON_ERROR(CODE, ...)                                   \
+  TRITONSERVER_ErrorNew(TRITONSERVER_ERROR_##CODE,                     \
+                        HCTR_TRITON_STR_CONCAT(__VA_ARGS__).c_str())
 
 class TritonJsonHelper {
  public:

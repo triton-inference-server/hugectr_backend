@@ -1208,45 +1208,41 @@ extern "C" {
 TRITONSERVER_Error* TRITONBACKEND_Initialize(TRITONBACKEND_Backend* backend) {
   const char* name;
   RETURN_IF_ERROR(TRITONBACKEND_BackendName(backend, &name));
-
-  TRITON_LOG(INFO, "TRITONBACKEND_Initialize: ", name);
+  HCTR_TRITON_LOG(INFO, "TRITONBACKEND_Initialize: ", name);
 
   // We should check the backend API version that Triton supports
   // vs. what this backend was compiled against.
   uint32_t api_version_major, api_version_minor;
-  RETURN_IF_ERROR(
-      TRITONBACKEND_ApiVersion(&api_version_major, &api_version_minor));
-
-  TRITON_LOG(INFO, "Triton TRITONBACKEND API version: ", api_version_major, ".", api_version_minor);
-  TRITON_LOG(INFO, "'", name, "' TRITONBACKEND API version: ",
-                   TRITONBACKEND_API_VERSION_MAJOR, ".", TRITONBACKEND_API_VERSION_MINOR);
-
+  RETURN_IF_ERROR(TRITONBACKEND_ApiVersion(&api_version_major, &api_version_minor));
+  HCTR_TRITON_LOG(
+    INFO, "Triton TRITONBACKEND API version: ", api_version_major, ".", api_version_minor);
+  
+  HCTR_TRITON_LOG(
+    INFO, "'", name, "' TRITONBACKEND API version: ",
+    TRITONBACKEND_API_VERSION_MAJOR, ".", TRITONBACKEND_API_VERSION_MINOR);
   if ((api_version_major != TRITONBACKEND_API_VERSION_MAJOR) ||
       (api_version_minor < TRITONBACKEND_API_VERSION_MINOR)) {
-    return TRITONSERVER_ErrorNew(
-      TRITONSERVER_ERROR_UNSUPPORTED, "Triton backend API version does not support this backend");
+    return HCTR_TRITON_ERROR(UNSUPPORTED, "Triton backend API version does not support this backend");
   }
 
   // The backend configuration may contain information needed by the
   // backend, such a command-line arguments. Hugectr backend requires 
   // that the model json configuration file path must be specified specify in the command-line. 
   TRITONSERVER_Message* backend_config_message;
-  RETURN_IF_ERROR(
-      TRITONBACKEND_BackendConfig(backend, &backend_config_message));
+  RETURN_IF_ERROR(TRITONBACKEND_BackendConfig(backend, &backend_config_message));
 
   TRITONBACKEND_ArtifactType artifact_type;
   const char* clocation;
-  RETURN_IF_ERROR(
-    TRITONBACKEND_BackendArtifacts(backend, &artifact_type, &clocation));
-  TRITON_LOG(INFO, "The HugeCTR backend Repository location: ", clocation);
+  RETURN_IF_ERROR(TRITONBACKEND_BackendArtifacts(backend, &artifact_type, &clocation));
+  HCTR_TRITON_LOG(INFO, "The HugeCTR backend Repository location: ", clocation);
 
   // Backend configuration message contains model configuration  with json format
   // example format: {"cmdline":{"model1":"/json_path1","model2":"/json_path2"}}
   const char* buffer;
   size_t byte_size;
   RETURN_IF_ERROR(TRITONSERVER_MessageSerializeToJson(
-      backend_config_message, &buffer, &byte_size));
-  TRITON_LOG(INFO, "The HugeCTR backend configuration: ", buffer);
+    backend_config_message, &buffer, &byte_size));
+  HCTR_TRITON_LOG(INFO, "The HugeCTR backend configuration: ", buffer);
 
   // Parse the command-line argument to determine the type of embedding table Key
   common::TritonJson::Value backend_config;
@@ -1269,8 +1265,8 @@ TRITONSERVER_Error* TRITONBACKEND_Initialize(TRITONBACKEND_Backend* backend) {
   // which will be shared by all the models to update embedding cache
   HugeCTRBackend* hugectr_backend;
   RETURN_IF_ERROR(HugeCTRBackend::Create(backend, &hugectr_backend));
-  RETURN_IF_ERROR(
-      TRITONBACKEND_BackendSetState(backend, reinterpret_cast<void*>(hugectr_backend)));
+  RETURN_IF_ERROR(TRITONBACKEND_BackendSetState(
+    backend, reinterpret_cast<void*>(hugectr_backend)));
 
   RETURN_IF_ERROR(hugectr_backend->ParseParameterServer(ps_path));
   RETURN_IF_ERROR(hugectr_backend->HugeCTREmbedding_backend());
