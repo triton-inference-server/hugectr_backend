@@ -34,6 +34,7 @@
 #include "dlfcn.h"
 #include "dirent.h"
 #include "fstream"
+#include "sstream"
 #include "cuda_runtime_api.h"
 #include "math.h"
 #include "algorithm"
@@ -636,13 +637,15 @@ ModelState::ModelState(
 }
 
 void ModelState::EmbeddingCacheRefresh(const std::string& model_name, int device_id){
-  LOG_MESSAGE(TRITONSERVER_LOG_INFO,(std::string("The model ")+ model_name + std::string("is refreshing the embedding cache asynchronously on device ")
+  LOG_MESSAGE(TRITONSERVER_LOG_INFO,(std::string("The model ")+ model_name + std::string(" is refreshing the embedding cache asynchronously on device ")
   + std::to_string(device_id)).c_str());
   if(support_gpu_cache_){
     if(support_int64_key_ ){
+      EmbeddingTable_int64->update_database_per_model(hugectr_config_, Model_Inference_Para);
       EmbeddingTable_int64->refresh_embedding_cache(model_name,device_id);
     }
     else{
+      EmbeddingTable_int32->update_database_per_model(hugectr_config_, Model_Inference_Para);
       EmbeddingTable_int32->refresh_embedding_cache(model_name,device_id);
     } 
   }
@@ -834,6 +837,26 @@ ModelState::ParseModelConfig()
       hugectr_config_=config_str;
       LOG_MESSAGE(TRITONSERVER_LOG_INFO,(std::string("Hugectr model config path is ") + hugectr_config_).c_str());
     }
+    common::TritonJson::Value sparse_files;
+    if(parameters.Find("sparse_files", &sparse_files)){
+      std::string sparse_file_values;
+      sparse_files.MemberAsString("string_value", &sparse_file_values);
+      std::stringstream ss(sparse_file_values);
+      std::string sparse_file;
+      Model_Inference_Para.sparse_model_files.clear();
+      while(getline(ss,sparse_file,',')) {
+        Model_Inference_Para.sparse_model_files.push_back(sparse_file);
+      }
+    }
+
+    common::TritonJson::Value dense_file;
+    if (parameters.Find("dense_file", &dense_file)) {
+      std::string config_str;
+      (dense_file.MemberAsString("string_value", &config_str));
+      Model_Inference_Para.dense_model_file=config_str;
+      LOG_MESSAGE(TRITONSERVER_LOG_INFO,(std::string("Hugectr model dense file path is ") + config_str).c_str());
+    }
+
     common::TritonJson::Value gpucache;
     if (parameters.Find("gpucache", &gpucache)) {
       std::string gpu_cache;
