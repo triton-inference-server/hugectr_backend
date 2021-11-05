@@ -32,15 +32,13 @@ namespace triton { namespace backend { namespace hugectr {
 
 TRITONSERVER_Error* TritonJsonHelper::parse(common::TritonJson::Value& json,
                                             const char* const key,
-                                            bool* const value,
-                                            const bool required,
-                                            const std::string& key_prefix) {
+                                            bool* const value, const bool required) {
   if (json.MemberAsBool(key, value) != TRITONJSON_STATUSSUCCESS) {
     std::string tmp;
     RETURN_IF_ERROR(json.MemberAsString(key, &tmp));
     
     if (required && tmp.empty()) {
-      return HCTR_TRITON_ERROR(INVALID_ARG, "The parameter '", key_prefix, key, 
+      return HCTR_TRITON_ERROR(INVALID_ARG, "The parameter '", key, 
         "' is mandatory. Please confirm that it has been added to the configuration file.");
     }
 
@@ -55,46 +53,42 @@ TRITONSERVER_Error* TritonJsonHelper::parse(common::TritonJson::Value& json,
     }
   }
 
-  // HCTR_TRITON_LOG(INFO, key_prefix, key, ": ", *value ? "true" : "false");
+  // HCTR_TRITON_LOG(INFO, key, ": ", *value ? "true" : "false");
   return nullptr;
 }
 
 TRITONSERVER_Error* TritonJsonHelper::parse(common::TritonJson::Value& json,
                                             const char* const key,
-                                            double* const value,
-                                            const bool required,
-                                            const std::string& key_prefix) {
+                                            double* const value, const bool required) {
   if (json.MemberAsDouble(key, value) != TRITONJSON_STATUSSUCCESS) {
     std::string tmp;
     RETURN_IF_ERROR(json.MemberAsString(key, &tmp));
     
     if (required && tmp.empty()) {
-      return HCTR_TRITON_ERROR(INVALID_ARG, "The parameter '", key_prefix, key, 
+      return HCTR_TRITON_ERROR(INVALID_ARG, "The parameter '", key, 
         "' is mandatory. Please confirm that it has been added to the configuration file.");
     }
     *value = std::stod(tmp);
   }
 
-  // HCTR_TRITON_LOG(INFO, key_prefix, key, ": ", *value);
+  // HCTR_TRITON_LOG(INFO, key, ": ", *value);
   return nullptr;
 }
 
 TRITONSERVER_Error* TritonJsonHelper::parse(common::TritonJson::Value& json,
                                             const char* const key,
-                                            float* const value,
-                                            const bool required,
-                                            const std::string& key_prefix) {
+                                            float* const value, const bool required) {
   double tmp = *value;
-  const auto result = parse(json, key, &tmp, required, key_prefix);
+  const auto result = parse(json, key, &tmp, required);
   if (tmp < std::numeric_limits<float>::min()) {
     *value = std::numeric_limits<float>::min();
     return HCTR_TRITON_ERROR(INVALID_ARG, "The parameter '",
-      key_prefix, key, "' = ", tmp, " was truncated because it is out of bounds!");
+      key, "' = ", tmp, " was truncated because it is out of bounds!");
   }
   else if (tmp > std::numeric_limits<float>::max()) {
     *value = std::numeric_limits<float>::max();
     return HCTR_TRITON_ERROR(INVALID_ARG, "The parameter '",
-      key_prefix, key, "' = ", tmp, " was truncated because it is out of bounds!");
+      key, "' = ", tmp, " was truncated because it is out of bounds!");
   }
   else {
     *value = static_cast<float>(tmp);
@@ -104,83 +98,73 @@ TRITONSERVER_Error* TritonJsonHelper::parse(common::TritonJson::Value& json,
 
 TRITONSERVER_Error* TritonJsonHelper::parse(common::TritonJson::Value& json,
                                             const char* const key,
-                                            int32_t* const value,
-                                            const bool required,
-                                            const std::string& key_prefix) {
+                                            int32_t* const value, const bool required) {
   int64_t tmp = *value;
-  const auto result = parse(json, key, &tmp, required, key_prefix);
+  const auto result = parse(json, key, &tmp, required);
   *value = static_cast<int>(tmp);
   if (*value != tmp) {
     return HCTR_TRITON_ERROR(INVALID_ARG, "The parameter '",
-      key_prefix, key, "' = ", tmp, " was truncated because it is out of bounds!");
+      key, "' = ", tmp, " was truncated because it is out of bounds!");
   }
   return result;
 }
 
 TRITONSERVER_Error* TritonJsonHelper::parse(common::TritonJson::Value& json,
                                             const char* key,
-                                            int64_t* const value,
-                                            const bool required,
-                                            const std::string& key_prefix) {
+                                            int64_t* const value, const bool required) {
   if (json.MemberAsInt(key, value) != TRITONJSON_STATUSSUCCESS) {
     std::string tmp;
     json.MemberAsString(key, &tmp);
     
     if (required && tmp.empty()) {
-      return HCTR_TRITON_ERROR(INVALID_ARG, "The parameter '", key_prefix, key, 
+      return HCTR_TRITON_ERROR(INVALID_ARG, "The parameter '", key, 
         "' is mandatory. Please confirm that it has been added to the configuration file.");
     }
     *value = std::stoll(tmp);
   }
 
-  // HCTR_TRITON_LOG(INFO, key_prefix, key, ": ", *value);
+  // HCTR_TRITON_LOG(INFO, key, ": ", *value);
   return nullptr;
 }
 
 TRITONSERVER_Error* TritonJsonHelper::parse(common::TritonJson::Value& json,
                                             const char* const key,
-                                            size_t* const value,
-                                            const bool required,
-                                            const std::string& key_prefix) {
+                                            size_t* const value, const bool required) {
   if (json.MemberAsUInt(key, value) != TRITONJSON_STATUSSUCCESS) {
     std::string tmp;
     json.MemberAsString(key, &tmp);
     
     if (required && tmp.empty()) {
-      return HCTR_TRITON_ERROR(INVALID_ARG, "The parameter '", key_prefix, key, 
+      return HCTR_TRITON_ERROR(INVALID_ARG, "The parameter '", key, 
         "' is mandatory. Please confirm that it has been added to the configuration file.");
     }
     *value = std::stoull(tmp);
   }
 
-  // HCTR_TRITON_LOG(INFO, key_prefix, key, ": ", *value);
+  // HCTR_TRITON_LOG(INFO, key, ": ", *value);
   return nullptr;
 }
 
 TRITONSERVER_Error* TritonJsonHelper::parse(const common::TritonJson::Value& json,
                                             const char* const key,
-                                            std::string& value,
-                                            const bool required,
-                                            const std::string& key_prefix) {
+                                            std::string& value, const bool required) {
   const TRITONSERVER_Error* error = json.MemberAsString(key, &value);
   if (required && error != TRITONJSON_STATUSSUCCESS) {
-    return HCTR_TRITON_ERROR(INVALID_ARG, "The parameter '", key_prefix, key, 
+    return HCTR_TRITON_ERROR(INVALID_ARG, "The parameter '", key, 
       "' is mandatory. Please confirm that it has been added to the configuration file.");
   }
   
-  // HCTR_TRITON_LOG(INFO, key_prefix, key, ": \"", value, "\"");
+  // HCTR_TRITON_LOG(INFO, key, ": \"", value, "\"");
   return nullptr;
 }
 
 TRITONSERVER_Error* TritonJsonHelper::parse(common::TritonJson::Value& json,
                                             const char* const key,
-                                            std::vector<float>& value,
-                                            const bool required,
-                                            const std::string& key_prefix) {
+                                            std::vector<float>& value, const bool required) {
   common::TritonJson::Value tmp;
   const TRITONSERVER_Error* error = json.MemberAsArray(key, &tmp);
   if (required && error != TRITONJSON_STATUSSUCCESS) {
-    return HCTR_TRITON_ERROR(INVALID_ARG, "The parameter '", key_prefix, key, 
+    return HCTR_TRITON_ERROR(INVALID_ARG, "The parameter '", key, 
       "' is mandatory. Please confirm that it has been added to the configuration file.");
   }
   for (size_t i = 0; i < tmp.ArraySize(); i++) {
@@ -199,19 +183,17 @@ TRITONSERVER_Error* TritonJsonHelper::parse(common::TritonJson::Value& json,
     value_str << separator << v;
     separator = ", ";
   }
-  // HCTR_TRITON_LOG(INFO, key_prefix, key, ": [", value_str.str(), " ]");
+  // HCTR_TRITON_LOG(INFO, key, ": [", value_str.str(), " ]");
   return nullptr;
 }
 
 TRITONSERVER_Error* TritonJsonHelper::parse(common::TritonJson::Value& json,
                                             const char* const key,
-                                            std::vector<int32_t>& value,
-                                            const bool required,
-                                            const std::string& key_prefix) {
+                                            std::vector<int32_t>& value, const bool required) {
   common::TritonJson::Value tmp;
   const TRITONSERVER_Error* error = json.MemberAsArray(key, &tmp);
   if (required && error != TRITONJSON_STATUSSUCCESS) {
-    return HCTR_TRITON_ERROR(INVALID_ARG, "The parameter '", key_prefix, key,
+    return HCTR_TRITON_ERROR(INVALID_ARG, "The parameter '", key,
       "' is mandatory. Please confirm that it has been added to the configuration file.");
   }
   for (size_t i = 0; i < tmp.ArraySize(); i++) {
@@ -230,19 +212,17 @@ TRITONSERVER_Error* TritonJsonHelper::parse(common::TritonJson::Value& json,
     value_str << separator << v;
     separator = ", ";
   }
-  // HCTR_TRITON_LOG(INFO, key_prefix, key, ": [", value_str.str(), " ]");
+  // HCTR_TRITON_LOG(INFO, key, ": [", value_str.str(), " ]");
   return nullptr;
 }
 
 TRITONSERVER_Error* TritonJsonHelper::parse(common::TritonJson::Value& json,
                                             const char* const key,
-                                            std::vector<std::string>& value,
-                                            const bool required,
-                                            const std::string& key_prefix) {
+                                            std::vector<std::string>& value, const bool required) {
   common::TritonJson::Value tmp;
   const TRITONSERVER_Error* error = json.MemberAsArray(key, &tmp);
   if (required && error != TRITONJSON_STATUSSUCCESS) {
-    return HCTR_TRITON_ERROR(INVALID_ARG, "The parameter '", key_prefix, key,
+    return HCTR_TRITON_ERROR(INVALID_ARG, "The parameter '", key,
       "' is mandatory. Please confirm that it has been added to the configuration file.");
   }
   for (size_t i = 0; i < tmp.ArraySize(); i++) {
@@ -257,7 +237,7 @@ TRITONSERVER_Error* TritonJsonHelper::parse(common::TritonJson::Value& json,
     value_str << separator << "\"" << v << "\"";
     separator = ", ";
   }
-  // HCTR_TRITON_LOG(INFO, key_prefix, key, ": [", value_str.str(), " ]");
+  // HCTR_TRITON_LOG(INFO, key, ": [", value_str.str(), " ]");
   return nullptr;
 }
 

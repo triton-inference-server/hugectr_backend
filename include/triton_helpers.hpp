@@ -58,14 +58,10 @@ class TritonJsonHelper {
    * @param value The place where the value should be stored.
    * @param required If true, will emit a \p TRITONSERVER_Error and return an error that can be caught 
    *                 with \p RETURN_IF_ERROR if the key does not exist.
-   * @param key_prefix A prefix to use in log messages.
    * @return \p nullptr or error value if error occurred.
    */
   static TRITONSERVER_Error* parse(common::TritonJson::Value& json,
-                                   const char* key,
-                                   bool* const value,
-                                   bool required,
-                                   const std::string& key_prefix = "");
+                                   const char* key, bool* const value, bool required);
 
   /**
    * Maps JSON double values or strings that represent doubles.
@@ -75,14 +71,10 @@ class TritonJsonHelper {
    * @param value The place where the value should be stored.
    * @param required If true, will emit a \p TRITONSERVER_Error and return an error that can be caught 
    *                 with \p RETURN_IF_ERROR if the key does not exist.
-   * @param key_prefix A prefix to use in log messages.
    * @return \p nullptr or error value if error occurred.
    */
   static TRITONSERVER_Error* parse(common::TritonJson::Value& json,
-                                   const char* key,
-                                   double* const value,
-                                   bool required,
-                                   const std::string& key_prefix = "");
+                                   const char* key, double* const value, bool required);
 
   /**
    * Maps JSON float values or strings that represent floats.
@@ -92,14 +84,10 @@ class TritonJsonHelper {
    * @param value The place where the value should be stored.
    * @param required If true, will emit a \p TRITONSERVER_Error and return an error that can be caught 
    *                 with \p RETURN_IF_ERROR if the key does not exist.
-   * @param key_prefix A prefix to use in log messages.
    * @return \p nullptr or error value if error occurred.
    */
   static TRITONSERVER_Error* parse(common::TritonJson::Value& json,
-                                   const char* key,
-                                   float* const value,
-                                   bool required,
-                                   const std::string& key_prefix = "");
+                                   const char* key, float* const value, bool required);
   
   /**
    * Maps JSON integer values or strings that represent integers.
@@ -109,14 +97,10 @@ class TritonJsonHelper {
    * @param value The place where the value should be stored.
    * @param required If true, will emit a \p TRITONSERVER_Error and return an error that can be caught 
    *                 with \p RETURN_IF_ERROR if the key does not exist.
-   * @param key_prefix A prefix to use in log messages.
    * @return \p nullptr or error value if error occurred.
    */
   static TRITONSERVER_Error* parse(common::TritonJson::Value& json,
-                                   const char* key,
-                                   int32_t* const value,
-                                   bool required,
-                                   const std::string& key_prefix = "");
+                                   const char* key, int32_t* const value, bool required);
 
   /**
    * Maps JSON long integer values or strings that represent long integers.
@@ -126,14 +110,10 @@ class TritonJsonHelper {
    * @param value The place where the value should be stored.
    * @param required If true, will emit a \p TRITONSERVER_Error and return an error that can be caught 
    *                 with \p RETURN_IF_ERROR if the key does not exist.
-   * @param key_prefix A prefix to use in log messages.
    * @return \p nullptr or error value if error occurred.
    */
   static TRITONSERVER_Error* parse(common::TritonJson::Value& json,
-                                   const char* key,
-                                   int64_t* const value,
-                                   bool required,
-                                   const std::string& key_prefix = "");
+                                   const char* key, int64_t* const value, bool required);
 
   /**
    * Maps JSON size_t values or strings that represent a size_t.
@@ -143,14 +123,10 @@ class TritonJsonHelper {
    * @param value The place where the value should be stored.
    * @param required If true, will emit a \p TRITONSERVER_Error and return an error that can be caught 
    *                 with \p RETURN_IF_ERROR if the key does not exist.
-   * @param key_prefix A prefix to use in log messages.
    * @return \p nullptr or error value if error occurred.
    */
   static TRITONSERVER_Error* parse(common::TritonJson::Value& json,
-                                   const char* key,
-                                   size_t* const value,
-                                   bool required,
-                                   const std::string& key_prefix = "");
+                                   const char* key, size_t* const value, bool required);
 
   /**
    * Maps JSON string values.
@@ -160,14 +136,10 @@ class TritonJsonHelper {
    * @param value The place where the value should be stored.
    * @param required If true, will emit a \p TRITONSERVER_Error and return an error that can be caught 
    *                 with \p RETURN_IF_ERROR if the key does not exist.
-   * @param key_prefix A prefix to use in log messages.
    * @return \p nullptr or error value if error occurred.
    */
   static TRITONSERVER_Error* parse(const common::TritonJson::Value& json,
-                                   const char* key,
-                                   std::string& value,
-                                   bool required,
-                                   const std::string& key_prefix = "");
+                                   const char* key, std::string& value, bool required);
 
   /**
    * Maps JSON array containing float values or strings that represent float values.
@@ -177,14 +149,10 @@ class TritonJsonHelper {
    * @param value The place where the value should be stored.
    * @param required If true, will emit a \p TRITONSERVER_Error and return an error that can be caught 
    *                 with \p RETURN_IF_ERROR if the key does not exist.
-   * @param key_prefix A prefix to use in log messages.
    * @return \p nullptr or error value if error occurred.
    */
   static TRITONSERVER_Error* parse(common::TritonJson::Value& json,
-                                   const char* key,
-                                   std::vector<float>& value,
-                                   bool required,
-                                   const std::string& key_prefix = "");
+                                   const char* key, std::vector<float>& value, bool required);
 
   /**
    * Maps JSON array containing integer values or strings that represent integer values.
@@ -194,14 +162,10 @@ class TritonJsonHelper {
    * @param value The place where the value should be stored.
    * @param required If true, will emit a \p TRITONSERVER_Error and return an error that can be caught 
    *                 with \p RETURN_IF_ERROR if the key does not exist.
-   * @param key_prefix A prefix to use in log messages.
    * @return \p nullptr or error value if error occurred.
    */
   static TRITONSERVER_Error* parse(common::TritonJson::Value& json,
-                                   const char* key,
-                                   std::vector<int32_t>& value,
-                                   bool required,
-                                   const std::string& key_prefix = "");
+                                   const char* key, std::vector<int32_t>& value, bool required);
                                    
   /**
    * Maps JSON array containing strings.
@@ -211,14 +175,10 @@ class TritonJsonHelper {
    * @param value The place where the value should be stored.
    * @param required If true, will emit a \p TRITONSERVER_Error and return an error that can be caught 
    *                 with \p RETURN_IF_ERROR if the key does not exist.
-   * @param key_prefix A prefix to use in log messages.
    * @return \p nullptr or error value if error occurred.
    */
   static TRITONSERVER_Error* parse(common::TritonJson::Value& json,
-                                   const char* key,
-                                   std::vector<std::string>& value,
-                                   bool required,
-                                   const std::string& key_prefix = "");
+                                   const char* key, std::vector<std::string>& value, bool required);
 };
 
 }}}  // namespace triton::backend::hugectr

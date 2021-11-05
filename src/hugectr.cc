@@ -427,7 +427,6 @@ TRITONSERVER_Error* HugeCTRBackend::ParseParameterServer(const std::string& path
   for (size_t model_index = 0; model_index < models.ArraySize(); model_index++) {
     common::TritonJson::Value model;
     models.IndexAsObject(model_index, &model);
-    const std::string key_prefix = hctr_str_concat("model[", model_index, "].");
 
     // Network file.
     {
@@ -443,13 +442,13 @@ TRITONSERVER_Error* HugeCTRBackend::ParseParameterServer(const std::string& path
     // [0] const std::string& model_name
     std::string model_name;
     RETURN_IF_ERROR(TritonJsonHelper::parse(
-      model, "model", model_name, true, key_prefix));
+      model, "model", model_name, true));
     HCTR_TRITON_LOG(INFO, "Model name = ", model_name);
 
     // [1] const size_t max_batch_size
     size_t max_batch_size = 0;
     RETURN_IF_ERROR(TritonJsonHelper::parse(
-      model, "max_batch_size", &max_batch_size, true, key_prefix));
+      model, "max_batch_size", &max_batch_size, true));
     HCTR_TRITON_LOG(INFO, "Max. batch size = ", max_batch_size);
 
     // [2] const float hit_rate_threshold
@@ -458,13 +457,13 @@ TRITONSERVER_Error* HugeCTRBackend::ParseParameterServer(const std::string& path
     // [3] const std::string& dense_model_file
     std::string dense_file;
     RETURN_IF_ERROR(TritonJsonHelper::parse(
-      model, "dense_file", dense_file, true, key_prefix));
+      model, "dense_file", dense_file, true));
     HCTR_TRITON_LOG(INFO, "Dense model file = ", dense_file);
 
     // [4] const std::vector<std::string>& sparse_model_files
     std::vector<std::string> sparse_files;
     RETURN_IF_ERROR(TritonJsonHelper::parse(
-      model, "sparse_files", sparse_files, true, key_prefix));
+      model, "sparse_files", sparse_files, true));
     HCTR_TRITON_LOG(INFO, "Sparse model files = [", hctr_str_join(", ", sparse_files), "]");
 
     // [5] const int device_id
@@ -492,7 +491,7 @@ TRITONSERVER_Error* HugeCTRBackend::ParseParameterServer(const std::string& path
     // Field: "db_type"
     {
       std::string tmp = "local";
-      RETURN_IF_ERROR(TritonJsonHelper::parse(model, "db_type", tmp, false, key_prefix));
+      RETURN_IF_ERROR(TritonJsonHelper::parse(model, "db_type", tmp, false));
       HCTR_TRITON_LOG(INFO, "Database type = ", tmp);
 
       if (tmp == "local") {
@@ -520,28 +519,28 @@ TRITONSERVER_Error* HugeCTRBackend::ParseParameterServer(const std::string& path
     // Field: number_of_worker_buffers_in_pool
     RETURN_IF_ERROR(TritonJsonHelper::parse(
       model, "num_of_worker_buffer_in_pool",
-      &infer_param.number_of_worker_buffers_in_pool, true, key_prefix));
+      &infer_param.number_of_worker_buffers_in_pool, true));
     HCTR_TRITON_LOG(INFO,
       "Num. pool worker buffers = ", infer_param.number_of_worker_buffers_in_pool);
 
     // Field: number_of_refresh_buffers_in_pool
     RETURN_IF_ERROR(TritonJsonHelper::parse(
       model, "num_of_refresher_buffer_in_pool",
-      &infer_param.number_of_refresh_buffers_in_pool, true, key_prefix));
+      &infer_param.number_of_refresh_buffers_in_pool, true));
     HCTR_TRITON_LOG(INFO,
       "Num. pool refresh buffers = ", infer_param.number_of_refresh_buffers_in_pool);
 
     // Field: cache_refresh_percentage_per_iteration
     RETURN_IF_ERROR(TritonJsonHelper::parse(
       model, "cache_refresh_percentage_per_iteration",
-      &infer_param.cache_refresh_percentage_per_iteration, true, key_prefix));
+      &infer_param.cache_refresh_percentage_per_iteration, true));
     HCTR_TRITON_LOG(INFO,
       "Cache refresh rate per iteration = ", infer_param.cache_refresh_percentage_per_iteration);
 
     // Field: deployed_devices
     infer_param.deployed_devices.clear();
     RETURN_IF_ERROR(TritonJsonHelper::parse(
-      model, "deployed_device_list", infer_param.deployed_devices, true, key_prefix));
+      model, "deployed_device_list", infer_param.deployed_devices, true));
     infer_param.device_id = infer_param.deployed_devices.back();
     HCTR_TRITON_LOG(INFO,
       "Deployed device list = [", hctr_str_join(", ", infer_param.deployed_devices), "]");
@@ -550,7 +549,7 @@ TRITONSERVER_Error* HugeCTRBackend::ParseParameterServer(const std::string& path
     infer_param.default_value_for_each_table.clear();
     RETURN_IF_ERROR(TritonJsonHelper::parse(
       model, "default_value_for_each_table",
-      infer_param.default_value_for_each_table, true, key_prefix));
+      infer_param.default_value_for_each_table, true));
     HCTR_TRITON_LOG(INFO, "Default value for each table = [",
       hctr_str_join(", ", infer_param.default_value_for_each_table), "]");
 
