@@ -55,7 +55,7 @@ TRITONSERVER_Error* TritonJsonHelper::parse(common::TritonJson::Value& json,
     }
   }
 
-  HCTR_TRITON_LOG(INFO, key_prefix, key, ": ", *value ? "true" : "false");
+  // HCTR_TRITON_LOG(INFO, key_prefix, key, ": ", *value ? "true" : "false");
   return nullptr;
 }
 
@@ -75,7 +75,7 @@ TRITONSERVER_Error* TritonJsonHelper::parse(common::TritonJson::Value& json,
     *value = std::stod(tmp);
   }
 
-  HCTR_TRITON_LOG(INFO, key_prefix, key, ": ", *value);
+  // HCTR_TRITON_LOG(INFO, key_prefix, key, ": ", *value);
   return nullptr;
 }
 
@@ -133,7 +133,7 @@ TRITONSERVER_Error* TritonJsonHelper::parse(common::TritonJson::Value& json,
     *value = std::stoll(tmp);
   }
 
-  HCTR_TRITON_LOG(INFO, key_prefix, key, ": ", *value);
+  // HCTR_TRITON_LOG(INFO, key_prefix, key, ": ", *value);
   return nullptr;
 }
 
@@ -153,7 +153,7 @@ TRITONSERVER_Error* TritonJsonHelper::parse(common::TritonJson::Value& json,
     *value = std::stoull(tmp);
   }
 
-  HCTR_TRITON_LOG(INFO, key_prefix, key, ": ", *value);
+  // HCTR_TRITON_LOG(INFO, key_prefix, key, ": ", *value);
   return nullptr;
 }
 
@@ -168,7 +168,7 @@ TRITONSERVER_Error* TritonJsonHelper::parse(const common::TritonJson::Value& jso
       "' is mandatory. Please confirm that it has been added to the configuration file.");
   }
   
-  HCTR_TRITON_LOG(INFO, key_prefix, key, ": \"", value, "\"");
+  // HCTR_TRITON_LOG(INFO, key_prefix, key, ": \"", value, "\"");
   return nullptr;
 }
 
@@ -199,7 +199,7 @@ TRITONSERVER_Error* TritonJsonHelper::parse(common::TritonJson::Value& json,
     value_str << separator << v;
     separator = ", ";
   }
-  HCTR_TRITON_LOG(INFO, key_prefix, key, ": [", value_str.str(), " ]");
+  // HCTR_TRITON_LOG(INFO, key_prefix, key, ": [", value_str.str(), " ]");
   return nullptr;
 }
 
@@ -230,7 +230,7 @@ TRITONSERVER_Error* TritonJsonHelper::parse(common::TritonJson::Value& json,
     value_str << separator << v;
     separator = ", ";
   }
-  HCTR_TRITON_LOG(INFO, key_prefix, key, ": [", value_str.str(), " ]");
+  // HCTR_TRITON_LOG(INFO, key_prefix, key, ": [", value_str.str(), " ]");
   return nullptr;
 }
 
@@ -257,7 +257,7 @@ TRITONSERVER_Error* TritonJsonHelper::parse(common::TritonJson::Value& json,
     value_str << separator << "\"" << v << "\"";
     separator = ", ";
   }
-  HCTR_TRITON_LOG(INFO, key_prefix, key, ": [", value_str.str(), " ]");
+  // HCTR_TRITON_LOG(INFO, key_prefix, key, ": [", value_str.str(), " ]");
   return nullptr;
 }
 
