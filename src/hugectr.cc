@@ -402,14 +402,34 @@ HugeCTRBackend::ParseParameterServer(const std::string& path){
     std::string cache_refresh_percentage_per_iteration;
     (model.MemberAsString("cache_refresh_percentage_per_iteration", &cache_refresh_percentage_per_iteration));
     infer_param.cache_refresh_percentage_per_iteration=std::atof(cache_refresh_percentage_per_iteration.c_str());
+    LOG_MESSAGE(TRITONSERVER_LOG_INFO,(std::string("The cache_refresh_percentage_per_iteration of model ")+ modelname +std::string(" is: ") + cache_refresh_percentage_per_iteration).c_str());
+
+    std::string gpucacheper;
+    (model.MemberAsString("gpucacheper", &gpucacheper));
+    infer_param.cache_size_percentage=std::atof(gpucacheper.c_str());
+    LOG_MESSAGE(TRITONSERVER_LOG_INFO,(std::string("The gpu cache per of model ")+ modelname +std::string(" is: ") + gpucacheper).c_str());
+
+    std::string enbale_gpu_cache;
+    model.MemberAsString("gpucache", &enbale_gpu_cache);
+    if (enbale_gpu_cache=="false"){
+      infer_param.use_gpu_embedding_cache=false;
+    }
+    LOG_MESSAGE(TRITONSERVER_LOG_INFO,(std::string("The model ")+ modelname +std::string(" enables GPU embedding cache is: ") + enbale_gpu_cache).c_str());
+
+    std::string hit_rate_threshold;
+    (model.MemberAsString("hit_rate_threshold", &hit_rate_threshold));
+    infer_param.hit_rate_threshold=std::atof(hit_rate_threshold.c_str());
+    LOG_MESSAGE(TRITONSERVER_LOG_INFO,(std::string("The hit_rate_threshold of model ")+ modelname +std::string(" is: ") + hit_rate_threshold).c_str());
 
     std::string num_of_worker_buffer_in_pool;
     (model.MemberAsString("num_of_worker_buffer_in_pool", &num_of_worker_buffer_in_pool));
     infer_param.number_of_worker_buffers_in_pool=std::atoi(num_of_worker_buffer_in_pool.c_str());
+    LOG_MESSAGE(TRITONSERVER_LOG_INFO,(std::string("The num_of_worker_buffer_in_pool of model ")+ modelname +std::string(" is: ") + num_of_worker_buffer_in_pool).c_str());
 
     std::string num_of_refresher_buffer_in_pool;
     (model.MemberAsString("num_of_refresher_buffer_in_pool", &num_of_refresher_buffer_in_pool));
     infer_param.number_of_refresh_buffers_in_pool =std::atoi(num_of_refresher_buffer_in_pool.c_str());
+    LOG_MESSAGE(TRITONSERVER_LOG_INFO,(std::string("The num_of_refresher_buffer_in_pool of model ")+ modelname +std::string(" is: ") + num_of_refresher_buffer_in_pool).c_str());
 
     common::TritonJson::Value device_list;
     model.MemberAsArray("deployed_device_list", &device_list);
@@ -863,9 +883,11 @@ ModelState::ParseModelConfig()
       (gpucache.MemberAsString("string_value", &gpu_cache));
       if ((gpu_cache)=="false"){
         support_gpu_cache_=false;
-        Model_Inference_Para.use_gpu_embedding_cache=false;
       }
-      LOG_MESSAGE(TRITONSERVER_LOG_INFO,(std::string("support gpu cache is ")+ std::to_string(support_gpu_cache_)).c_str());
+      RETURN_ERROR_IF_TRUE(support_gpu_cache_ != Model_Inference_Para.use_gpu_embedding_cache, TRITONSERVER_ERROR_INVALID_ARG,
+      std::string("expected value of the 'gpucache' configuration item is inconsistent with configured in Parameter Server json file), got ") +gpu_cache);
+      Model_Inference_Para.use_gpu_embedding_cache=support_gpu_cache_;
+      LOG_MESSAGE(TRITONSERVER_LOG_INFO,(std::string("support gpu cache is ")+ gpu_cache).c_str());
     }
 
     common::TritonJson::Value mixed_precision;
@@ -884,6 +906,9 @@ ModelState::ParseModelConfig()
       std::string gpu_cache_per;
       (gpucacheper.MemberAsString("string_value", &gpu_cache_per));
       cache_size_per=std::atof(gpu_cache_per.c_str());
+      RETURN_ERROR_IF_TRUE(cache_size_per > Model_Inference_Para.cache_size_percentage, TRITONSERVER_ERROR_INVALID_ARG,
+      std::string("expected gpu cache percentage greater than ") + std::to_string(Model_Inference_Para.cache_size_percentage)+std::string(" (configured in Parameter Server json file), got ") +
+      std::to_string(cache_size_per));
       Model_Inference_Para.cache_size_percentage=cache_size_per;
       LOG_MESSAGE(TRITONSERVER_LOG_INFO,(std::string("gpu cache per is ") + std::to_string(cache_size_per)).c_str());
     }
@@ -893,8 +918,11 @@ ModelState::ParseModelConfig()
       std::string cache_thres;
       (hit_threshold.MemberAsString("string_value", &cache_thres));
       hit_rate_threshold=std::atof(cache_thres.c_str());
-      Model_Inference_Para.hit_rate_threshold=hit_rate_threshold;
-      LOG_MESSAGE(TRITONSERVER_LOG_INFO,(std::string("gpu cache per is ") + std::to_string(cache_size_per)).c_str());
+      RETURN_ERROR_IF_TRUE(hit_rate_threshold > Model_Inference_Para.hit_rate_threshold, TRITONSERVER_ERROR_INVALID_ARG,
+      std::string("expected hit_rate_threshold greater than ") + std::to_string(Model_Inference_Para.hit_rate_threshold)+std::string(" (configured in Parameter Server json file), got ") +
+      std::to_string(hit_rate_threshold));
+      Model_Inference_Para.hit_rate_threshold = hit_rate_threshold;
+      LOG_MESSAGE(TRITONSERVER_LOG_INFO,(std::string("hit_rate_threshold is ") + std::to_string(cache_size_per)).c_str());
     }
     common::TritonJson::Value label_dim;
     if (parameters.Find("label_dim", &label_dim)) {
