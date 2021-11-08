@@ -668,11 +668,11 @@ void ModelState::EmbeddingCacheRefresh(const std::string& model_name, int device
   + std::to_string(device_id)).c_str());
   if(support_gpu_cache_){
     if(support_int64_key_ ){
-      EmbeddingTable_int64->update_database_per_model(hugectr_config_, Model_Inference_Para);
+      //EmbeddingTable_int64->update_database_per_model(hugectr_config_, Model_Inference_Para);
       EmbeddingTable_int64->refresh_embedding_cache(model_name,device_id);
     }
     else{
-      EmbeddingTable_int32->update_database_per_model(hugectr_config_, Model_Inference_Para);
+      //EmbeddingTable_int32->update_database_per_model(hugectr_config_, Model_Inference_Para);
       EmbeddingTable_int32->refresh_embedding_cache(model_name,device_id);
     } 
   }
