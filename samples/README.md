@@ -226,7 +226,10 @@ The model files (the path of the embedded table file) needs to be configured in 
             "num_of_worker_buffer_in_pool": "4",
 			"deployed_device_list":["1"],
 			"max_batch_size":"1024",
-			"default_value_for_each_table":["0.0","0.0"]
+			"default_value_for_each_table":["0.0","0.0"],
+            "hit_rate_threshold":"0.9",
+            "gpucacheper":"0.5",
+            "gpucache":"true"
         }
     ]  
 }
