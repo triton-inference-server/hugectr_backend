@@ -42,6 +42,7 @@
 #include "inference/hugectrmodel.hpp"
 #include "inference/inference_utils.hpp"
 #include "inference/embedding_interface.hpp"
+#include "timer.hpp"
 
 namespace triton { namespace backend { namespace hugectr {
 
@@ -556,6 +557,9 @@ class ModelState {
   //Create Embedding_cache
   TRITONSERVER_Error* Create_EmbeddingCache();
 
+  //Refresh embedding cache periodically
+  void Refresh_Embedding_Cache();
+
   //HugeCTR unit PS
   HugeCTR::HugectrUtility<unsigned int>* HugeCTRParameterServerInt32(){return EmbeddingTable_int32;}
 
@@ -605,6 +609,8 @@ class ModelState {
   std::map<int64_t, std::shared_ptr<HugeCTR::embedding_interface>> embedding_cache_map;
 
   std::map<std::string, size_t> input_map_ {{"DES",0}, {"CATCOLUMN", 1}, {"ROWINDEX", 2}};
+
+  Timer timer;
 
 
 };
@@ -962,6 +968,14 @@ ModelState::ParseModelConfig()
   return nullptr;
 }
 
+void ModelState::Refresh_Embedding_Cache(){
+  int64_t count = gpu_shape.size();
+  for (int i = 0; i < count;i++)
+  {
+    ModelState::EmbeddingCacheRefresh(name_,gpu_shape[i]);
+  }
+}
+
 TRITONSERVER_Error*
 ModelState::Create_EmbeddingCache()
 {
@@ -988,6 +1002,7 @@ ModelState::Create_EmbeddingCache()
       }
     } 
   }
+  timer.start(1800,std::bind(&ModelState::Refresh_Embedding_Cache,this));
   LOG_MESSAGE(TRITONSERVER_LOG_INFO,(std::string("******Creating Embedding Cache for model ") + std::string(name_)+std::string(" successfully")).c_str());
   return nullptr;
 }
@@ -997,6 +1012,7 @@ ModelState::~ModelState(){
   for (auto& ec_refresh_thread : cache_refresh_threads) {
       ec_refresh_thread.join();
   }
+  timer.stop();
 }
 
 //
