@@ -56,7 +56,7 @@ test:
       cd ./test;
       docker login -u ${CI_PRIVATE_USER} -p "${CI_PRIVATE_KEY}" "${CI_REGISTRY}";
       bash ./triton_server.sh ${IMAGE_LATEST_CORRECTE} /mnt/nvdl/usr/aleliu/inference_ci/model_repository;
-      docker run --rm --net=host -v /mnt/nvdl/usr/aleliu/inference_ci/inference_demo:/demo gitlab-master.nvidia.com:5005/dl/hugectr/hugectr:devel_inference perf_analyzer -m dlrm -u localhost:8000 --input-data /demo/1.json --shape CATCOLUMN:26 --shape DES:13 --shape ROWINDEX:27 
+      docker run --rm --net=host -v /mnt/nvdl/usr/aleliu/inference_ci/inference_demo:/demo gitlab-master.nvidia.com:5005/dl/hugectr/hugectr:devel_inference perf_analyzer -m dlrm -u localhost:8000 --input-data /demo/1.json --shape CATCOLUMN:26 --shape DES:13 --shape ROWINDEX:27; 
       docker run --rm --net=host -v /mnt/nvdl/usr/aleliu/inference_ci/inference_demo:/demo gitlab-master.nvidia.com:5005/dl/hugectr/hugectr:devel_inference python3 /demo/dlrm.py;
       docker run --rm --net=host -v /mnt/nvdl/usr/aleliu/inference_ci/inference_demo:/demo gitlab-master.nvidia.com:5005/dl/hugectr/hugectr:devel_inference python3 /demo/dlrm_test.py;
       "
