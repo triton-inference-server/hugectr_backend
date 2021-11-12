@@ -590,6 +590,7 @@ class ModelState {
   int64_t label_dim_=1;
   float cache_size_per=0.5;
   float hit_rate_threshold=0.8;
+  size_t refresh_interval_ = 0;
   std::string hugectr_config_;
   common::TritonJson::Value model_config_;
   std::vector<std::string> model_config_path;
@@ -863,6 +864,15 @@ ModelState::ParseModelConfig()
       max_nnz_=std::stoi(nnz_str );
       LOG_MESSAGE(TRITONSERVER_LOG_INFO,(std::string("maxnnz is ") + std::to_string(max_nnz_)).c_str());
     }
+
+    common::TritonJson::Value refresh_interval;
+    if (parameters.Find("refresh_interval", &refresh_interval)) {
+      std::string interval;
+      (refresh_interval.MemberAsString(
+          "string_value", &interval));
+      refresh_interval_ = std::stoi(interval);
+      LOG_MESSAGE(TRITONSERVER_LOG_INFO,(std::string("refresh_interval is ") + std::to_string(refresh_interval_)).c_str());
+    }
     common::TritonJson::Value hugeconfig;
     if (parameters.Find("config", &hugeconfig)) {
       std::string config_str;
@@ -1002,7 +1012,9 @@ ModelState::Create_EmbeddingCache()
       }
     } 
   }
-  timer.start(1800,std::bind(&ModelState::Refresh_Embedding_Cache,this));
+  if(refresh_interval_>0){
+    timer.start(refresh_interval_,std::bind(&ModelState::Refresh_Embedding_Cache,this));
+  }
   LOG_MESSAGE(TRITONSERVER_LOG_INFO,(std::string("******Creating Embedding Cache for model ") + std::string(name_)+std::string(" successfully")).c_str());
   return nullptr;
 }
