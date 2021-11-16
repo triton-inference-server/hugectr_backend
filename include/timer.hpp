@@ -92,6 +92,13 @@ class Timer
         }).detach();
     }
 
+    void startonce(size_t delay,std::function<void()> task){
+        std::thread([delay,task] (){
+            std::this_thread::sleep_for(std::chrono::seconds(delay));
+            task();
+        }).detach();
+    }
+
     private:
     void run(size_t interval, std::function<void()> task){
 
