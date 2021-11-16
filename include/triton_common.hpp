@@ -66,7 +66,7 @@ inline std::string hctr_str_concat(const std::initializer_list<TValue>& values) 
   return hctr_str_concat_it(values.begin(), values.end());
 }
 
-template <typename TArg0, typename TArg1, typename ...TArgs>
+template <typename TArg0, typename TArg1>
 inline std::string hctr_str_concat(const TArg0& arg0, const TArg1& arg1) {
   std::stringstream ss;
   ss << arg0 << arg1;

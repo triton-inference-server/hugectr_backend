@@ -322,10 +322,35 @@ TRITONSERVER_Error* HugeCTRBackend::ParseParameterServer(const std::string& path
 
   // *** Database backend related parameters ***
 
+  // Field: "db_type"
+  HugeCTR::DATABASE_TYPE db_type;
+  {
+    std::string tmp;
+    RETURN_IF_ERROR(TritonJsonHelper::parse(parameter_server_config, "db_type", tmp, false));
+    HCTR_TRITON_LOG(INFO, "Database type = ", tmp);
+
+    if (tmp == "local") {
+      db_type = HugeCTR::DATABASE_TYPE::LOCAL;
+    }
+    else if (tmp == "rocksdb") {
+      db_type = HugeCTR::DATABASE_TYPE::ROCKSDB;
+    }
+    else if (tmp == "redis") {
+      db_type = HugeCTR::DATABASE_TYPE::REDIS;
+    }
+    else if (tmp == "hierarchy") {
+      db_type = HugeCTR::DATABASE_TYPE::HIERARCHY;
+    }
+    else {
+      HCTR_TRITON_LOG(WARN, "\"db_type\" was not configured. Defaulting to \"local\" database.");
+      db_type = HugeCTR::DATABASE_TYPE::LOCAL;
+    }
+  }
+
   float cache_size_percentage_redis = 0.5;
   RETURN_IF_ERROR(TritonJsonHelper::parse(
     parameter_server_config, "cache_size_percentage_redis", &cache_size_percentage_redis, false));
-  HCTR_TRITON_LOG(INFO, "Redis cahche proportion = ", cache_size_percentage_redis);
+  HCTR_TRITON_LOG(INFO, "Redis cache proportion = ", cache_size_percentage_redis);
 
   std::string redis_ip = "127.0.0.1:7000";
   RETURN_IF_ERROR(TritonJsonHelper::parse(
@@ -488,30 +513,8 @@ TRITONSERVER_Error* HugeCTRBackend::ParseParameterServer(const std::string& path
                                          cache_size_percentage,
                                          i64_input_key);
     
-    // Field: "db_type"
-    {
-      std::string tmp = "local";
-      RETURN_IF_ERROR(TritonJsonHelper::parse(model, "db_type", tmp, false));
-      HCTR_TRITON_LOG(INFO, "Database type = ", tmp);
-
-      if (tmp == "local") {
-        infer_param.db_type = HugeCTR::DATABASE_TYPE::LOCAL;
-      }
-      else if (tmp == "rocksdb") {
-        infer_param.db_type = HugeCTR::DATABASE_TYPE::ROCKSDB;
-      }
-      else if (tmp == "redis") {
-        infer_param.db_type = HugeCTR::DATABASE_TYPE::REDIS;
-      }
-      else if (tmp == "hierarchy") {
-        infer_param.db_type = HugeCTR::DATABASE_TYPE::HIERARCHY;
-      }
-      else {
-        return HCTR_TRITON_ERROR(INVALID_ARG, "Configured value for db_type is invalid!");
-      }
-    }
-
     // TODO: Move to paramter server common parameters!
+    infer_param.db_type = db_type;
     infer_param.redis_ip = redis_ip;
     infer_param.rocksdb_path = rocksdb_path;
     infer_param.cache_size_percentage_redis = cache_size_percentage_redis;
