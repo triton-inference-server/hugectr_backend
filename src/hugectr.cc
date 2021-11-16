@@ -990,23 +990,28 @@ ModelState::ParseModelConfig()
 }
 
 void ModelState::Refresh_Embedding_Cache(){
-  uint64_t min_exec_start_ns = std::numeric_limits<uint64_t>::max();
-  uint64_t max_exec_end_ns = 0;
-  uint64_t exec_start_ns = 0;
-  SET_TIMESTAMP(exec_start_ns);
-  min_exec_start_ns = std::min(min_exec_start_ns, exec_start_ns);
-
   //refresh embedding cache once after delay time
   int64_t count = gpu_shape.size();
+  uint64_t exec_start_ns = 0;
+  SET_TIMESTAMP(exec_start_ns);
   for (int i = 0; i < count;i++)
   {
-     ModelState::EmbeddingCacheRefresh(name_,gpu_shape[i]);
+    if(support_gpu_cache_){
+    LOG_MESSAGE(TRITONSERVER_LOG_INFO,(std::string("The model ")+ name_ + std::string(" is periodically refreshing the embedding cache asynchronously on device ")
+      + std::to_string(gpu_shape[i])).c_str());
+      if(support_int64_key_ ){
+        EmbeddingTable_int64->refresh_embedding_cache(name_, gpu_shape[i]);
+      }
+      else{
+        EmbeddingTable_int32->refresh_embedding_cache(name_, gpu_shape[i]);
+      } 
+    LOG_MESSAGE(TRITONSERVER_LOG_INFO,(std::string("The model ")+ name_ + std::string(" has refreshed the embedding cache asynchronously on device ")
+      + std::to_string(gpu_shape[i])).c_str());
+    }
   }
-
   uint64_t exec_end_ns = 0;
   SET_TIMESTAMP(exec_end_ns);
-  max_exec_end_ns = std::max(max_exec_end_ns, exec_end_ns);
-  int64_t exe_time=(max_exec_end_ns-min_exec_start_ns)/1000000;
+  int64_t exe_time=(exec_end_ns-exec_start_ns)/1000000;
   LOG_MESSAGE(TRITONSERVER_LOG_INFO,(std::string("Refresh embedding table execution time is ") + std::to_string(exe_time) + " ms" ).c_str());
 }
 
