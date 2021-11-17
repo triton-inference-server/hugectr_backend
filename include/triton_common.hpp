@@ -180,4 +180,20 @@ inline std::string hctr_str_join(const TSep& separator,
   return ss.str();
 }
 
+inline void hctr_str_split(const std::string& string, const char separator,
+                           std::vector<std::string>& parts) {
+  std::stringstream ss(string);
+  std::string part;
+  while (std::getline(ss, part, separator)) {
+    parts.push_back(part);
+  }
+}
+
+inline std::vector<std::string> hctr_str_split(const std::string& string, 
+                                               const char separator) {
+  std::vector<std::string> parts;
+  hctr_str_split(string, separator, parts);
+  return parts;
+}
+
 }}}  // namespace triton::backend::hugectr
