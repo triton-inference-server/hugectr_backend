@@ -8,44 +8,6 @@
 
 namespace triton { namespace backend { namespace hugectr {
 
-/**
- * CPP style concats arguments to Triton log entry.
- */
-#define HCTR_TRITON_LOG(LEVEL, ...)                                                        \
-  do {                                                                                     \
-    const std::string& msg = hctr_str_concat(__VA_ARGS__);                                 \
-    LOG_IF_ERROR(                                                                          \
-      TRITONSERVER_LogMessage(TRITONSERVER_LOG_##LEVEL, __FILE__, __LINE__, msg.c_str()),  \
-      ("failed to log message: "));                                                        \
-  } while (0)
-
-/**
- * CPP style concats arguments to create a Triton error object.
- */
-#define HCTR_TRITON_ERROR(CODE, ...)                           \
-  TRITONSERVER_ErrorNew(TRITONSERVER_ERROR_##CODE,             \
-                        hctr_str_concat(__VA_ARGS__).c_str())
-
-/**
- * Like RETURN_ERROR_IF_TRUE, but with CPP style string concatenation.
- * 
- * REMARK For compatiblity! In most situations these make the code harder to read!
- */
-#define HCTR_RETURN_TRITION_ERROR_IF_TRUE(PRED, CODE, ...)  \
-  do {                                                      \
-    if ((PRED)) {                                           \
-      return HCTR_TRITON_ERROR(CODE, ##__VA_ARGS__);        \
-    }                                                       \
-  } while (0)
-
-/**
- * Like RETURN_ERROR_IF_TRUE, but with CPP style string concatenation.
- * 
- * REMARK For compatiblity! In most situations these make the code harder to read!
- */
-#define HCTR_RETURN_TRITON_ERROR_IF_FALSE(PRED, CODE, ...)        \
-  HCTR_RETURN_TRITION_ERROR_IF_TRUE(!(PRED), CODE, ##__VA_ARGS__)
-
 class TritonJsonHelper {
  public:
   /**
