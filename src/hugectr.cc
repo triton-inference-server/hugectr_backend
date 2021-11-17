@@ -38,6 +38,8 @@
 #include "dlfcn.h"
 #include "dirent.h"
 #include <triton_helpers.hpp>
+#include <fstream>
+#include <sstream>
 #include "cuda_runtime_api.h"
 #include "triton/backend/backend_common.h"
 #include "inference/hugectrmodel.hpp"
@@ -464,43 +466,58 @@ TRITONSERVER_Error* HugeCTRBackend::ParseParameterServer(const std::string& path
 
     // InferenceParams constructor order (non-default-filled arguments): 
 
-    // [0] const std::string& model_name
+    // [0] model_name -> std::string
     std::string model_name;
     RETURN_IF_ERROR(TritonJsonHelper::parse(
       model, "model", model_name, true));
     HCTR_TRITON_LOG(INFO, "Model name = ", model_name);
 
-    // [1] const size_t max_batch_size
+    // [1] max_batch_size -> size_t
     size_t max_batch_size = 0;
     RETURN_IF_ERROR(TritonJsonHelper::parse(
       model, "max_batch_size", &max_batch_size, true));
-    HCTR_TRITON_LOG(INFO, "Max. batch size = ", max_batch_size);
+    HCTR_TRITON_LOG(INFO, "Model '", model_name, "'; ",
+      "max. batch size = ", max_batch_size);
 
-    // [2] const float hit_rate_threshold
-    const float hit_rate_threshold = 0.55;
-
-    // [3] const std::string& dense_model_file
+    // [3] dense_model_file -> std::string
     std::string dense_file;
     RETURN_IF_ERROR(TritonJsonHelper::parse(
       model, "dense_file", dense_file, true));
-    HCTR_TRITON_LOG(INFO, "Dense model file = ", dense_file);
+    HCTR_TRITON_LOG(INFO, "Model '", model_name, "'; ",
+      "dense model file = ", dense_file);
 
-    // [4] const std::vector<std::string>& sparse_model_files
+    // [4] sparse_model_files -> std::vector<std::string>
     std::vector<std::string> sparse_files;
     RETURN_IF_ERROR(TritonJsonHelper::parse(
       model, "sparse_files", sparse_files, true));
-    HCTR_TRITON_LOG(INFO, "Sparse model files = [", hctr_str_join(", ", sparse_files), "]");
+    HCTR_TRITON_LOG(INFO, "Model '", model_name, "'; ",
+      "sparse model files = [", hctr_str_join(", ", sparse_files), "]");
 
-    // [5] const int device_id
+    // [5] device_id -> int
     const int device_id = 0;
 
-    // [6] const bool use_gpu_embedding_cache
-    const bool use_gpu_embedding_cache = true;
+    // [6] use_gpu_embedding_cache -> bool
+    bool use_gpu_embedding_cache = true;
+    RETURN_IF_ERROR(TritonJsonHelper::parse(
+      model, "gpucache", &use_gpu_embedding_cache, true));
+    HCTR_TRITON_LOG(INFO, "Model '", model_name, "'; ",
+      "use GPU embedding cache = ", use_gpu_embedding_cache);
 
-    // [7] const float cache_size_percentage
-    const float cache_size_percentage = 0.55;
+    // [2] hit_rate_threshold -> float
+    float hit_rate_threshold = 0.55;
+    RETURN_IF_ERROR(TritonJsonHelper::parse(
+      model, "hit_rate_threshold", &hit_rate_threshold, use_gpu_embedding_cache));
+    HCTR_TRITON_LOG(INFO, "Model '", model_name, "'; ",
+      "hit rate threshold = ", hit_rate_threshold);
 
-    // [8] const bool i64_input_key
+    // [7] cache_size_percentage -> float
+    float cache_size_percentage = 0.55;
+    RETURN_IF_ERROR(TritonJsonHelper::parse(
+      model, "gpucacheper", &cache_size_percentage, use_gpu_embedding_cache));
+    HCTR_TRITON_LOG(INFO, "Model '", model_name, "'; ",
+      "per model GPU cache = ", cache_size_percentage);
+
+    // [8] i64_input_key -> bool
     const bool i64_input_key = support_int64_key_;
 
     HugeCTR::InferenceParams infer_param(model_name,
@@ -523,38 +540,38 @@ TRITONSERVER_Error* HugeCTRBackend::ParseParameterServer(const std::string& path
     RETURN_IF_ERROR(TritonJsonHelper::parse(
       model, "num_of_worker_buffer_in_pool",
       &infer_param.number_of_worker_buffers_in_pool, true));
-    HCTR_TRITON_LOG(INFO,
-      "Num. pool worker buffers = ", infer_param.number_of_worker_buffers_in_pool);
+    HCTR_TRITON_LOG(INFO, "Model '", model_name, "'; ",
+      "num. pool worker buffers = ", infer_param.number_of_worker_buffers_in_pool);
 
     // Field: number_of_refresh_buffers_in_pool
     RETURN_IF_ERROR(TritonJsonHelper::parse(
       model, "num_of_refresher_buffer_in_pool",
       &infer_param.number_of_refresh_buffers_in_pool, true));
-    HCTR_TRITON_LOG(INFO,
-      "Num. pool refresh buffers = ", infer_param.number_of_refresh_buffers_in_pool);
+    HCTR_TRITON_LOG(INFO, "Model '", model_name, "'; ",
+      "num. pool refresh buffers = ", infer_param.number_of_refresh_buffers_in_pool);
 
     // Field: cache_refresh_percentage_per_iteration
     RETURN_IF_ERROR(TritonJsonHelper::parse(
       model, "cache_refresh_percentage_per_iteration",
       &infer_param.cache_refresh_percentage_per_iteration, true));
-    HCTR_TRITON_LOG(INFO,
-      "Cache refresh rate per iteration = ", infer_param.cache_refresh_percentage_per_iteration);
+    HCTR_TRITON_LOG(INFO, "Model '", model_name, "'; ",
+      "cache refresh rate per iteration = ", infer_param.cache_refresh_percentage_per_iteration);
 
     // Field: deployed_devices
     infer_param.deployed_devices.clear();
     RETURN_IF_ERROR(TritonJsonHelper::parse(
       model, "deployed_device_list", infer_param.deployed_devices, true));
     infer_param.device_id = infer_param.deployed_devices.back();
-    HCTR_TRITON_LOG(INFO,
-      "Deployed device list = [", hctr_str_join(", ", infer_param.deployed_devices), "]");
+    HCTR_TRITON_LOG(INFO, "Model '", model_name, "'; ",
+      "deployed device list = [", hctr_str_join(", ", infer_param.deployed_devices), "]");
 
     // Field: "default_value_for_each_table"
     infer_param.default_value_for_each_table.clear();
     RETURN_IF_ERROR(TritonJsonHelper::parse(
       model, "default_value_for_each_table",
       infer_param.default_value_for_each_table, true));
-    HCTR_TRITON_LOG(INFO, "Default value for each table = [",
-      hctr_str_join(", ", infer_param.default_value_for_each_table), "]");
+    HCTR_TRITON_LOG(INFO, "Model '", model_name, "'; ",
+      "default value for each table = [", hctr_str_join(", ", infer_param.default_value_for_each_table), "]");
 
     // TODO: Move to paramter server common parameters!
     infer_param.cpu_memory_db_update_source = cpu_memory_db_update_source;
@@ -888,7 +905,6 @@ TRITONSERVER_Error* ModelState::ParseModelConfig() {
   HCTR_TRITON_LOG(INFO, "The model configuration: ", buffer.Contents());
 
   // Get HugeCTR model configuration
-
   common::TritonJson::Value instance_group;
   RETURN_IF_ERROR(model_config_.MemberAsArray("instance_group", &instance_group));
   HCTR_RETURN_TRITON_ERROR_IF_FALSE(instance_group.ArraySize() > 0, INVALID_ARG,
@@ -917,7 +933,7 @@ TRITONSERVER_Error* ModelState::ParseModelConfig() {
     }
   }
 
-  // Paring Hugect Model customized configuration
+  // Parse HugeCTR model customized configuration.
   common::TritonJson::Value parameters; 
   if (model_config_.Find("parameters", &parameters)) {
     common::TritonJson::Value value;
@@ -956,11 +972,30 @@ TRITONSERVER_Error* ModelState::ParseModelConfig() {
       TritonJsonHelper::parse(value, "string_value", hugectr_config_, true);
       HCTR_TRITON_LOG(INFO, "HugeCTR model config path = ", hugectr_config_);
     }
+
+    if (parameters.Find("sparse_files", &value)) {
+      std::string tmp;
+      TritonJsonHelper::parse(value, "string_value", tmp, true);
+      HCTR_TRITON_LOG(INFO, "sparse_files = ", tmp);
+
+      Model_Inference_Para.sparse_model_files.clear();
+      hctr_str_split(tmp, ',', Model_Inference_Para.sparse_model_files);
+    }
+
+    if (parameters.Find("dense_file", &value)) {
+      TritonJsonHelper::parse(value, "string_value", Model_Inference_Para.dense_model_file, true);
+      HCTR_TRITON_LOG(INFO, "dense_file = ", Model_Inference_Para.dense_model_file);
+    }
     
     if (parameters.Find("gpucache", &value)) {
       TritonJsonHelper::parse(value, "string_value", &support_gpu_cache_, true);
       HCTR_TRITON_LOG(INFO, "support gpu cache = ", support_gpu_cache_);
 
+      if (support_gpu_cache_ != Model_Inference_Para.use_gpu_embedding_cache) {
+        return HCTR_TRITON_ERROR(INVALID_ARG,
+          "Expected value for 'gpucache' = '", support_gpu_cache_, "', ",
+          "which is inconsistent with parameter server JSON configuration file.");
+      }
       Model_Inference_Para.use_gpu_embedding_cache = support_gpu_cache_;
     }
 
@@ -971,17 +1006,29 @@ TRITONSERVER_Error* ModelState::ParseModelConfig() {
       Model_Inference_Para.use_mixed_precision = use_mixed_precision_;
     }
 
-    if (parameters.Find("gpucacheper", &value)) {
+    if (support_gpu_cache_ && parameters.Find("gpucacheper", &value)) {
       TritonJsonHelper::parse(value, "string_value", &cache_size_per, true);
       HCTR_TRITON_LOG(INFO, "gpu cache per = ", cache_size_per);
 
+      if (cache_size_per > Model_Inference_Para.cache_size_percentage) {
+        return HCTR_TRITON_ERROR(INVALID_ARG,
+          "Expected value for 'gpucacheper' (GPU cache percentage) = '", cache_size_per, "', ",
+          "which is greater than the value configured in the parameter server JSON file ",
+          "(=", Model_Inference_Para.cache_size_percentage, ").");
+      }
       Model_Inference_Para.cache_size_percentage = cache_size_per;
     }
 
-    if (parameters.Find("hit_rate_threshold", &value)) {
+    if (support_gpu_cache_ && parameters.Find("hit_rate_threshold", &value)) {
       TritonJsonHelper::parse(value, "string_value", &hit_rate_threshold, true);
       HCTR_TRITON_LOG(INFO, "hit-rate threshold = ", hit_rate_threshold);
 
+      if (hit_rate_threshold > Model_Inference_Para.hit_rate_threshold) {
+        return HCTR_TRITON_ERROR(INVALID_ARG,
+          "Expected value for 'hit_rate_threshold' = '", hit_rate_threshold, "', ",
+          "which is greater than the value configured in the parameter server JSON file ",
+          "(=", Model_Inference_Para.hit_rate_threshold, ").");
+      }
       Model_Inference_Para.hit_rate_threshold = hit_rate_threshold;
     }
 

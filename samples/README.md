@@ -45,12 +45,12 @@ You can pull the `Merlin-Training` container by running the following command:
 DLRM model traning:
 
 ```
-docker run --gpus=all -it -v ${PWD}:/dlrm_train/ --net=host nvcr.io/nvidia/merlin/merlin-training:0.6 /bin/bash
+docker run --gpus=all -it -v ${PWD}:/dlrm_train/ --net=host nvcr.io/nvidia/merlin/merlin-training:21.09 /bin/bash
 ```
 
 Wide&Deep model training:
 ```
-docker run --gpus=all -it -v ${PWD}:/wdl_train/ --net=host nvcr.io/nvidia/merlin/merlin-training:0.6 /bin/bash
+docker run --gpus=all -it -v ${PWD}:/wdl_train/ --net=host nvcr.io/nvidia/merlin/merlin-training:21.09 /bin/bash
 ```
 
 The container will open a shell when the run command execution is completed. You'll have to start the jupyter lab on the Docker container. It should look similar to this:
@@ -122,12 +122,12 @@ mkdir -p wdl_infer
 
 DLRM model inference container:
 ```
-docker run -it --gpus=all --shm-size=1g --ulimit memlock=-1 --ulimit stack=67108864 --net=host -v dlrm_infer:/dlrm_infer/ -v dlrm_train:/dlrm_train/ nvcr.io/nvidia/merlin/merlin-inference:0.6
+docker run -it --gpus=all --shm-size=1g --ulimit memlock=-1 --ulimit stack=67108864 --net=host -v dlrm_infer:/dlrm_infer/ -v dlrm_train:/dlrm_train/ nvcr.io/nvidia/merlin/merlin-inference:21.09
 ```
 
 Wide&Deep model inference container:
 ```
-docker run -it --gpus=all --shm-size=1g --ulimit memlock=-1 --ulimit stack=67108864 --net=host -v wdl_infer:/wdl_infer/ -v wdl_train:/wdl_train/ nvcr.io/nvidia/merlin/merlin-inference:0.6
+docker run -it --gpus=all --shm-size=1g --ulimit memlock=-1 --ulimit stack=67108864 --net=host -v wdl_infer:/wdl_infer/ -v wdl_train:/wdl_train/ nvcr.io/nvidia/merlin/merlin-inference:21.09
 ```
 The container will open a shell when the run command execution is completed. It should look similar to this:
 ```
@@ -222,7 +222,14 @@ The model files (the path of the embedded table file) needs to be configured in 
             "model":"wdl",
             "sparse_files":["/wdl_infer/model/wdl/1/wdl0_sparse_20000.model", "/wdl_infer/model/wdl/1/wdl1_sparse_20000.model"],
             "dense_file":"/wdl_infer/model/wdl/1/wdl_dense_20000.model",
-            "network_file":"/wdl_infer/model/wdl/1/wdl.json"
+            "network_file":"/wdl_infer/model/wdl/1/wdl.json",
+            "num_of_worker_buffer_in_pool": "4",
+			"deployed_device_list":["1"],
+			"max_batch_size":"1024",
+			"default_value_for_each_table":["0.0","0.0"],
+            "hit_rate_threshold":"0.9",
+            "gpucacheper":"0.5",
+            "gpucache":"true"
         }
     ]  
 }
