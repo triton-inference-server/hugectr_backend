@@ -32,6 +32,7 @@
 #include "mutex"
 #include "condition_variable"
 #include "iostream"
+#include "thread_pool.hpp"
 
 namespace triton { namespace backend { namespace hugectr {
 #ifndef _TIMER_H_
@@ -90,26 +91,35 @@ class Timer
                 _con_var_expired.notify_one();
             }
         }).detach();
+
     }
 
     void startonce(size_t delay,std::function<void()> task){
-        std::thread([delay,task] (){
+        auto fn = [&,task,delay](size_t, size_t) {
             std::this_thread::sleep_for(std::chrono::seconds(delay));
             task();
-        }).detach();
+        };
+        ThreadPool::get().post(fn);
     }
 
     private:
     void run(size_t interval, std::function<void()> task){
-
+        while(!_try_to_expire)
+        {
+            std::this_thread::sleep_for(std::chrono::seconds(interval));
+            task();
+        }
+        {
+            std::lock_guard<std::mutex> locker(_mutex);
+            _expired = true;
+            _con_var_expired.notify_one();
+        }
     }
     //The status of timer
     std::atomic<bool> _expired;
     std::atomic<bool> _try_to_expire;
     std::mutex _mutex;
     std::condition_variable _con_var_expired;
-    //Here we need a thread pool, to do
-    std::thread _thread;
 };
 #endif 
 

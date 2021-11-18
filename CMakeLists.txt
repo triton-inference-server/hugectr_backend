@@ -90,6 +90,7 @@ configure_file(src/libtriton_hugectr.ldscript libtriton_hugectr.ldscript COPYONL
 add_library(
   triton-hugectr-backend SHARED
   src/hugectr.cc
+  src/thread_pool.cpp
   include/timer.hpp
 )
 
