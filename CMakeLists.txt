@@ -91,6 +91,7 @@ add_library(
   triton-hugectr-backend SHARED
   src/hugectr.cc
   src/triton_helpers.cpp
+  include/timer.hpp
 )
 
 add_library(
@@ -100,7 +101,7 @@ add_library(
 target_include_directories(
   triton-hugectr-backend
   PRIVATE
-    ${CMAKE_CURRENT_SOURCE_DIR}/include
+  ${CMAKE_CURRENT_SOURCE_DIR}/include
 )
 
 target_compile_features(triton-hugectr-backend PRIVATE cxx_std_11)
