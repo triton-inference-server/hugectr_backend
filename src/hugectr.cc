@@ -1,4 +1,4 @@
-// Copyright (c) 2020, NVIDIA CORPORATION. All rights reserved.
+// Copyright (c) 2021, NVIDIA CORPORATION. All rights reserved.
 //
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions
@@ -318,274 +318,295 @@ TRITONSERVER_Error* HugeCTRBackend::ParseParameterServer(const std::string& path
     }
   }
 
-  RETURN_IF_ERROR(TritonJsonHelper::parse(
-    parameter_server_config, "supportlonglong", &support_int64_key_, true));
+  common::TritonJson::Value json;
+
+  RETURN_IF_ERROR(TritonJsonHelper::parse(support_int64_key_,
+    parameter_server_config, "supportlonglong", true));
   HCTR_TRITON_LOG(INFO, "Support 64-bit keys = ", support_int64_key_);
 
+  // CPU memory database parameters.
+  HugeCTR::CPUMemoryDatabaseParams cpu_memory_db_params;
+  if (parameter_server_config.Find("cpu_memory_db", &json)) {
+    auto& params = cpu_memory_db_params;
+    const std::string log_prefix = "CPU memory database; ";
+    const char* key;
 
-  // *** Database backend related parameters ***
+    key = "type";
+    RETURN_IF_ERROR(TritonJsonHelper::parse(params.backend, json, key, false));
+    HCTR_TRITON_LOG(INFO, log_prefix, "backend = ", params.backend);
 
-  // Field: "db_type"
-  HugeCTR::DATABASE_TYPE db_type;
-  {
-    std::string tmp;
-    RETURN_IF_ERROR(TritonJsonHelper::parse(parameter_server_config, "db_type", tmp, false));
-    HCTR_TRITON_LOG(INFO, "Database type = ", tmp);
+    // Backend specific.
+    key = "num_partitions";
+    RETURN_IF_ERROR(TritonJsonHelper::parse(params.num_partitions, json, key, false));
+    HCTR_TRITON_LOG(INFO, log_prefix, "number of partitions = ", params.num_partitions);
 
-    if (tmp == "local") {
-      db_type = HugeCTR::DATABASE_TYPE::LOCAL;
-    }
-    else if (tmp == "rocksdb") {
-      db_type = HugeCTR::DATABASE_TYPE::ROCKSDB;
-    }
-    else if (tmp == "redis") {
-      db_type = HugeCTR::DATABASE_TYPE::REDIS;
-    }
-    else if (tmp == "hierarchy") {
-      db_type = HugeCTR::DATABASE_TYPE::HIERARCHY;
-    }
-    else {
-      HCTR_TRITON_LOG(WARN, "\"db_type\" was not configured. Defaulting to \"local\" database.");
-      db_type = HugeCTR::DATABASE_TYPE::LOCAL;
-    }
-  }
+    key = "overflow_policy";
+    RETURN_IF_ERROR(TritonJsonHelper::parse(params.overflow_policy, json, key, false));
+    HCTR_TRITON_LOG(INFO, log_prefix, "overflow policy = ", params.overflow_policy);
 
-  float cache_size_percentage_redis = 0.5;
-  RETURN_IF_ERROR(TritonJsonHelper::parse(
-    parameter_server_config, "cache_size_percentage_redis", &cache_size_percentage_redis, false));
-  HCTR_TRITON_LOG(INFO, "Redis cache proportion = ", cache_size_percentage_redis);
+    key = "partition_overflow_margin";
+    RETURN_IF_ERROR(TritonJsonHelper::parse(params.partition_overflow_margin, json, key, false));
+    HCTR_TRITON_LOG(INFO, log_prefix, "partition overflow margin = ",
+                    params.partition_overflow_margin);
 
-  std::string redis_ip = "127.0.0.1:7000";
-  RETURN_IF_ERROR(TritonJsonHelper::parse(
-    parameter_server_config, "redis_ip", redis_ip, false));
-  HCTR_TRITON_LOG(INFO, "Redis IP = ", redis_ip);
-
-  std::string rocksdb_path = "";
-  RETURN_IF_ERROR(TritonJsonHelper::parse(
-    parameter_server_config, "rocksdb_path", rocksdb_path, false));
-  HCTR_TRITON_LOG(INFO, "RocksDB path = ", rocksdb_path);
-
-  // *** Real-time update related paramters ***
-
-  // Field: cpu_memory_db_update_source
-  HugeCTR::PSUpdateSource_t cpu_memory_db_update_source;
-  {
-    std::string tmp = "none";
+    key = "partition_overflow_resolution_target";
     RETURN_IF_ERROR(TritonJsonHelper::parse(
-      parameter_server_config, "cpu_memory_db_update_source", tmp, false));
-    HCTR_TRITON_LOG(INFO, "CPU memory database update source = ", tmp);
+      params.partition_overflow_resolution_target, json, key, false));
+    HCTR_TRITON_LOG(INFO, log_prefix, "partition overflow resolution target = ", 
+                    params.partition_overflow_resolution_target);
 
-    if (tmp == "none") {
-      cpu_memory_db_update_source = HugeCTR::PSUpdateSource_t::None;
-    }
-    else if (tmp == "kafka") {
-      cpu_memory_db_update_source = HugeCTR::PSUpdateSource_t::Kafka;
-    }
-    else {
-      return HCTR_TRITON_ERROR(INVALID_ARG,
-        "Configured value for cpu_memory_db_update_source is invalid!");
-    }
+    // Initialization related.
+    key = "initial_cache_rate";
+    RETURN_IF_ERROR(TritonJsonHelper::parse(params.initial_cache_rate, json, key, false));
+    HCTR_TRITON_LOG(INFO, log_prefix, "initial cache rate = ", params.initial_cache_rate);
+
+    // Real-time update mechanism related.
+    key = "update_source";
+    RETURN_IF_ERROR(TritonJsonHelper::parse(params.update_source, json, key, false));
+    HCTR_TRITON_LOG(INFO, log_prefix, "update source = ", params.update_source);
+
+    key = "update_filters";
+    RETURN_IF_ERROR(TritonJsonHelper::parse(params.update_filters, json, key, false));
+    HCTR_TRITON_LOG(INFO, log_prefix, "update filters = [",
+                   hctr_str_join(", ", params.update_filters), "]");
   }
-  
-  // Field: distributed_db_update_source
-  HugeCTR::PSUpdateSource_t distributed_db_update_source;
-  {
-    std::string tmp = "none";
+
+  // Distributed database parameters.
+  HugeCTR::DistributedDatabaseParams distributed_db_params;
+  if (parameter_server_config.Find("distributed_db", &json)) {
+    auto& params = distributed_db_params;
+    const std::string log_prefix = "Distributed database; ";
+    const char* key;
+
+    key = "type";
+    RETURN_IF_ERROR(TritonJsonHelper::parse(params.backend, json, key, false));
+    HCTR_TRITON_LOG(INFO, log_prefix, "type = ", params.backend);
+
+    // Backend specific.
+    key = "address";
+    RETURN_IF_ERROR(TritonJsonHelper::parse(params.address, json, key, false));
+    HCTR_TRITON_LOG(INFO, log_prefix, "address = ", params.address);
+
+    key = "user_name";
+    RETURN_IF_ERROR(TritonJsonHelper::parse(params.user_name, json, key, false));
+    HCTR_TRITON_LOG(INFO, log_prefix, "user name = ", params.user_name);
+
+    key = "password";
+    RETURN_IF_ERROR(TritonJsonHelper::parse(params.password, json, key, false));
+    HCTR_TRITON_LOG(INFO, log_prefix, "password = <",
+                    params.password.empty() ? "empty" : "specified", ">");
+
+    key = "num_partitions";
+    RETURN_IF_ERROR(TritonJsonHelper::parse(params.num_partitions, json, key, false));
+    HCTR_TRITON_LOG(INFO, log_prefix, "number of partitions = ", params.num_partitions);
+
+    key = "max_get_batch_size";
+    RETURN_IF_ERROR(TritonJsonHelper::parse(params.max_get_batch_size, json, key, false));
+    HCTR_TRITON_LOG(INFO, log_prefix, "max. batch size (GET) = ", params.max_get_batch_size);
+
+    key = "max_set_batch_size";
+    RETURN_IF_ERROR(TritonJsonHelper::parse(params.max_set_batch_size, json, key, false));
+    HCTR_TRITON_LOG(INFO, log_prefix, "max. batch size (SET) = ", params.max_set_batch_size);
+
+    key = "overflow_policy";
+    RETURN_IF_ERROR(TritonJsonHelper::parse(params.overflow_policy, json, key, false));
+    HCTR_TRITON_LOG(INFO, log_prefix, "overflow policy = ", params.overflow_policy);
+
+    key = "partition_overflow_margin";
+    RETURN_IF_ERROR(TritonJsonHelper::parse(params.partition_overflow_margin, json, key, false));
+    HCTR_TRITON_LOG(INFO, log_prefix, "partition overflow margin = ",
+                    params.partition_overflow_margin);
+
+    key = "partition_overflow_resolution_target";
     RETURN_IF_ERROR(TritonJsonHelper::parse(
-      parameter_server_config, "distributed_db_update_source", tmp, false));
-    HCTR_TRITON_LOG(INFO, "Distributed database update source = ", tmp);
+      params.partition_overflow_resolution_target, json, key, false));
+    HCTR_TRITON_LOG(INFO, log_prefix, "partition overflow resolution target = ",
+                    params.partition_overflow_resolution_target);
 
-    if (tmp == "none") {
-      distributed_db_update_source = HugeCTR::PSUpdateSource_t::None;
-    }
-    else if (tmp == "kafka") {
-      distributed_db_update_source = HugeCTR::PSUpdateSource_t::Kafka;
-    }
-    else {
-      return HCTR_TRITON_ERROR(INVALID_ARG,
-        "Configured value for distributed_db_update_source is invalid!");
-    }
+    // Initialization related.
+    key = "initial_cache_rate";
+    RETURN_IF_ERROR(TritonJsonHelper::parse(params.initial_cache_rate, json, key, false));
+    HCTR_TRITON_LOG(INFO, log_prefix, "initial cache rate = ", params.initial_cache_rate);
+
+    // Real-time update mechanism related.
+    key = "update_source";
+    RETURN_IF_ERROR(TritonJsonHelper::parse(params.update_source, json, key, false));
+    HCTR_TRITON_LOG(INFO, log_prefix, "update source = ", params.update_source);
+
+    key = "update_filters";
+    RETURN_IF_ERROR(TritonJsonHelper::parse(params.update_filters, json, key, false));
+    HCTR_TRITON_LOG(INFO, log_prefix, "update filters = [",
+                    hctr_str_join(", ", params.update_filters), "]");
   }
 
-  // Field: persistent_db_update_source
-  HugeCTR::PSUpdateSource_t persistent_db_update_source;
-  {
-    std::string tmp = "none";
-    RETURN_IF_ERROR(TritonJsonHelper::parse(
-      parameter_server_config, "persistent_db_update_source", tmp, false));
-    HCTR_TRITON_LOG(INFO, "Persistent database update source = ", tmp);
+  // Persistent database parameters.
+  HugeCTR::PersistentDatabaseParams persistent_db_params;
+  if (parameter_server_config.Find("persistent_db", &json)) {
+    auto& params = persistent_db_params;
+    const std::string log_prefix = "Persistent database; ";
+    const char* key;
 
-    if (tmp == "none") {
-      persistent_db_update_source = HugeCTR::PSUpdateSource_t::None;
-    }
-    else if (tmp == "kafka") {
-      persistent_db_update_source = HugeCTR::PSUpdateSource_t::Kafka;
-    }
-    else {
-      return HCTR_TRITON_ERROR(INVALID_ARG,
-        "Configured value for persistent_db_update_source is invalid!");
-    }
+    key = "type";
+    RETURN_IF_ERROR(TritonJsonHelper::parse(params.backend, json, key, false));
+    HCTR_TRITON_LOG(INFO, log_prefix, "type = ", params.backend);
+
+    // Backend specific.
+    key = "path";
+    RETURN_IF_ERROR(TritonJsonHelper::parse(params.path, json, key, false));
+    HCTR_TRITON_LOG(INFO, log_prefix, "path = ", params.path);
+
+    key = "num_threads";
+    RETURN_IF_ERROR(TritonJsonHelper::parse(params.num_threads, json, key, false));
+    HCTR_TRITON_LOG(INFO, log_prefix, "number of threads = ", params.num_threads);
+
+    key = "read_only";
+    RETURN_IF_ERROR(TritonJsonHelper::parse(params.read_only, json, key, false));
+    HCTR_TRITON_LOG(INFO, log_prefix, "read-only = ", params.read_only);
+
+    key = "max_get_batch_size";
+    RETURN_IF_ERROR(TritonJsonHelper::parse(params.max_get_batch_size, json, key, false));
+    HCTR_TRITON_LOG(INFO, log_prefix, "max. batch size (GET) = ", params.max_get_batch_size);
+
+    key = "max_set_batch_size";
+    RETURN_IF_ERROR(TritonJsonHelper::parse(params.max_set_batch_size, json, key, false));
+    HCTR_TRITON_LOG(INFO, log_prefix, "max. batch size (SET) = ", params.max_set_batch_size);
+
+    // Real-time update mechanism related.
+    key = "update_source";
+    RETURN_IF_ERROR(TritonJsonHelper::parse(params.update_source, json, key, false));
+    HCTR_TRITON_LOG(INFO, log_prefix, "update source = ", params.update_source);
+
+    key = "update_filters";
+    RETURN_IF_ERROR(TritonJsonHelper::parse(params.update_filters, json, key, false));
+    HCTR_TRITON_LOG(INFO, log_prefix, "update filters = [",
+                    hctr_str_join(", ", params.update_filters), "]");
   }
-
-  // Field: cpu_memory_db_update_filters
-  std::vector<std::string> cpu_memory_db_update_filters;
-  RETURN_IF_ERROR(TritonJsonHelper::parse(
-    parameter_server_config, "cpu_memory_db_update_filters", cpu_memory_db_update_filters, false));
-  HCTR_TRITON_LOG(INFO, "CPU memory database update filters = [", hctr_str_join(", ", cpu_memory_db_update_filters), "]");
-
-  // Field: cpu_memory_db_update_filters
-  std::vector<std::string> persistent_db_update_filters;
-  RETURN_IF_ERROR(TritonJsonHelper::parse(
-    parameter_server_config, "persistent_db_update_filters", persistent_db_update_filters, false));
-  HCTR_TRITON_LOG(INFO, "Persistent database update filters = [", hctr_str_join(", ", persistent_db_update_filters), "]");
   
   // Field: kafka_brokers
   std::string kafka_brokers = "127.0.0.1:9092";
   RETURN_IF_ERROR(TritonJsonHelper::parse(
-    parameter_server_config, "kafka_brokers", kafka_brokers, false));
+    kafka_brokers, parameter_server_config, "kafka_brokers", false));
   HCTR_TRITON_LOG(INFO, "Kafka brokers = ", kafka_brokers);
 
-  // Field: models
-  common::TritonJson::Value models;
-  parameter_server_config.MemberAsArray("models", &models);
-  if (models.ArraySize() == 0) {
+  // Model configurations.
+  parameter_server_config.MemberAsArray("models", &json);
+  if (json.ArraySize() == 0) {
     HCTR_TRITON_LOG(WARN, "No model configurations in JSON. Is the file formatted correctly?");
   }
 
-  for (size_t model_index = 0; model_index < models.ArraySize(); model_index++) {
-    common::TritonJson::Value model;
-    models.IndexAsObject(model_index, &model);
+  for (size_t model_index = 0; model_index < json.ArraySize(); model_index++) {
+    common::TritonJson::Value json_obj;
+    json.IndexAsObject(model_index, &json_obj);
 
     // Network file.
     {
       std::string tmp;
-      RETURN_IF_ERROR(TritonJsonHelper::parse(
-        model, "network_file", tmp, true));
-        model_network_files.emplace_back(tmp);
+      RETURN_IF_ERROR(TritonJsonHelper::parse(tmp, json_obj, "network_file", true));
       HCTR_TRITON_LOG(INFO, "Model network file path = ", tmp);
+      model_network_files.emplace_back(tmp);
     }
 
     // InferenceParams constructor order (non-default-filled arguments): 
 
     // [0] model_name -> std::string
     std::string model_name;
-    RETURN_IF_ERROR(TritonJsonHelper::parse(
-      model, "model", model_name, true));
+    RETURN_IF_ERROR(TritonJsonHelper::parse(model_name, json_obj, "model", true));
     HCTR_TRITON_LOG(INFO, "Model name = ", model_name);
+
+    const std::string log_prefix = hctr_str_concat("Model '", model_name, "'; ");
 
     // [1] max_batch_size -> size_t
     size_t max_batch_size = 0;
-    RETURN_IF_ERROR(TritonJsonHelper::parse(
-      model, "max_batch_size", &max_batch_size, true));
-    HCTR_TRITON_LOG(INFO, "Model '", model_name, "'; ",
-      "max. batch size = ", max_batch_size);
+    RETURN_IF_ERROR(TritonJsonHelper::parse(max_batch_size, json_obj, "max_batch_size", true));
+    HCTR_TRITON_LOG(INFO, log_prefix, "max. batch size = ", max_batch_size);
 
     // [3] dense_model_file -> std::string
     std::string dense_file;
-    RETURN_IF_ERROR(TritonJsonHelper::parse(
-      model, "dense_file", dense_file, true));
-    HCTR_TRITON_LOG(INFO, "Model '", model_name, "'; ",
-      "dense model file = ", dense_file);
+    RETURN_IF_ERROR(TritonJsonHelper::parse(dense_file, json_obj, "dense_file", true));
+    HCTR_TRITON_LOG(INFO, log_prefix, "dense model file = ", dense_file);
 
     // [4] sparse_model_files -> std::vector<std::string>
     std::vector<std::string> sparse_files;
-    RETURN_IF_ERROR(TritonJsonHelper::parse(
-      model, "sparse_files", sparse_files, true));
-    HCTR_TRITON_LOG(INFO, "Model '", model_name, "'; ",
-      "sparse model files = [", hctr_str_join(", ", sparse_files), "]");
+    RETURN_IF_ERROR(TritonJsonHelper::parse(sparse_files, json_obj, "sparse_files", true));
+    HCTR_TRITON_LOG(INFO, log_prefix, "sparse model files = [",
+      hctr_str_join(", ", sparse_files), "]");
 
     // [5] device_id -> int
     const int device_id = 0;
 
     // [6] use_gpu_embedding_cache -> bool
     bool use_gpu_embedding_cache = true;
-    RETURN_IF_ERROR(TritonJsonHelper::parse(
-      model, "gpucache", &use_gpu_embedding_cache, true));
-    HCTR_TRITON_LOG(INFO, "Model '", model_name, "'; ",
-      "use GPU embedding cache = ", use_gpu_embedding_cache);
+    RETURN_IF_ERROR(TritonJsonHelper::parse(use_gpu_embedding_cache, json_obj, "gpucache", true));
+    HCTR_TRITON_LOG(INFO, log_prefix, "use GPU embedding cache = ", use_gpu_embedding_cache);
 
     // [2] hit_rate_threshold -> float
     float hit_rate_threshold = 0.55;
     RETURN_IF_ERROR(TritonJsonHelper::parse(
-      model, "hit_rate_threshold", &hit_rate_threshold, use_gpu_embedding_cache));
-    HCTR_TRITON_LOG(INFO, "Model '", model_name, "'; ",
-      "hit rate threshold = ", hit_rate_threshold);
+      hit_rate_threshold, json_obj, "hit_rate_threshold", use_gpu_embedding_cache));
+    HCTR_TRITON_LOG(INFO, log_prefix, "hit rate threshold = ", hit_rate_threshold);
 
     // [7] cache_size_percentage -> float
     float cache_size_percentage = 0.55;
     RETURN_IF_ERROR(TritonJsonHelper::parse(
-      model, "gpucacheper", &cache_size_percentage, use_gpu_embedding_cache));
-    HCTR_TRITON_LOG(INFO, "Model '", model_name, "'; ",
-      "per model GPU cache = ", cache_size_percentage);
+      cache_size_percentage, json_obj, "gpucacheper", use_gpu_embedding_cache));
+    HCTR_TRITON_LOG(INFO, log_prefix, "per model GPU cache = ", cache_size_percentage);
 
     // [8] i64_input_key -> bool
     const bool i64_input_key = support_int64_key_;
 
-    HugeCTR::InferenceParams infer_param(model_name,
-                                         max_batch_size,
-                                         hit_rate_threshold,
-                                         dense_file,
-                                         sparse_files,
-                                         device_id,
-                                         use_gpu_embedding_cache,
-                                         cache_size_percentage,
-                                         i64_input_key);
-    
-    // TODO: Move to paramter server common parameters!
-    infer_param.db_type = db_type;
-    infer_param.redis_ip = redis_ip;
-    infer_param.rocksdb_path = rocksdb_path;
-    infer_param.cache_size_percentage_redis = cache_size_percentage_redis;
+    HugeCTR::InferenceParams params(model_name,
+                                    max_batch_size,
+                                    hit_rate_threshold,
+                                    dense_file,
+                                    sparse_files,
+                                    device_id,
+                                    use_gpu_embedding_cache,
+                                    cache_size_percentage,
+                                    i64_input_key);
 
-    // Field: number_of_worker_buffers_in_pool
+    const char* key;
+
+    key = "num_of_worker_buffer_in_pool";
     RETURN_IF_ERROR(TritonJsonHelper::parse(
-      model, "num_of_worker_buffer_in_pool",
-      &infer_param.number_of_worker_buffers_in_pool, true));
-    HCTR_TRITON_LOG(INFO, "Model '", model_name, "'; ",
-      "num. pool worker buffers = ", infer_param.number_of_worker_buffers_in_pool);
+      params.number_of_worker_buffers_in_pool, json_obj, key, true));
+    HCTR_TRITON_LOG(INFO, log_prefix, "num. pool worker buffers = ",
+                    params.number_of_worker_buffers_in_pool);
 
-    // Field: number_of_refresh_buffers_in_pool
+    key = "num_of_refresher_buffer_in_pool";
     RETURN_IF_ERROR(TritonJsonHelper::parse(
-      model, "num_of_refresher_buffer_in_pool",
-      &infer_param.number_of_refresh_buffers_in_pool, true));
-    HCTR_TRITON_LOG(INFO, "Model '", model_name, "'; ",
-      "num. pool refresh buffers = ", infer_param.number_of_refresh_buffers_in_pool);
+      params.number_of_refresh_buffers_in_pool, json_obj, key, true));
+    HCTR_TRITON_LOG(INFO, log_prefix, "num. pool refresh buffers = ",
+                    params.number_of_refresh_buffers_in_pool);
 
-    // Field: cache_refresh_percentage_per_iteration
+    key = "cache_refresh_percentage_per_iteration";
     RETURN_IF_ERROR(TritonJsonHelper::parse(
-      model, "cache_refresh_percentage_per_iteration",
-      &infer_param.cache_refresh_percentage_per_iteration, true));
-    HCTR_TRITON_LOG(INFO, "Model '", model_name, "'; ",
-      "cache refresh rate per iteration = ", infer_param.cache_refresh_percentage_per_iteration);
+      params.cache_refresh_percentage_per_iteration, json_obj, key, true));
+    HCTR_TRITON_LOG(INFO, log_prefix, "cache refresh rate per iteration = ",
+                    params.cache_refresh_percentage_per_iteration);
 
-    // Field: deployed_devices
-    infer_param.deployed_devices.clear();
+    key = "deployed_device_list";
+    params.deployed_devices.clear();
     RETURN_IF_ERROR(TritonJsonHelper::parse(
-      model, "deployed_device_list", infer_param.deployed_devices, true));
-    infer_param.device_id = infer_param.deployed_devices.back();
-    HCTR_TRITON_LOG(INFO, "Model '", model_name, "'; ",
-      "deployed device list = [", hctr_str_join(", ", infer_param.deployed_devices), "]");
+      params.deployed_devices, json_obj, key, true));
+    params.device_id = params.deployed_devices.back();
+    HCTR_TRITON_LOG(INFO, log_prefix, "deployed device list = [",
+                    hctr_str_join(", ", params.deployed_devices), "]");
 
-    // Field: "default_value_for_each_table"
-    infer_param.default_value_for_each_table.clear();
+    key = "default_value_for_each_table";
+    params.default_value_for_each_table.clear();
     RETURN_IF_ERROR(TritonJsonHelper::parse(
-      model, "default_value_for_each_table",
-      infer_param.default_value_for_each_table, true));
-    HCTR_TRITON_LOG(INFO, "Model '", model_name, "'; ",
-      "default value for each table = [", hctr_str_join(", ", infer_param.default_value_for_each_table), "]");
+      params.default_value_for_each_table, json_obj, key, true));
+    HCTR_TRITON_LOG(INFO, log_prefix, "default value for each table = [",
+                    hctr_str_join(", ", params.default_value_for_each_table), "]");
 
-    // TODO: Move to paramter server common parameters!
-    infer_param.cpu_memory_db_update_source = cpu_memory_db_update_source;
-    infer_param.distributed_db_update_source = distributed_db_update_source;
-    infer_param.persistent_db_update_source = persistent_db_update_source;
-
-    infer_param.cpu_memory_db_update_filters = cpu_memory_db_update_filters;
-    infer_param.persistent_db_update_filters = persistent_db_update_filters;
-
-    infer_param.kafka_brokers = kafka_brokers;
+    // TODO: Move to paramter server common parameters?
+    params.cpu_memory_db = cpu_memory_db_params;
+    params.distributed_db = distributed_db_params;
+    params.persistent_db = persistent_db_params;
+    params.kafka_brokers = kafka_brokers;
     
     // Done!
-    if (!inference_params_map.emplace(model_name, infer_param).second) {
+    if (!inference_params_map.emplace(model_name, params).second) {
       return HCTR_TRITON_ERROR(INVALID_ARG,
         "Name conflict. Multiple of the configured models are named exactly the same!");
     }
@@ -855,13 +876,13 @@ TRITONSERVER_Error* ModelState::ValidateModelConfig() {
       
       // Input name.
       std::string name;
-      RETURN_IF_ERROR(TritonJsonHelper::parse(input, "name", name, true));
+      RETURN_IF_ERROR(TritonJsonHelper::parse(name, input, "name", true));
       HCTR_RETURN_TRITON_ERROR_IF_FALSE(GetInputmap().count(name) > 0, INVALID_ARG,
         "expected input name as DES,CATCOLUMN and ROWINDEX, but got ", name);
 
       // Datatype.
       std::string data_type;
-      RETURN_IF_ERROR(TritonJsonHelper::parse(input, "data_type", data_type, true));
+      RETURN_IF_ERROR(TritonJsonHelper::parse(data_type, input, "data_type", true));
       if (name == "DES") {
         HCTR_RETURN_TRITON_ERROR_IF_FALSE(data_type == "TYPE_FP32", INVALID_ARG,
           "expected DES input datatype as TYPE_FP32, got ", data_type);
@@ -895,7 +916,7 @@ TRITONSERVER_Error* ModelState::ValidateModelConfig() {
     RETURN_IF_ERROR(outputs.IndexAsObject(0, &output));
 
     std::string data_type;
-    RETURN_IF_ERROR(TritonJsonHelper::parse(output, "data_type", data_type, true));
+    RETURN_IF_ERROR(TritonJsonHelper::parse(data_type, output, "data_type", true));
     HCTR_RETURN_TRITON_ERROR_IF_FALSE(data_type == "TYPE_FP32", INVALID_ARG,
       "expected  output datatype as TYPE_FP32, got ", data_type);
 
@@ -949,17 +970,17 @@ TRITONSERVER_Error* ModelState::ParseModelConfig() {
     common::TritonJson::Value value;
 
     if (parameters.Find("slots", &value)) {
-      TritonJsonHelper::parse(value, "string_value", &slot_num_, true);
+      RETURN_IF_ERROR(TritonJsonHelper::parse(slot_num_, value, "string_value", true));
       HCTR_TRITON_LOG(INFO, "slots set = ", slot_num_);
     }
 
     if (parameters.Find("des_feature_num", &value)) {
-      TritonJsonHelper::parse(value, "string_value", &dese_num_, true);
+      RETURN_IF_ERROR(TritonJsonHelper::parse(dese_num_, value, "string_value", true));
       HCTR_TRITON_LOG(INFO, "desene number = ", dese_num_);
     }
 
     if (parameters.Find("cat_feature_num", &value)) {
-      TritonJsonHelper::parse(value, "string_value", &cat_num_, true);
+      RETURN_IF_ERROR(TritonJsonHelper::parse(cat_num_, value, "string_value", true));
       HCTR_TRITON_LOG(INFO, "cat_feature number = ", cat_num_);
 
       if (cat_num_ <= 0) {
@@ -969,33 +990,33 @@ TRITONSERVER_Error* ModelState::ParseModelConfig() {
     }
     
     if (parameters.Find("embedding_vector_size", &value)) {
-      TritonJsonHelper::parse(value, "string_value", &embedding_size_, true);
+      RETURN_IF_ERROR(TritonJsonHelper::parse(embedding_size_, value, "string_value", true));
       HCTR_TRITON_LOG(INFO, "embedding size = ", embedding_size_);
     }
 
     if (parameters.Find("max_nnz", &value)) {
-      TritonJsonHelper::parse(value, "string_value", &max_nnz_, true);
+      RETURN_IF_ERROR(TritonJsonHelper::parse(max_nnz_, value, "string_value", true));
       HCTR_TRITON_LOG(INFO, "maxnnz = ", max_nnz_);
     }
 
     if (parameters.Find("refresh_interval", &value)) {
-      TritonJsonHelper::parse(value, "string_value", &refresh_interval_, true);
+      RETURN_IF_ERROR(TritonJsonHelper::parse(refresh_interval_, value, "string_value", true));
       HCTR_TRITON_LOG(INFO, "refresh_interval = ", refresh_interval_);
     }
 
     if (parameters.Find("refresh_delay", &value)) {
-      TritonJsonHelper::parse(value, "string_value", &refresh_delay_, true);
+      RETURN_IF_ERROR(TritonJsonHelper::parse(refresh_delay_, value, "string_value", true));
       HCTR_TRITON_LOG(INFO, "refresh_delay = ", refresh_interval_);
     }
 
     if (parameters.Find("config", &value)) {
-      TritonJsonHelper::parse(value, "string_value", hugectr_config_, true);
+      RETURN_IF_ERROR(TritonJsonHelper::parse(hugectr_config_, value, "string_value", true));
       HCTR_TRITON_LOG(INFO, "HugeCTR model config path = ", hugectr_config_);
     }
 
     if (parameters.Find("sparse_files", &value)) {
       std::string tmp;
-      TritonJsonHelper::parse(value, "string_value", tmp, true);
+      RETURN_IF_ERROR(TritonJsonHelper::parse(tmp, value, "string_value", true));
       HCTR_TRITON_LOG(INFO, "sparse_files = ", tmp);
 
       Model_Inference_Para.sparse_model_files.clear();
@@ -1003,12 +1024,13 @@ TRITONSERVER_Error* ModelState::ParseModelConfig() {
     }
 
     if (parameters.Find("dense_file", &value)) {
-      TritonJsonHelper::parse(value, "string_value", Model_Inference_Para.dense_model_file, true);
+      RETURN_IF_ERROR(TritonJsonHelper::parse(
+        Model_Inference_Para.dense_model_file, value, "string_value", true));
       HCTR_TRITON_LOG(INFO, "dense_file = ", Model_Inference_Para.dense_model_file);
     }
     
     if (parameters.Find("gpucache", &value)) {
-      TritonJsonHelper::parse(value, "string_value", &support_gpu_cache_, true);
+      RETURN_IF_ERROR(TritonJsonHelper::parse(support_gpu_cache_, value, "string_value", true));
       HCTR_TRITON_LOG(INFO, "support gpu cache = ", support_gpu_cache_);
 
       if (support_gpu_cache_ != Model_Inference_Para.use_gpu_embedding_cache) {
@@ -1020,14 +1042,14 @@ TRITONSERVER_Error* ModelState::ParseModelConfig() {
     }
 
     if (parameters.Find("mixed_precision", &value)) {
-      TritonJsonHelper::parse(value, "string_value", &use_mixed_precision_, true);
+      RETURN_IF_ERROR(TritonJsonHelper::parse(use_mixed_precision_, value, "string_value", true));
       HCTR_TRITON_LOG(INFO, "support mixed_precision = ", use_mixed_precision_);
 
       Model_Inference_Para.use_mixed_precision = use_mixed_precision_;
     }
 
     if (support_gpu_cache_ && parameters.Find("gpucacheper", &value)) {
-      TritonJsonHelper::parse(value, "string_value", &cache_size_per, true);
+      RETURN_IF_ERROR(TritonJsonHelper::parse(cache_size_per, value, "string_value", true));
       HCTR_TRITON_LOG(INFO, "gpu cache per = ", cache_size_per);
 
       if (cache_size_per > Model_Inference_Para.cache_size_percentage) {
@@ -1040,7 +1062,7 @@ TRITONSERVER_Error* ModelState::ParseModelConfig() {
     }
 
     if (support_gpu_cache_ && parameters.Find("hit_rate_threshold", &value)) {
-      TritonJsonHelper::parse(value, "string_value", &hit_rate_threshold, true);
+      RETURN_IF_ERROR(TritonJsonHelper::parse(hit_rate_threshold, value, "string_value", true));
       HCTR_TRITON_LOG(INFO, "hit-rate threshold = ", hit_rate_threshold);
 
       if (hit_rate_threshold > Model_Inference_Para.hit_rate_threshold) {
@@ -1053,12 +1075,12 @@ TRITONSERVER_Error* ModelState::ParseModelConfig() {
     }
 
     if (parameters.Find("label_dim", &value)) {
-      TritonJsonHelper::parse(value, "string_value", &label_dim_, true);
+      RETURN_IF_ERROR(TritonJsonHelper::parse(label_dim_, value, "string_value", true));
       HCTR_TRITON_LOG(INFO, "Label dim = ", label_dim_);
     }
 
     if (parameters.Find("embeddingkey_long_type", &value)) {
-      TritonJsonHelper::parse(value, "string_value", &support_int64_key_, true);
+      RETURN_IF_ERROR(TritonJsonHelper::parse(support_int64_key_, value, "string_value", true));
       HCTR_TRITON_LOG(INFO, "support 64-bit embedding key = ", support_int64_key_);
 
       Model_Inference_Para.i64_input_key = support_int64_key_;
