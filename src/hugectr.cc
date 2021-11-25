@@ -590,8 +590,8 @@ class ModelState {
   int64_t label_dim_=1;
   float cache_size_per=0.5;
   float hit_rate_threshold=0.8;
-  size_t refresh_interval_ = 0;
-  size_t refresh_delay_ = 0;
+  float refresh_interval_ = 0;
+  float refresh_delay_ = 0;
   std::string hugectr_config_;
   common::TritonJson::Value model_config_;
   std::vector<std::string> model_config_path;
@@ -871,7 +871,7 @@ ModelState::ParseModelConfig()
       std::string interval;
       (refresh_interval.MemberAsString(
           "string_value", &interval));
-      refresh_interval_ = std::stoi(interval);
+      refresh_interval_ = std::stof(interval);
       LOG_MESSAGE(TRITONSERVER_LOG_INFO,(std::string("refresh_interval is ") + std::to_string(refresh_interval_)).c_str());
     }
 
@@ -880,7 +880,7 @@ ModelState::ParseModelConfig()
       std::string delay_val;
       (refresh_delay.MemberAsString(
           "string_value", &delay_val));
-      refresh_delay_ = std::stoi(delay_val);
+      refresh_delay_ = std::stof(delay_val);
       LOG_MESSAGE(TRITONSERVER_LOG_INFO,(std::string("refresh_delay is ") + std::to_string(refresh_delay_)).c_str());
     }
 
@@ -1042,11 +1042,11 @@ ModelState::Create_EmbeddingCache()
     } 
   }
 
-  if(refresh_delay_ > 0){
+  if(refresh_delay_ > 1e-6){
     //refresh embedding cache once after delay time
     timer.startonce(refresh_delay_,std::bind(&ModelState::Refresh_Embedding_Cache,this));
   }
-  if(refresh_interval_ > 0 ){
+  if(refresh_interval_ > 1e-6 ){
     //refresh embedding cache once based on period time
     timer.start(refresh_interval_,std::bind(&ModelState::Refresh_Embedding_Cache,this));
   }
