@@ -806,7 +806,7 @@ ModelState::ParseModelConfig()
     RETURN_ERROR_IF_FALSE(kind=="KIND_GPU", TRITONSERVER_ERROR_INVALID_ARG,
     std::string("expect GPU kind instance in instance group , got ")+kind);
     RETURN_IF_ERROR(instance.MemberAsInt("count", &count));
-    RETURN_ERROR_IF_FALSE(count < Model_Inference_Para.number_of_worker_buffers_in_pool, TRITONSERVER_ERROR_INVALID_ARG,
+    RETURN_ERROR_IF_TRUE(count > Model_Inference_Para.number_of_worker_buffers_in_pool, TRITONSERVER_ERROR_INVALID_ARG,
       std::string("expect the number of instance(in instance_group) less than number_of_worker_buffers_in_pool that confifured in Parameter Server json file , got ") +
       std::to_string(count));
     RETURN_IF_ERROR(backend::ParseShape(instance, "gpus", &gpu_list));
