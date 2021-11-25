@@ -140,7 +140,7 @@ class TritonJsonHelper {
   // --- ENUM TYPES ---
 
   /**
-   * Maps JSON string values that represent a \p DatabaseBackend_t .
+   * Maps JSON string values that represent a \p DatabaseType_t .
    * @param value The place where the value should be stored.
    * @param json JSON object.
    * @param key Name of the member.
@@ -148,7 +148,7 @@ class TritonJsonHelper {
    *                 with \p RETURN_IF_ERROR if the key does not exist.
    * @return \p nullptr or error value if error occurred.
    */
-  static TRITONSERVER_Error* parse(HugeCTR::DatabaseBackend_t& value,
+  static TRITONSERVER_Error* parse(HugeCTR::DatabaseType_t& value,
                                    const common::TritonJson::Value& json,
                                    const char* key, bool required);
   
@@ -166,7 +166,7 @@ class TritonJsonHelper {
                                    const char* key, bool required);
   
   /**
-   * Maps JSON string values that represent a \p DatabaseUpdateSource_t .
+   * Maps JSON string values that represent a \p UpdateSourceType_t .
    * @param value The place where the value should be stored.
    * @param json JSON object.
    * @param key Name of the member.
@@ -174,7 +174,7 @@ class TritonJsonHelper {
    *                 with \p RETURN_IF_ERROR if the key does not exist.
    * @return \p nullptr or error value if error occurred.
    */
-  static TRITONSERVER_Error* parse(HugeCTR::DatabaseUpdateSource_t& value,
+  static TRITONSERVER_Error* parse(HugeCTR::UpdateSourceType_t& value,
                                    const common::TritonJson::Value& json,
                                    const char* key, bool required);
   

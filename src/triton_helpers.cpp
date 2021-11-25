@@ -26,6 +26,7 @@
 
 #include <triton_helpers.hpp>
 #include <limits.h>
+#include <unordered_set>
 
 namespace triton { namespace backend { namespace hugectr {
 
@@ -155,41 +156,60 @@ TRITONSERVER_Error* TritonJsonHelper::parse(std::string& value, const common::Tr
 
 // --- ENUM TYPES ---
 
-TRITONSERVER_Error* TritonJsonHelper::parse(HugeCTR::DatabaseBackend_t& value,
+TRITONSERVER_Error* TritonJsonHelper::parse(HugeCTR::DatabaseType_t& value,
                                             const common::TritonJson::Value& json,
                                             const char* const key, const bool required) {
   std::string tmp;
   RETURN_IF_ERROR(parse(tmp, json, key, required));
-  tmp.erase(std::remove(tmp.begin(), tmp.end(), ' '), tmp.end());
-  tmp.erase(std::remove(tmp.begin(), tmp.end(), '_'), tmp.end());
   std::transform(tmp.begin(), tmp.end(), tmp.begin(),
-    [](const char c) { return std::tolower(c); });
+    [](const char c) { return (c == ' ' || c == '-') ? '_' : std::tolower(c); });
   
   if (tmp.empty() && !required) {
     // Do nothing; keep existing value.
-  }
-  else if (tmp == "disabled" || tmp == "disable") {
-    value = HugeCTR::DatabaseBackend_t::Disabled;
-  }
-  else if (tmp == "hashmap") {
-    value = HugeCTR::DatabaseBackend_t::HashMap;
-  }
-  else if (tmp == "parallelhashmap") {
-    value = HugeCTR::DatabaseBackend_t::ParallelHashMap;
-  }
-  else if (tmp == "redis") {
-    value = HugeCTR::DatabaseBackend_t::Redis;
-  }
-  else if (tmp == "rocksdb") {
-    value = HugeCTR::DatabaseBackend_t::RocksDB;
-  }
-  else {
-    return HCTR_TRITON_ERROR(INVALID_ARG, 
-      "Unable to map parameter '", key, "' = \"", tmp, "\" to DatabaseBackend_t!");
+    return nullptr;
   }
 
-  // HCTR_TRITON_LOG(INFO, key, ": \"", tmp, "\" (=", value, ")");
-  return nullptr;
+  HugeCTR::DatabaseType_t enum_value;
+  std::unordered_set<const char*> names;
+
+  enum_value = HugeCTR::DatabaseType_t::Disabled;
+  names = {hctr_enum_to_c_str(enum_value), "disable", "none"};
+  for (const char* name : names) if (tmp == name) {
+    value = enum_value;
+    return nullptr;
+  }
+
+  enum_value = HugeCTR::DatabaseType_t::HashMap;
+  names = {hctr_enum_to_c_str(enum_value), "hashmap", "hash", "map"};
+  for (const char* name : names) if (tmp == name) {
+    value = enum_value;
+    return nullptr;
+  }
+
+  enum_value = HugeCTR::DatabaseType_t::ParallelHashMap;
+  names = {hctr_enum_to_c_str(enum_value), "parallel_hashmap", "parallel_hash", "parallel_map"};
+  for (const char* name : names) if (tmp == name) {
+    value = enum_value;
+    return nullptr;
+  }
+
+  enum_value = HugeCTR::DatabaseType_t::RedisCluster;
+  names = {hctr_enum_to_c_str(enum_value), "redis"};
+  for (const char* name : names) if (tmp == name) {
+    value = enum_value;
+    return nullptr;
+  }
+
+  enum_value = HugeCTR::DatabaseType_t::RocksDB;
+  names = {hctr_enum_to_c_str(enum_value), "rocksdb", "rocks"};
+  for (const char* name : names) if (tmp == name) {
+    value = enum_value;
+    return nullptr;
+  }
+
+  // No match.
+  return HCTR_TRITON_ERROR(INVALID_ARG, 
+    "Unable to map parameter '", key, "' = \"", tmp, "\" to DatabaseType_t!");
 }
 
 TRITONSERVER_Error* TritonJsonHelper::parse(HugeCTR::DatabaseOverflowPolicy_t& value,
@@ -197,58 +217,69 @@ TRITONSERVER_Error* TritonJsonHelper::parse(HugeCTR::DatabaseOverflowPolicy_t& v
                                             const char* const key, const bool required) {
   std::string tmp;
   RETURN_IF_ERROR(parse(tmp, json, key, required));
-  tmp.erase(std::remove(tmp.begin(), tmp.end(), ' '), tmp.end());
-  tmp.erase(std::remove(tmp.begin(), tmp.end(), '_'), tmp.end());
   std::transform(tmp.begin(), tmp.end(), tmp.begin(),
-    [](const char c) { return std::tolower(c); });
+    [](const char c) { return (c == ' ') ? '_' : std::tolower(c); });
 
   if (tmp.empty() && !required) {
     // Do nothing; keep existing value.
-  }
-  else if (tmp == "donothing") {
-    value = HugeCTR::DatabaseOverflowPolicy_t::DoNothing;
-  }
-  else if (tmp == "evictoldest") {
-    value = HugeCTR::DatabaseOverflowPolicy_t::EvictOldest;
-  }
-  else if (tmp == "evictrandom") {
-    value = HugeCTR::DatabaseOverflowPolicy_t::EvictRandom;
-  }
-  else {
-    return HCTR_TRITON_ERROR(INVALID_ARG, 
-      "Unable to map parameter '", key, "' = \"", tmp, "\" to DatabaseOverflowPolicy_t!");
+    return nullptr;
   }
 
-  // HCTR_TRITON_LOG(INFO, key, ": \"", tmp, "\" (=", value, ")");
-  return nullptr;
+  HugeCTR::DatabaseOverflowPolicy_t enum_value;
+  std::unordered_set<const char*> names;
+
+  enum_value = HugeCTR::DatabaseOverflowPolicy_t::EvictOldest;
+  names = {hctr_enum_to_c_str(enum_value), "oldest"};
+  for (const char* name : names) if (tmp == name) {
+    value = enum_value;
+    return nullptr;
+  }
+
+  enum_value = HugeCTR::DatabaseOverflowPolicy_t::EvictRandom;
+  names = {hctr_enum_to_c_str(enum_value), "random"};
+  for (const char* name : names) if (tmp == name) {
+    value = enum_value;
+    return nullptr;
+  }
+
+  // No match.
+  return HCTR_TRITON_ERROR(INVALID_ARG, 
+    "Unable to map parameter '", key, "' = \"", tmp, "\" to DatabaseOverflowPolicy_t!");
 }
 
-TRITONSERVER_Error* TritonJsonHelper::parse(HugeCTR::DatabaseUpdateSource_t& value,
+TRITONSERVER_Error* TritonJsonHelper::parse(HugeCTR::UpdateSourceType_t& value,
                                             const common::TritonJson::Value& json,
                                             const char* const key, const bool required) {
   std::string tmp;
   RETURN_IF_ERROR(parse(tmp, json, key, required));
-  tmp.erase(std::remove(tmp.begin(), tmp.end(), ' '), tmp.end());
-  tmp.erase(std::remove(tmp.begin(), tmp.end(), '_'), tmp.end());
   std::transform(tmp.begin(), tmp.end(), tmp.begin(),
-    [](const char c) { return std::tolower(c); });
+    [](const char c) { return (c == ' ') ? '_' : std::tolower(c); });
 
   if (tmp.empty() && !required) {
     // Do nothing; keep existing value.
-  }
-  else if (tmp == "null") {
-    value = HugeCTR::DatabaseUpdateSource_t::Null;
-  }
-  else if (tmp == "kafka") {
-    value = HugeCTR::DatabaseUpdateSource_t::Kafka;
-  }
-  else {
-    return HCTR_TRITON_ERROR(INVALID_ARG, 
-      "Unable to map parameter '", key, "' = \"", tmp, "\" to DatabaseUpdateSource_t!");
+    return nullptr;
   }
 
-  // HCTR_TRITON_LOG(INFO, key, ": \"", tmp, "\" (=", value, ")");
-  return nullptr;
+  HugeCTR::UpdateSourceType_t enum_value;
+  std::unordered_set<const char*> names;
+
+  enum_value = HugeCTR::UpdateSourceType_t::Null;
+  names = {hctr_enum_to_c_str(enum_value), "none"};
+  for (const char* name : names) if (tmp == name) {
+    value = enum_value;
+    return nullptr;
+  }
+  
+  enum_value = HugeCTR::UpdateSourceType_t::KafkaMessageQueue;
+  names = {hctr_enum_to_c_str(enum_value), "kafka_mq", "kafka"};
+  for (const char* name : names) if (tmp == name) {
+    value = enum_value;
+    return nullptr;
+  }
+
+  // No match.
+  return HCTR_TRITON_ERROR(INVALID_ARG, 
+    "Unable to map parameter '", key, "' = \"", tmp, "\" to UpdateSourceType_t!");
 }
 
 

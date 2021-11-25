@@ -328,12 +328,12 @@ TRITONSERVER_Error* HugeCTRBackend::ParseParameterServer(const std::string& path
   HugeCTR::CPUMemoryDatabaseParams cpu_memory_db_params;
   if (parameter_server_config.Find("cpu_memory_db", &json)) {
     auto& params = cpu_memory_db_params;
-    const std::string log_prefix = "CPU memory database; ";
+    const std::string log_prefix = "CPU memory database -> ";
     const char* key;
 
     key = "type";
-    RETURN_IF_ERROR(TritonJsonHelper::parse(params.backend, json, key, false));
-    HCTR_TRITON_LOG(INFO, log_prefix, "backend = ", params.backend);
+    RETURN_IF_ERROR(TritonJsonHelper::parse(params.type, json, key, false));
+    HCTR_TRITON_LOG(INFO, log_prefix, "type = ", params.type);
 
     // Backend specific.
     key = "num_partitions";
@@ -361,11 +361,8 @@ TRITONSERVER_Error* HugeCTRBackend::ParseParameterServer(const std::string& path
     HCTR_TRITON_LOG(INFO, log_prefix, "initial cache rate = ", params.initial_cache_rate);
 
     // Real-time update mechanism related.
-    key = "update_source";
-    RETURN_IF_ERROR(TritonJsonHelper::parse(params.update_source, json, key, false));
-    HCTR_TRITON_LOG(INFO, log_prefix, "update source = ", params.update_source);
-
     key = "update_filters";
+    params.update_filters.clear();
     RETURN_IF_ERROR(TritonJsonHelper::parse(params.update_filters, json, key, false));
     HCTR_TRITON_LOG(INFO, log_prefix, "update filters = [",
                    hctr_str_join(", ", params.update_filters), "]");
@@ -375,12 +372,12 @@ TRITONSERVER_Error* HugeCTRBackend::ParseParameterServer(const std::string& path
   HugeCTR::DistributedDatabaseParams distributed_db_params;
   if (parameter_server_config.Find("distributed_db", &json)) {
     auto& params = distributed_db_params;
-    const std::string log_prefix = "Distributed database; ";
+    const std::string log_prefix = "Distributed database -> ";
     const char* key;
 
     key = "type";
-    RETURN_IF_ERROR(TritonJsonHelper::parse(params.backend, json, key, false));
-    HCTR_TRITON_LOG(INFO, log_prefix, "type = ", params.backend);
+    RETURN_IF_ERROR(TritonJsonHelper::parse(params.type, json, key, false));
+    HCTR_TRITON_LOG(INFO, log_prefix, "type = ", params.type);
 
     // Backend specific.
     key = "address";
@@ -429,11 +426,8 @@ TRITONSERVER_Error* HugeCTRBackend::ParseParameterServer(const std::string& path
     HCTR_TRITON_LOG(INFO, log_prefix, "initial cache rate = ", params.initial_cache_rate);
 
     // Real-time update mechanism related.
-    key = "update_source";
-    RETURN_IF_ERROR(TritonJsonHelper::parse(params.update_source, json, key, false));
-    HCTR_TRITON_LOG(INFO, log_prefix, "update source = ", params.update_source);
-
     key = "update_filters";
+    params.update_filters.clear();
     RETURN_IF_ERROR(TritonJsonHelper::parse(params.update_filters, json, key, false));
     HCTR_TRITON_LOG(INFO, log_prefix, "update filters = [",
                     hctr_str_join(", ", params.update_filters), "]");
@@ -443,12 +437,12 @@ TRITONSERVER_Error* HugeCTRBackend::ParseParameterServer(const std::string& path
   HugeCTR::PersistentDatabaseParams persistent_db_params;
   if (parameter_server_config.Find("persistent_db", &json)) {
     auto& params = persistent_db_params;
-    const std::string log_prefix = "Persistent database; ";
+    const std::string log_prefix = "Persistent database -> ";
     const char* key;
 
     key = "type";
-    RETURN_IF_ERROR(TritonJsonHelper::parse(params.backend, json, key, false));
-    HCTR_TRITON_LOG(INFO, log_prefix, "type = ", params.backend);
+    RETURN_IF_ERROR(TritonJsonHelper::parse(params.type, json, key, false));
+    HCTR_TRITON_LOG(INFO, log_prefix, "type = ", params.type);
 
     // Backend specific.
     key = "path";
@@ -472,22 +466,47 @@ TRITONSERVER_Error* HugeCTRBackend::ParseParameterServer(const std::string& path
     HCTR_TRITON_LOG(INFO, log_prefix, "max. batch size (SET) = ", params.max_set_batch_size);
 
     // Real-time update mechanism related.
-    key = "update_source";
-    RETURN_IF_ERROR(TritonJsonHelper::parse(params.update_source, json, key, false));
-    HCTR_TRITON_LOG(INFO, log_prefix, "update source = ", params.update_source);
-
     key = "update_filters";
+    params.update_filters.clear();
     RETURN_IF_ERROR(TritonJsonHelper::parse(params.update_filters, json, key, false));
     HCTR_TRITON_LOG(INFO, log_prefix, "update filters = [",
                     hctr_str_join(", ", params.update_filters), "]");
   }
-  
-  // Field: kafka_brokers
-  std::string kafka_brokers = "127.0.0.1:9092";
-  RETURN_IF_ERROR(TritonJsonHelper::parse(
-    kafka_brokers, parameter_server_config, "kafka_brokers", false));
-  HCTR_TRITON_LOG(INFO, "Kafka brokers = ", kafka_brokers);
 
+  // Update source parameters.
+  HugeCTR::UpdateSourceParams update_source_params;
+  if (parameter_server_config.Find("update_source", &json)) {
+    auto& params = update_source_params;
+    const std::string log_prefix = "Update source -> ";
+    const char* key;
+
+    key = "type";
+    RETURN_IF_ERROR(TritonJsonHelper::parse(params.type, json, key, false));
+    HCTR_TRITON_LOG(INFO, log_prefix, "type = ", params.type);
+
+    // Backend specific.
+    key = "brokers";
+    RETURN_IF_ERROR(TritonJsonHelper::parse(params.brokers, json, key, false));
+    HCTR_TRITON_LOG(INFO, log_prefix, "brokers = ", params.brokers);
+
+    key = "poll_timeout_ms";
+    RETURN_IF_ERROR(TritonJsonHelper::parse(params.poll_timeout_ms, json, key, false));
+    HCTR_TRITON_LOG(INFO, log_prefix, "poll timeout = ", params.poll_timeout_ms, " ms");
+
+    key = "max_receive_buffer_size";
+    RETURN_IF_ERROR(TritonJsonHelper::parse(params.max_receive_buffer_size, json, key, false));
+    HCTR_TRITON_LOG(INFO, log_prefix,
+     "max. receive buffer size = ", params.max_receive_buffer_size);
+
+    key = "max_batch_size";
+    RETURN_IF_ERROR(TritonJsonHelper::parse(params.max_batch_size, json, key, false));
+    HCTR_TRITON_LOG(INFO, log_prefix, "max. batch size = ", params.max_batch_size);
+
+    key = "failure_backoff_ms";
+    RETURN_IF_ERROR(TritonJsonHelper::parse(params.failure_backoff_ms, json, key, false));
+    HCTR_TRITON_LOG(INFO, log_prefix, "failure backoff = ", params.failure_backoff_ms, " ms");
+  }
+  
   // Model configurations.
   parameter_server_config.MemberAsArray("models", &json);
   if (json.ArraySize() == 0) {
@@ -498,14 +517,6 @@ TRITONSERVER_Error* HugeCTRBackend::ParseParameterServer(const std::string& path
     common::TritonJson::Value json_obj;
     json.IndexAsObject(model_index, &json_obj);
 
-    // Network file.
-    {
-      std::string tmp;
-      RETURN_IF_ERROR(TritonJsonHelper::parse(tmp, json_obj, "network_file", true));
-      HCTR_TRITON_LOG(INFO, "Model network file path = ", tmp);
-      model_network_files.emplace_back(tmp);
-    }
-
     // InferenceParams constructor order (non-default-filled arguments): 
 
     // [0] model_name -> std::string
@@ -513,7 +524,13 @@ TRITONSERVER_Error* HugeCTRBackend::ParseParameterServer(const std::string& path
     RETURN_IF_ERROR(TritonJsonHelper::parse(model_name, json_obj, "model", true));
     HCTR_TRITON_LOG(INFO, "Model name = ", model_name);
 
-    const std::string log_prefix = hctr_str_concat("Model '", model_name, "'; ");
+    const std::string log_prefix = hctr_str_concat("Model '", model_name, "' -> ");
+
+    // [?] network_file -> std::string
+    std::string network_file;
+    RETURN_IF_ERROR(TritonJsonHelper::parse(network_file, json_obj, "network_file", true));
+    HCTR_TRITON_LOG(INFO, log_prefix, "network file = ", network_file);
+    model_network_files.emplace_back(network_file);
 
     // [1] max_batch_size -> size_t
     size_t max_batch_size = 0;
@@ -603,7 +620,7 @@ TRITONSERVER_Error* HugeCTRBackend::ParseParameterServer(const std::string& path
     params.cpu_memory_db = cpu_memory_db_params;
     params.distributed_db = distributed_db_params;
     params.persistent_db = persistent_db_params;
-    params.kafka_brokers = kafka_brokers;
+    params.update_source = update_source_params;
     
     // Done!
     if (!inference_params_map.emplace(model_name, params).second) {
