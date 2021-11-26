@@ -247,6 +247,41 @@ TRITONSERVER_Error* TritonJsonHelper::parse(HugeCTR::DatabaseOverflowPolicy_t& v
     "Unable to map parameter '", key, "' = \"", tmp, "\" to DatabaseOverflowPolicy_t!");
 }
 
+TRITONSERVER_Error* TritonJsonHelper::parse(HugeCTR::CPUMemoryHashMapAlgorithm_t& value,
+                                            const common::TritonJson::Value& json,
+                                            const char* const key, const bool required) {
+  std::string tmp;
+  RETURN_IF_ERROR(parse(tmp, json, key, required));
+  std::transform(tmp.begin(), tmp.end(), tmp.begin(),
+    [](const char c) { return (c == ' ') ? '_' : std::tolower(c); });
+
+  if (tmp.empty() && !required) {
+    // Do nothing; keep existing value.
+    return nullptr;
+  }
+
+  HugeCTR::CPUMemoryHashMapAlgorithm_t enum_value;
+  std::unordered_set<const char*> names;
+
+  enum_value = HugeCTR::CPUMemoryHashMapAlgorithm_t::STL;
+  names = {hctr_enum_to_c_str(enum_value)};
+  for (const char* name : names) if (tmp == name) {
+    value = enum_value;
+    return nullptr;
+  }
+  
+  enum_value = HugeCTR::CPUMemoryHashMapAlgorithm_t::PHM;
+  names = {hctr_enum_to_c_str(enum_value)};
+  for (const char* name : names) if (tmp == name) {
+    value = enum_value;
+    return nullptr;
+  }
+
+  // No match.
+  return HCTR_TRITON_ERROR(INVALID_ARG, 
+    "Unable to map parameter '", key, "' = \"", tmp, "\" to CPUMemoryHashMapAlgorithm_t!");
+}
+
 TRITONSERVER_Error* TritonJsonHelper::parse(HugeCTR::UpdateSourceType_t& value,
                                             const common::TritonJson::Value& json,
                                             const char* const key, const bool required) {

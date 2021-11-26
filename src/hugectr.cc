@@ -336,24 +336,27 @@ TRITONSERVER_Error* HugeCTRBackend::ParseParameterServer(const std::string& path
     HCTR_TRITON_LOG(INFO, log_prefix, "type = ", params.type);
 
     // Backend specific.
+    key = "algorithm";
+    RETURN_IF_ERROR(TritonJsonHelper::parse(params.algorithm, json, key, false));
+    HCTR_TRITON_LOG(INFO, log_prefix, "algorithm = ", params.algorithm);
+
     key = "num_partitions";
     RETURN_IF_ERROR(TritonJsonHelper::parse(params.num_partitions, json, key, false));
     HCTR_TRITON_LOG(INFO, log_prefix, "number of partitions = ", params.num_partitions);
+
+    key = "overflow_margin";
+    RETURN_IF_ERROR(TritonJsonHelper::parse(params.overflow_margin, json, key, false));
+    HCTR_TRITON_LOG(INFO, log_prefix, "overflow margin = ", params.overflow_margin);
 
     key = "overflow_policy";
     RETURN_IF_ERROR(TritonJsonHelper::parse(params.overflow_policy, json, key, false));
     HCTR_TRITON_LOG(INFO, log_prefix, "overflow policy = ", params.overflow_policy);
 
-    key = "partition_overflow_margin";
-    RETURN_IF_ERROR(TritonJsonHelper::parse(params.partition_overflow_margin, json, key, false));
-    HCTR_TRITON_LOG(INFO, log_prefix, "partition overflow margin = ",
-                    params.partition_overflow_margin);
-
-    key = "partition_overflow_resolution_target";
+    key = "overflow_resolution_target";
     RETURN_IF_ERROR(TritonJsonHelper::parse(
-      params.partition_overflow_resolution_target, json, key, false));
-    HCTR_TRITON_LOG(INFO, log_prefix, "partition overflow resolution target = ", 
-                    params.partition_overflow_resolution_target);
+      params.overflow_resolution_target, json, key, false));
+    HCTR_TRITON_LOG(INFO, log_prefix,
+      "overflow resolution target = ", params.overflow_resolution_target);
 
     // Initialization related.
     key = "initial_cache_rate";
@@ -405,20 +408,19 @@ TRITONSERVER_Error* HugeCTRBackend::ParseParameterServer(const std::string& path
     RETURN_IF_ERROR(TritonJsonHelper::parse(params.max_set_batch_size, json, key, false));
     HCTR_TRITON_LOG(INFO, log_prefix, "max. batch size (SET) = ", params.max_set_batch_size);
 
+    key = "overflow_margin";
+    RETURN_IF_ERROR(TritonJsonHelper::parse(params.overflow_margin, json, key, false));
+    HCTR_TRITON_LOG(INFO, log_prefix, "overflow margin = ", params.overflow_margin);
+
     key = "overflow_policy";
     RETURN_IF_ERROR(TritonJsonHelper::parse(params.overflow_policy, json, key, false));
     HCTR_TRITON_LOG(INFO, log_prefix, "overflow policy = ", params.overflow_policy);
 
-    key = "partition_overflow_margin";
-    RETURN_IF_ERROR(TritonJsonHelper::parse(params.partition_overflow_margin, json, key, false));
-    HCTR_TRITON_LOG(INFO, log_prefix, "partition overflow margin = ",
-                    params.partition_overflow_margin);
-
-    key = "partition_overflow_resolution_target";
+    key = "overflow_resolution_target";
     RETURN_IF_ERROR(TritonJsonHelper::parse(
-      params.partition_overflow_resolution_target, json, key, false));
-    HCTR_TRITON_LOG(INFO, log_prefix, "partition overflow resolution target = ",
-                    params.partition_overflow_resolution_target);
+      params.overflow_resolution_target, json, key, false));
+    HCTR_TRITON_LOG(INFO, log_prefix,
+      "overflow resolution target = ", params.overflow_resolution_target);
 
     // Initialization related.
     key = "initial_cache_rate";
