@@ -16,6 +16,7 @@ Before running [HugeCTR_Hierarchy_Deployment.ipynb](./HugeCTR_Hierarchy_Deployme
 ### 1. Launch the Kafka broker:
 #### 1.1 Download Kafka and Zookeeper
 Please download and install Kafka and Zookeeper according to the following command:
+
 For Kafka installation:
 ```
 $ cd /usr/local
@@ -31,7 +32,7 @@ $ tar -zxvf apache-zookeeper-3.7.0-bin.tar.gz
 $ mv apache-zookeeper-3.7.0-bin zookeeper
 ```
 #### 1.2 Configure Kafka
-Please open /usr/local/kafka/config/server.properties and decomment the following:
+Please open `/usr/local/kafka/config/server.properties` and decomment the following:
 ```
 listeners = PLAINTEXT://your.host.name:port
 ```
