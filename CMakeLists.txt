@@ -91,6 +91,7 @@ add_library(
   triton-hugectr-backend SHARED
   src/hugectr.cc
   src/triton_helpers.cpp
+  src/thread_pool.cpp
   include/timer.hpp
 )
 

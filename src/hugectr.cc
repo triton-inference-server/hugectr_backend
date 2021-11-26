@@ -1023,7 +1023,7 @@ TRITONSERVER_Error* ModelState::ParseModelConfig() {
 
     if (parameters.Find("refresh_delay", &value)) {
       RETURN_IF_ERROR(TritonJsonHelper::parse(refresh_delay_, value, "string_value", true));
-      HCTR_TRITON_LOG(INFO, "refresh_delay = ", refresh_interval_);
+      HCTR_TRITON_LOG(INFO, "refresh_delay = ", refresh_delay_);
     }
 
     if (parameters.Find("config", &value)) {
@@ -1168,11 +1168,11 @@ TRITONSERVER_Error* ModelState::Create_EmbeddingCache() {
     } 
   }
 
-  if(refresh_delay_ > 0){
+  if(refresh_delay_ > 1e-6){
     //refresh embedding cache once after delay time
     timer.startonce(refresh_delay_,std::bind(&ModelState::Refresh_Embedding_Cache,this));
   }
-  if(refresh_interval_ > 0 ){
+  if(refresh_interval_ > 1e-6 ){
     //refresh embedding cache once based on period time
     timer.start(refresh_interval_,std::bind(&ModelState::Refresh_Embedding_Cache,this));
   }
