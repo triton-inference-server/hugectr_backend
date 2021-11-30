@@ -1104,8 +1104,8 @@ TRITONSERVER_Error* ModelState::ParseModelConfig() {
 
   model_config_.MemberAsInt("max_batch_size", &max_batch_size_);
   HCTR_RETURN_TRITON_ERROR_IF_FALSE(
-    static_cast<size_t>(max_batch_size_) <= Model_Inference_Para.max_batchsize, INVALID_ARG,
-    "expected max_batch_size less than ", Model_Inference_Para.max_batchsize,
+    static_cast<size_t>(max_batch_size_) == Model_Inference_Para.max_batchsize, INVALID_ARG,
+    "expected max_batch_size should equal to ", Model_Inference_Para.max_batchsize,
     " (configured in Parameter Server json file), got ", max_batch_size_);
   HCTR_TRITON_LOG(INFO,
     "Model_Inference_Para.max_batchsize: ", Model_Inference_Para.max_batchsize);
