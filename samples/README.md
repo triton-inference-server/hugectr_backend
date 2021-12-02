@@ -212,7 +212,7 @@ In order to deploy the HugeCTR model, some customized configuration items need t
   }
 ]
 ```  
-The model files (the path of the embedded table file) needs to be configured in a separate "`modelname`_infer/model/ps.json", because the localized parameter server will pre-load the embedding tables independently.
+The model files (the path of the embedded table file) needs to be configured in a separate "`modelname`_infer/model/ps.json", because the localized parameter server will pre-load the embedding tables independently. The minimum required PS configuration file is as follows:
 
 ```json.
 {
@@ -223,10 +223,10 @@ The model files (the path of the embedded table file) needs to be configured in 
             "sparse_files":["/wdl_infer/model/wdl/1/wdl0_sparse_20000.model", "/wdl_infer/model/wdl/1/wdl1_sparse_20000.model"],
             "dense_file":"/wdl_infer/model/wdl/1/wdl_dense_20000.model",
             "network_file":"/wdl_infer/model/wdl/1/wdl.json",
-            "num_of_worker_buffer_in_pool": "4",
-			"deployed_device_list":["1"],
-			"max_batch_size":"1024",
-			"default_value_for_each_table":["0.0","0.0"],
+            "num_of_worker_buffer_in_pool": "4","num_of_refresher_buffer_in_pool": "1",
+            "deployed_device_list":["1"],
+            "max_batch_size":"1024",
+            "default_value_for_each_table":["0.0","0.0"],
             "hit_rate_threshold":"0.9",
             "gpucacheper":"0.5",
             "gpucache":"true"
