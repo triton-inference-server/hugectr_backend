@@ -29,6 +29,7 @@
 #include <triton_common.hpp>
 #include <inference/inference_utils.hpp>
 #include "triton/backend/backend_common.h"
+#include <boost/algorithm/string.hpp>
 
 namespace triton { namespace backend { namespace hugectr {
 

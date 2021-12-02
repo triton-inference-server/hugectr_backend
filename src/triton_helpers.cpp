@@ -42,7 +42,7 @@ TRITONSERVER_Error* TritonJsonHelper::parse(bool& value, const common::TritonJso
       return HCTR_TRITON_ERROR(INVALID_ARG, "The parameter '", key, 
         "' is mandatory. Please confirm that it has been added to the configuration file.");
     }
-
+    boost::algorithm::to_lower(tmp);
     if (tmp == "true") {
       value = true;
     }
