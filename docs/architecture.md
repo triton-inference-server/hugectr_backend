@@ -65,7 +65,27 @@ The following parameters have to be set in the config.pbtxt file for the HugeCTR
 ]
 ```
 
-* **hit_rate_threshold**: This option determines the updating mechanism of the embedding cache and Parameter Server based on the hit rate. If the hit rate of an embedding vector lookup is lower than the set threshold, the GPU embedding cache will update the missing vector on the Parameter Server. The GPU embedding cache also reflects embedding vector updates from the Parameter Server based on a fixed hit ratio. The hit rate threshold must be set in the model inference configuration JSON file. For example, see [dcn.json](https://gitlab-master.nvidia.com/dl/hugectr/hugectr_inference_backend/-/blob/main/samples/dcn/1/dcn.json) and [deepfm.json](https://gitlab-master.nvidia.com/dl/hugectr/hugectr_inference_backend/-/blob/main/samples/deepfm/1/deepfm.json). 
+* **hit_rate_threshold**: This option determines the insertion mechanism of the embedding cache and Parameter Server based on the hit rate.  The insertion operation will choose to insert the missing key synchronously or asynchronously according to the hit rate of the current embedding cache. 
+   * If the real hit rate of the GPU embedding cache lookup embedding keys is lower than the user-defined threshold, the GPU embedding cache will insert the missing vector into the embedding cache synchronously. 
+   * If the real hit rate of the GPU embedding cache lookup is greater than the threshold set by the user, the GPU embedding cache will choose to insert the missing key asynchronously.  
+
+   The hit rate threshold must be set in the Parameter Server JSON file. For example, see [HugeCTR Backend configuration]( ../samples/README.md#HugeCTR_Backend_configuration). 
+
+* **Periodically refresh the embedding cache**: Refresh operation will be triggered when the sparse model files need to be updated into GPU embedding cache. After completing the version iteration or incremental parameters update of the model on the training side, the latest embedding table needs to be updated to the embedding cache on the inference server. In order to ensure that the running model can be updated online, we will update the Localized RocksDB and Distributed Redis Cluster through the distributed event streaming platform(Kafka). At the same time, the embedding  keys in the GPU embedding cache are periodically refreshed based on the `"refresh_interval"` seconds configured by user, which should be added into customized  `parameters` block in `config.pbtxt` file as follows:
+
+```json.
+ ...
+  parameters [
+  {
+  ...,
+  {
+  key: "refresh_interval"
+  value: { string_value: "0" }
+  },
+...
+]
+```  
+  Please refer to [HugeCTR Backend configuration]( ../samples/README.md#HugeCTR_Backend_configuration) for details.  
 
 ### Disabling the GPU Embedding Cache
 When the GPU embedding cache mechanism is disabled (i.e., `"gpucache"` is set to `false`), the model will directly look up the embedding vector from the Parameter Server. In this case, all remaining settings pertaining to the GPU embedding cache will be ignored.
@@ -86,24 +106,42 @@ The Parameter Server implements localized deployment on the same nodes and clust
   
     
 ## Distributed Deployment with Hierarchical HugeCTR Parameter Server ##
-The distributed Redis cluster is introduced as a CPU cache to store larger embedding tables and interact with the GPU embedding cache directly. The local RocksDB serves as a query engine to back up the complete embedding table on the local SSDs in order to assist the Redis cluster to perform missing embedding keys look up.
-To enable this kind of hierarchical lookup service, you haved to add the `"db_type"` configuration item to ps.json as `"hierarchy"` .
+The hierarchical HugeCTR parameter server (PS) allows deploying models that exceed the existing GPU memory space, while retaining a relatively low latency. To provide this functionality, our PS exhibits a hierarchical structure that can make use of the various memory resources of each cluster node. In other words, the hierachical parameter server utilizes Random Access Memory (RAM) and non-volatile memory resources in your cluster to extend the embedding cache and allow faster response times for ver large datasets.
 
-```
+At the bottom of the hierachy exists a permanent storage layer that maintains a full copy of your embedding tables in an inexpensive non-volatile memory location (typically file-system-based, e.g., a SSD/HDD). To improve access performance, various volatile memories such as local, but also remote RAM-resources can be utilized, thus, forming a cache hierarchy.
+
+As of version 3.3 of HugeCTR individual hierarchy stages of the hierachical parameter server are individually configurable. To introduce the concept, we next present a minimal configuration, where the local SSD/HDD of each node stores a fallback copy of the entire embedding table in a RocksDB column group, and via a Redis cluster, portions of the RAM in each node are used as a cache for frequently used embeddings. This configuration is equivalent to `"db_type" = "hierarchy"` in previous versions of HugeCTR. Please refer to the [HugeCTR Hierarchical Parameter Server](https://github.com/NVIDIA-Merlin/HugeCTR/blob/master/docs/hugectr_parameter_server.md) for details.
+
+```json
 {
     "supportlonglong": false,
     ...
-    "db_type": "hierarchy",
+    "cpu_memory_db": {
+      "type": "disabled"
+    },
+    "distributed_db": {
+      "type": "redis_cluster",
+      "address": "192.168.0.10:7000;192.168.0.20:7000;192.168.0.30:7000",
+      "num_partitions": 8,
+      "overflow_margin": 10000000
+    },
+    "peristent_db": {
+      "type": "rocksdb",
+      "path": "/root/hctr_rocksdb"
+    },
     ...
     "models": [
       ...
     ]
 }
 ```
-* **Distributed Redis Cluster**  
-Synchronous query for Redis cluster: Each Model instance looks up the required embedding keys from the localized GPU cache, which will also store the missing embedding keys (Keys not found in the GPU cache) into missing keys buffer. The missing keys buffer is exchanged with the Redis instance synchronously, which in turn performs the look up operation on any missing embedding keys. Thereby, the distributed Redis cluster acts as a 2nd-level cache that can completely replace the localized parameter server for loading the complete embedded table of all models. 
+Hence, we disable local CPU memory caching *(enabled by default)*, and instead tell HugeCTR to split the embedding table into `8` partitions, which should be spread accross a `3`-node `Redis cluster`. Partition assignments depends on the last couple of bits of your embedding keys. Hence, if the keys are somewhat uniformly distributed, you can expect that the cache partitions will also be filled at an approximately equal rate. The overflow margin upper-bounds the amount of embeddings that will be cached to `10 million` per partition. Thus, at any time at most `80 million` embedding table records will be cached by this Redis cluster. A copy of all records will be maintained in a `RocksDB` instance. Thus, any embeddings for keys that that are not yet or not anymore cached in the Redis cluster, will be looked up in this RocksDB database.
 
-  Users only need to set the ip and port of each node to enable the Redis cluster service into the HugeCTR Hierarchical Parameter Server. However, the Redis cluster as a distributed memory cache is still limited by the size of CPU memory in each node. In other words, the size of the embedded table of all models still cannot exceed the total CPU memory of the cluster. Therefore, the user can use `"cache_size_percentage_redis"` to control the size of the model embedding table loaded into the Redis cluster.
+
+* **Distributed Database Redis Cluster**  
+Synchronous lookup for Redis cluster: Each Model instance looks up the required embedding keys from the localized GPU cache, which will also store the missing embedding keys (Keys not found in the GPU cache) into missing keys buffer. The missing keys buffer is exchanged with the Redis instance synchronously, which in turn performs the look up operation on any missing embedding keys. Thereby, the distributed Redis cluster acts as a 2nd-level cache that can completely replace the localized parameter server for loading the complete embedded table of all models. 
+
+  Users only need to set the ip and port of each node to enable the Redis cluster service into the HugeCTR Hierarchical Parameter Server. However, the Redis cluster as a distributed memory cache is still limited by the size of CPU memory in each node. In other words, the size of the embedded table of all models still cannot exceed the total CPU memory of the cluster. Therefore, the user can use `"initial_cache_rate"` in `distributed_db` block to control the size of the model embedding table loaded into the Redis cluster.
   
   To take advantage of an Redis cluster with HugeCTR, the following configuration options need to be added to be added to ps.json:
 
@@ -111,17 +149,21 @@ Synchronous query for Redis cluster: Each Model instance looks up the required e
   {
     "supportlonglong": false,
     ...
-    "db_type": "hierarchy",
-    "redis_ip": "node1_ip:port,node2_ip:port,node3_ip:port,...",
-    "cache_size_percentage_redis": "0.5",
+    "distributed_db": {
+      "type": "redis_cluster",
+      "address": "192.168.0.10:7000;192.168.0.20:7000;192.168.0.30:7000",
+      "num_partitions": 8,
+      "initial_cache_rate": 0.5,
+      "overflow_margin": 10000000
+    },
     ...
     "models": [
       ...
     ]
   }
   ```
-* **Localized RocksDB (Key-Value Store)**:  
-For ultra-large-scale embedding tables that still cannot fully load into the Redis cluster, we will enable local key-value storage on each node.
+* **Persistent Database RocksDB**:  
+For ultra-large-scale embedding tables that still cannot fully load into the Redis cluster, we will enable local key-value storage (RocksDB) on each node.
 
   Synchronous query for RocksDB: When the Redis cluster client looks up the embedding keys from the distributed GPU cache, it takes note of missing embedding keys (Keys not found in the Redis cluster) and records them in a missing key buffer. The missing keys buffer is exchanged with the local RocksDB client synchronously, which will then attempt to look up of these keys in the local SSDs. Eventually, the SSD query engine will perform the third look up operation for the missing embedded keys of all models.
   
@@ -133,8 +175,10 @@ For ultra-large-scale embedding tables that still cannot fully load into the Red
   {
     "supportlonglong":false,
     ...
-    "db_type":"hierarchy",
-    "rocksdb_path":"/current_node/rocksdb_path",
+    "peristent_db": {
+      "type": "rocksdb",
+      "path": "/root/hctr_rocksdb"
+    },
     ...
     "models":[
       ...

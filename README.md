@@ -148,7 +148,25 @@ The configuration file of Parameter Server should be formatted using the JSON fo
 ```
 
 ## HugeCTR Hierarchical Parameter Server 
-HugeCTR Hierarchical Parameter Server implemented a hierarchical storage mechanism between local SSDs and CPU memory, which breaks the convention that the embedding table must be stored in local CPU memory. The distributed Redis cluster is introduced as a CPU cache to store larger embedding tables and interact with the GPU embedding cache directly. The local RocksDB serves as a query engine to back up the complete embedding table on the local SSDs in order to assist the Redis cluster to perform missing embedding keys look up. see [Distributed Deployment](docs/architecture.md#distributed-deployment-with-hierarchical-hugectr-parameter-server) for more details.
+HugeCTR Hierarchical Parameter Server implemented a hierarchical storage mechanism between local SSDs and CPU memory, which breaks the convention that the embedding table must be stored in local CPU memory. `Distributed Database` layer allows utilizing Redis cluster deployments, to store and retrieve embeddings in/from the RAM memory available in your cluster. The `Persistent Database` layer links HugeCTR with a persistent database. Each node that has such a persistent storage layer configured retains a separate copy of all embeddings in its locally available non-volatile memory. see [Distributed Deployment](docs/architecture.md#distributed-deployment-with-hierarchical-hugectr-parameter-server) and [HugeCTR Hierarchical Parameter Server](https://github.com/NVIDIA-Merlin/HugeCTR/blob/master/docs/hugectr_parameter_server.md) for more details.
+
+In the following table, we provide an overview of the typical properties different parameter database layers (and the embedding cache). We emphasize that this table is just intended to provide a rough orientation. Properties of actual deployments may deviate.
+
+|  | GPU Embedding Cache | CPU Memory Database | Distributed Database (InfiniBand) | Distributed Database (Ethernet) | Persistent Database |
+|--|--|--|--|--|--|
+| Mean Latency | ns ~ us | us ~ ms | us ~ ms | several ms | ms ~ s
+| Capacity (relative) | ++  | +++ | +++++ | +++++ | +++++++ |
+| Capacity (range in practice) | 10 GBs ~ few TBs  | 100 GBs ~ several TBs | several TBs | several TBs | up to 100s of TBs |
+| Cost / Capacity | ++++ | +++ | ++++ | ++++ | + |
+| Volatile | yes | yes | configuration dependent | configuration dependent | no |
+| Configuration / maintenance complexity | low | low | high | high | low |
+
+ * ### Embedding Cache Asynchronous Refresh Mechanism  
+We have supported the asynchronous refreshing of incremental embedding keys into the embedding cache. Refresh operation will be triggered when the sparse model files need to be updated into GPU embedding Cache. After completing the model version iteration or incremental parameters update of the model based on from online training, the latest embedding table needs to be updated to the embedding cache on the inference server.
+In order to ensure that the running model can be updated online, we will update the `Distributed Database` and `Persistent Database` through the distributed event streaming platform(Kafka). At the same time, the GPU embedding cache will refresh the values of the existing embedding keys and replace them with the latest incremental embedding vectors. 
+
+* ### Embedding Cache Asynchronous Insertion Mechanism  
+We have supported the asynchronous insertion of missing embedding keys into the embedding cache. This feature can be activated automatically through user-defined hit rate threshold in configuration file.When the real hit rate of the embedding cache is higher than the user-defined threshold, the embedding cache will insert the missing key asynchronously, and vice versa, it will still be inserted in a synchronous way to ensure high accuracy of inference requests. Through the asynchronous insertion method, compared with the previous synchronous method, the real hit rate of the embedding cache can be further improved after the embedding cache reaches the user-defined threshold.
 
 * ### Performance optimization of Parameter Server
 We have added support for multiple database interfaces to our parameter server. In particular, we added an “in memory” database, that utilizes the local CPU memory for storing and recalling embeddings and uses multi-threading to accelerate look-up and storage.  
@@ -156,8 +174,4 @@ Further, we revised support for “distributed” storage of embeddings in a Red
 Further, we performance-optimized support for the “persistent” storage and retrieval of embeddings via RocksDB through the structured use of column families.
 Creating a hierarchical storage (i.e. using Redis as distributed cache, and RocksDB as fallback), is supported as well. These advantages are free to end-users, as there is no need to adjust the PS configuration.  
 We plan to further integrate the hierarchical parameter server with other features, such as the GPU backed embedding caches in upcoming releases. Stay tuned!  
-
-* ### Embedding Cache Asynchronous Insertion Mechanism  
-We have supported the asynchronous  insertion of missing embedding keys into  the embedding cache. This feature can be activated automatically through user-defined hit rate threshold in configuration file.When the real hit rate of the embedding cache is higher than the user-defined threshold, the embedding cache will insert the missing key asynchronously, and vice versa, it will still be inserted in a synchronous way to ensure high accuracy of inference requests. Through the asynchronous insertion method, compared with the previous synchronous method, the real hit rate of the embedding cache can be further improved after the embedding cache reaches the user-defined threshold.
-
 
