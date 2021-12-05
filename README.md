@@ -123,12 +123,12 @@ The configuration file of Parameter Server should be formatted using the JSON fo
             "dense_file":"/model/dcn/1/_dense_file.model",
             "network_file":"/model/dcn/1/dcn.json",
             "num_of_worker_buffer_in_pool": "4"
-			"deployed_device_list":["0"],
-			"max_batch_size":"1024",
-			"default_value_for_each_table":["0.0"],
+            "deployed_device_list":["0"],
+            "max_batch_size":"1024",
+            "default_value_for_each_table":["0.0"],
             "hit_rate_threshold":"0.9",
-			"gpucacheper":"0.5",
-			"gpucache":"true"
+            "gpucacheper":"0.5",
+            "gpucache":"true"
         },
         {
             "model":"wdl",
@@ -136,12 +136,12 @@ The configuration file of Parameter Server should be formatted using the JSON fo
             "dense_file":"/model/wdl/1/_dense_2000.model",
             "network_file":"/model/wdl/1/wdl_infer.json",
             "num_of_worker_buffer_in_pool": "4",
-			"deployed_device_list":["1"],
-			"max_batch_size":"1024",
-			"default_value_for_each_table":["0.0","0.0"],
+            "deployed_device_list":["1"],
+            "max_batch_size":"1024",
+            "default_value_for_each_table":["0.0","0.0"],
             "hit_rate_threshold":"0.9",
-			"gpucacheper":"0.5",
-			"gpucache":"true"
+            "gpucacheper":"0.5",
+            "gpucache":"true"
         }
     ]  
 }
