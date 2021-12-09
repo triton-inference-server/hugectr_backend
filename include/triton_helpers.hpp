@@ -25,11 +25,12 @@
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #pragma once
 
-#include <functional>
-#include <triton_common.hpp>
-#include <inference/inference_utils.hpp>
-#include "triton/backend/backend_common.h"
 #include <boost/algorithm/string.hpp>
+#include <functional>
+#include <inference/inference_utils.hpp>
+#include <triton_common.hpp>
+
+#include "triton/backend/backend_common.h"
 
 namespace triton { namespace backend { namespace hugectr {
 
@@ -41,103 +42,103 @@ class TritonJsonHelper {
    * Maps JSON values as follows:
    *   false, "false",  "0" => false
    *   true, "true", <non-zero number> => true
-   * 
+   *
    * @param value The place where the value should be stored.
    * @param json JSON object.
    * @param key Name of the member.
-   * @param required If true, will emit a \p TRITONSERVER_Error and return an error that can be caught 
-   *                 with \p RETURN_IF_ERROR if the key does not exist.
+   * @param required If true, will emit a \p TRITONSERVER_Error and return an
+   * error that can be caught with \p RETURN_IF_ERROR if the key does not exist.
    * @return \p nullptr or error value if error occurred.
    */
-  static TRITONSERVER_Error* parse(bool& value,
-                                   const common::TritonJson::Value& json,
-                                   const char* key, bool required);
+  static TRITONSERVER_Error* parse(
+      bool& value, const common::TritonJson::Value& json, const char* key,
+      bool required);
 
   /**
    * Maps JSON double values or strings that represent doubles.
-   * 
+   *
    * @param value The place where the value should be stored.
    * @param json JSON object.
    * @param key Name of the member.
-   * @param required If true, will emit a \p TRITONSERVER_Error and return an error that can be caught 
-   *                 with \p RETURN_IF_ERROR if the key does not exist.
+   * @param required If true, will emit a \p TRITONSERVER_Error and return an
+   * error that can be caught with \p RETURN_IF_ERROR if the key does not exist.
    * @return \p nullptr or error value if error occurred.
    */
-  static TRITONSERVER_Error* parse(double& value,
-                                   const common::TritonJson::Value& json,
-                                   const char* key, bool required);
+  static TRITONSERVER_Error* parse(
+      double& value, const common::TritonJson::Value& json, const char* key,
+      bool required);
 
   /**
    * Maps JSON float values or strings that represent floats.
-   * 
+   *
    * @param value The place where the value should be stored.
    * @param json JSON object.
    * @param key Name of the member.
-   * @param required If true, will emit a \p TRITONSERVER_Error and return an error that can be caught 
-   *                 with \p RETURN_IF_ERROR if the key does not exist.
+   * @param required If true, will emit a \p TRITONSERVER_Error and return an
+   * error that can be caught with \p RETURN_IF_ERROR if the key does not exist.
    * @return \p nullptr or error value if error occurred.
    */
-  static TRITONSERVER_Error* parse(float& value,
-                                   const common::TritonJson::Value& json,
-                                   const char* key, bool required);
-  
+  static TRITONSERVER_Error* parse(
+      float& value, const common::TritonJson::Value& json, const char* key,
+      bool required);
+
   /**
    * Maps JSON integer values or strings that represent integers.
-   * 
+   *
    * @param value The place where the value should be stored.
    * @param json JSON object.
    * @param key Name of the member.
-   * @param required If true, will emit a \p TRITONSERVER_Error and return an error that can be caught 
-   *                 with \p RETURN_IF_ERROR if the key does not exist.
+   * @param required If true, will emit a \p TRITONSERVER_Error and return an
+   * error that can be caught with \p RETURN_IF_ERROR if the key does not exist.
    * @return \p nullptr or error value if error occurred.
    */
-  static TRITONSERVER_Error* parse(int32_t& value,
-                                   const common::TritonJson::Value& json,
-                                   const char* key, bool required);
+  static TRITONSERVER_Error* parse(
+      int32_t& value, const common::TritonJson::Value& json, const char* key,
+      bool required);
 
   /**
    * Maps JSON long integer values or strings that represent long integers.
-   * 
+   *
    * @param value The place where the value should be stored.
    * @param json JSON object.
    * @param key Name of the member.
-   * @param required If true, will emit a \p TRITONSERVER_Error and return an error that can be caught 
-   *                 with \p RETURN_IF_ERROR if the key does not exist.
+   * @param required If true, will emit a \p TRITONSERVER_Error and return an
+   * error that can be caught with \p RETURN_IF_ERROR if the key does not exist.
    * @return \p nullptr or error value if error occurred.
    */
-  static TRITONSERVER_Error* parse(int64_t& value,
-                                   const common::TritonJson::Value& json,
-                                   const char* key, bool required);
+  static TRITONSERVER_Error* parse(
+      int64_t& value, const common::TritonJson::Value& json, const char* key,
+      bool required);
 
   /**
    * Maps JSON size_t values or strings that represent a size_t.
-   * 
+   *
    * @param value The place where the value should be stored.
    * @param json JSON object.
    * @param key Name of the member.
-   * @param required If true, will emit a \p TRITONSERVER_Error and return an error that can be caught 
-   *                 with \p RETURN_IF_ERROR if the key does not exist.
+   * @param required If true, will emit a \p TRITONSERVER_Error and return an
+   * error that can be caught with \p RETURN_IF_ERROR if the key does not exist.
    * @return \p nullptr or error value if error occurred.
    */
-  static TRITONSERVER_Error* parse(size_t& value,
-                                   const common::TritonJson::Value& json,
-                                   const char* key, bool required);
+  static TRITONSERVER_Error* parse(
+      size_t& value, const common::TritonJson::Value& json, const char* key,
+      bool required);
 
   /**
    * Maps JSON string values.
-   * 
+   *
    * @param value The place where the value should be stored.
    * @param json JSON object.
    * @param key Name of the member.
-   * @param required If true, will emit a \p TRITONSERVER_Error and return an error that can be caught 
-   *                 with \p RETURN_IF_ERROR if the key does not exist.
+   * @param required If true, will emit a \p TRITONSERVER_Error and return an
+   * error that can be caught with \p RETURN_IF_ERROR if the key does not exist.
    * @return \p nullptr or error value if error occurred.
    */
-  static TRITONSERVER_Error* parse(std::string& value,
-                                   const common::TritonJson::Value& json,
-                                   const char* key, bool required);
-  
-  
+  static TRITONSERVER_Error* parse(
+      std::string& value, const common::TritonJson::Value& json,
+      const char* key, bool required);
+
+
   // --- ENUM TYPES ---
 
   /**
@@ -145,96 +146,98 @@ class TritonJsonHelper {
    * @param value The place where the value should be stored.
    * @param json JSON object.
    * @param key Name of the member.
-   * @param required If true, will emit a \p TRITONSERVER_Error and return an error that can be caught 
-   *                 with \p RETURN_IF_ERROR if the key does not exist.
+   * @param required If true, will emit a \p TRITONSERVER_Error and return an
+   * error that can be caught with \p RETURN_IF_ERROR if the key does not exist.
    * @return \p nullptr or error value if error occurred.
    */
-  static TRITONSERVER_Error* parse(HugeCTR::DatabaseType_t& value,
-                                   const common::TritonJson::Value& json,
-                                   const char* key, bool required);
-  
+  static TRITONSERVER_Error* parse(
+      HugeCTR::DatabaseType_t& value, const common::TritonJson::Value& json,
+      const char* key, bool required);
+
   /**
    * Maps JSON string values that represent a \p CPUMemoryHashMapAlgorithm_t .
    * @param value The place where the value should be stored.
    * @param json JSON object.
    * @param key Name of the member.
-   * @param required If true, will emit a \p TRITONSERVER_Error and return an error that can be caught 
-   *                 with \p RETURN_IF_ERROR if the key does not exist.
+   * @param required If true, will emit a \p TRITONSERVER_Error and return an
+   * error that can be caught with \p RETURN_IF_ERROR if the key does not exist.
    * @return \p nullptr or error value if error occurred.
    */
-  static TRITONSERVER_Error* parse(HugeCTR::CPUMemoryHashMapAlgorithm_t& value,
-                                   const common::TritonJson::Value& json,
-                                   const char* key, bool required);
-  
+  static TRITONSERVER_Error* parse(
+      HugeCTR::CPUMemoryHashMapAlgorithm_t& value,
+      const common::TritonJson::Value& json, const char* key, bool required);
+
   /**
    * Maps JSON string values that represent a \p DatabaseOverflowPolicy_t .
    * @param value The place where the value should be stored.
    * @param json JSON object.
    * @param key Name of the member.
-   * @param required If true, will emit a \p TRITONSERVER_Error and return an error that can be caught 
-   *                 with \p RETURN_IF_ERROR if the key does not exist.
+   * @param required If true, will emit a \p TRITONSERVER_Error and return an
+   * error that can be caught with \p RETURN_IF_ERROR if the key does not exist.
    * @return \p nullptr or error value if error occurred.
    */
-  static TRITONSERVER_Error* parse(HugeCTR::DatabaseOverflowPolicy_t& value,
-                                   const common::TritonJson::Value& json,
-                                   const char* key, bool required);
-  
+  static TRITONSERVER_Error* parse(
+      HugeCTR::DatabaseOverflowPolicy_t& value,
+      const common::TritonJson::Value& json, const char* key, bool required);
+
   /**
    * Maps JSON string values that represent a \p UpdateSourceType_t .
    * @param value The place where the value should be stored.
    * @param json JSON object.
    * @param key Name of the member.
-   * @param required If true, will emit a \p TRITONSERVER_Error and return an error that can be caught 
-   *                 with \p RETURN_IF_ERROR if the key does not exist.
+   * @param required If true, will emit a \p TRITONSERVER_Error and return an
+   * error that can be caught with \p RETURN_IF_ERROR if the key does not exist.
    * @return \p nullptr or error value if error occurred.
    */
-  static TRITONSERVER_Error* parse(HugeCTR::UpdateSourceType_t& value,
-                                   const common::TritonJson::Value& json,
-                                   const char* key, bool required);
-  
+  static TRITONSERVER_Error* parse(
+      HugeCTR::UpdateSourceType_t& value, const common::TritonJson::Value& json,
+      const char* key, bool required);
+
   // --- COLLECTION TYPES ---
 
   /**
-   * Maps JSON array containing float values or strings that represent float values.
-   * 
+   * Maps JSON array containing float values or strings that represent float
+   * values.
+   *
    * @param json JSON object.
    * @param key Name of the member.
    * @param value The place where the value should be stored.
-   * @param required If true, will emit a \p TRITONSERVER_Error and return an error that can be caught 
-   *                 with \p RETURN_IF_ERROR if the key does not exist.
+   * @param required If true, will emit a \p TRITONSERVER_Error and return an
+   * error that can be caught with \p RETURN_IF_ERROR if the key does not exist.
    * @return \p nullptr or error value if error occurred.
    */
-  static TRITONSERVER_Error* parse(std::vector<float>& value,
-                                   common::TritonJson::Value& json,
-                                   const char* key, bool required);
+  static TRITONSERVER_Error* parse(
+      std::vector<float>& value, common::TritonJson::Value& json,
+      const char* key, bool required);
 
   /**
-   * Maps JSON array containing integer values or strings that represent integer values.
-   * 
+   * Maps JSON array containing integer values or strings that represent integer
+   * values.
+   *
    * @param json JSON object.
    * @param key Name of the member.
    * @param value The place where the value should be stored.
-   * @param required If true, will emit a \p TRITONSERVER_Error and return an error that can be caught 
-   *                 with \p RETURN_IF_ERROR if the key does not exist.
+   * @param required If true, will emit a \p TRITONSERVER_Error and return an
+   * error that can be caught with \p RETURN_IF_ERROR if the key does not exist.
    * @return \p nullptr or error value if error occurred.
    */
-  static TRITONSERVER_Error* parse(std::vector<int32_t>& value,
-                                   common::TritonJson::Value& json,
-                                   const char* key, bool required);
-                                   
+  static TRITONSERVER_Error* parse(
+      std::vector<int32_t>& value, common::TritonJson::Value& json,
+      const char* key, bool required);
+
   /**
    * Maps JSON array containing strings.
-   * 
+   *
    * @param json JSON object.
    * @param key Name of the member.
    * @param value The place where the value should be stored.
-   * @param required If true, will emit a \p TRITONSERVER_Error and return an error that can be caught 
-   *                 with \p RETURN_IF_ERROR if the key does not exist.
+   * @param required If true, will emit a \p TRITONSERVER_Error and return an
+   * error that can be caught with \p RETURN_IF_ERROR if the key does not exist.
    * @return \p nullptr or error value if error occurred.
    */
-  static TRITONSERVER_Error* parse(std::vector<std::string>& value,
-                                   common::TritonJson::Value& json,
-                                   const char* key, bool required);
+  static TRITONSERVER_Error* parse(
+      std::vector<std::string>& value, common::TritonJson::Value& json,
+      const char* key, bool required);
 };
 
 }}}  // namespace triton::backend::hugectr

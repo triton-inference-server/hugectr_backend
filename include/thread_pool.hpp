@@ -27,7 +27,7 @@
 
 namespace triton { namespace backend { namespace hugectr {
 
-using ThreadPoolTask = std::function<void(size_t,size_t)>;
+using ThreadPoolTask = std::function<void(size_t, size_t)>;
 using ThreadPoolResult = std::future<void>;
 
 class ThreadPool {
@@ -55,12 +55,9 @@ class ThreadPool {
   std::vector<std::thread> pool_;
   std::condition_variable sempahore_;
   std::mutex queue_guard_;
-  std::deque<std::packaged_task<void(size_t,size_t)>> queue_;
+  std::deque<std::packaged_task<void(size_t, size_t)>> queue_;
 
   void run(const size_t thread_num);
 };
 
-}  // namespace hugectr
-
-} // namespace backend
-}// namespace triton
+}}}  // namespace triton::backend::hugectr
