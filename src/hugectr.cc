@@ -1312,6 +1312,18 @@ TRITONSERVER_Error*
 ModelState::Create_EmbeddingCache()
 {
   int64_t count = gpu_shape.size();
+  if (count > 0 && support_gpu_cache_) {
+    if (support_int64_key_ && EmbeddingTable_int64->GetEmbeddingCache(
+                                  name_, gpu_shape[0]) == nullptr) {
+      EmbeddingTable_int64->create_embedding_cache_per_model(
+          hugectr_config_, Model_Inference_Para);
+    }
+    if (!support_int64_key_ && EmbeddingTable_int32->GetEmbeddingCache(
+                                   name_, gpu_shape[0]) == nullptr) {
+      EmbeddingTable_int32->create_embedding_cache_per_model(
+          hugectr_config_, Model_Inference_Para);
+    }
+  }
   for (int i = 0; i < count; i++) {
     std::vector<int>::iterator iter = find(
         Model_Inference_Para.deployed_devices.begin(),
@@ -1361,6 +1373,14 @@ ModelState::Create_EmbeddingCache()
 
 ModelState::~ModelState()
 {
+  if (support_gpu_cache_) {
+    if (support_int64_key_) {
+      EmbeddingTable_int64->destory_embedding_cache_per_model(name_);
+    } else {
+      EmbeddingTable_int32->destory_embedding_cache_per_model(name_);
+      ;
+    }
+  }
   embedding_cache_map.clear();
   for (auto& ec_refresh_thread : cache_refresh_threads) {
     ec_refresh_thread.join();
