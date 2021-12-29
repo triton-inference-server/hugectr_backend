@@ -33,29 +33,33 @@ namespace triton { namespace backend { namespace hugectr {
 
 // --- BASIC TYPES ---
 
+#define HCTR_ARG_MANDATORY_ERROR(KEY)                                 \
+  HCTR_TRITON_ERROR(                                                  \
+      INVALID_ARG, "The parameter '", (KEY),                          \
+      "' is mandatory. Please confirm that it has been added to the " \
+      "configuration file.")
+
 TRITONSERVER_Error*
 TritonJsonHelper::parse(
     bool& value, const common::TritonJson::Value& json, const char* const key,
     const bool required)
 {
-  if (json.MemberAsBool(key, &value) != TRITONJSON_STATUSSUCCESS) {
-    std::string tmp;
-    RETURN_IF_ERROR(json.MemberAsString(key, &tmp));
+  if (json.Find(key)) {
+    if (json.MemberAsBool(key, &value) != TRITONJSON_STATUSSUCCESS) {
+      std::string tmp;
+      RETURN_IF_ERROR(json.MemberAsString(key, &tmp));
 
-    if (required && tmp.empty()) {
-      return HCTR_TRITON_ERROR(
-          INVALID_ARG, "The parameter '", key,
-          "' is mandatory. Please confirm that it has been added to the "
-          "configuration file.");
+      boost::algorithm::to_lower(tmp);
+      if (tmp == "true") {
+        value = true;
+      } else if (tmp == "false") {
+        value = false;
+      } else {
+        value = std::stoll(tmp) != 0;
+      }
     }
-    boost::algorithm::to_lower(tmp);
-    if (tmp == "true") {
-      value = true;
-    } else if (tmp == "false") {
-      value = false;
-    } else {
-      value = std::stoll(tmp) != 0;
-    }
+  } else if (required) {
+    return HCTR_ARG_MANDATORY_ERROR(key);
   }
 
   // HCTR_TRITON_LOG(INFO, key, ": ", value ? "true" : "false");
@@ -67,17 +71,14 @@ TritonJsonHelper::parse(
     double& value, const common::TritonJson::Value& json, const char* const key,
     const bool required)
 {
-  if (json.MemberAsDouble(key, &value) != TRITONJSON_STATUSSUCCESS) {
-    std::string tmp;
-    RETURN_IF_ERROR(json.MemberAsString(key, &tmp));
-
-    if (required && tmp.empty()) {
-      return HCTR_TRITON_ERROR(
-          INVALID_ARG, "The parameter '", key,
-          "' is mandatory. Please confirm that it has been added to the "
-          "configuration file.");
+  if (json.Find(key)) {
+    if (json.MemberAsDouble(key, &value) != TRITONJSON_STATUSSUCCESS) {
+      std::string tmp;
+      RETURN_IF_ERROR(json.MemberAsString(key, &tmp));
+      value = std::stod(tmp);
     }
-    value = std::stod(tmp);
+  } else if (required) {
+    return HCTR_ARG_MANDATORY_ERROR(key);
   }
 
   // HCTR_TRITON_LOG(INFO, key, ": ", value);
@@ -128,17 +129,14 @@ TritonJsonHelper::parse(
     int64_t& value, const common::TritonJson::Value& json, const char* key,
     const bool required)
 {
-  if (json.MemberAsInt(key, &value) != TRITONJSON_STATUSSUCCESS) {
-    std::string tmp;
-    json.MemberAsString(key, &tmp);
-
-    if (required && tmp.empty()) {
-      return HCTR_TRITON_ERROR(
-          INVALID_ARG, "The parameter '", key,
-          "' is mandatory. Please confirm that it has been added to the "
-          "configuration file.");
+  if (json.Find(key)) {
+    if (json.MemberAsInt(key, &value) != TRITONJSON_STATUSSUCCESS) {
+      std::string tmp;
+      RETURN_IF_ERROR(json.MemberAsString(key, &tmp));
+      value = std::stoll(tmp);
     }
-    value = std::stoll(tmp);
+  } else if (required) {
+    return HCTR_ARG_MANDATORY_ERROR(key);
   }
 
   // HCTR_TRITON_LOG(INFO, key, ": ", value);
@@ -150,17 +148,14 @@ TritonJsonHelper::parse(
     size_t& value, const common::TritonJson::Value& json, const char* const key,
     const bool required)
 {
-  if (json.MemberAsUInt(key, &value) != TRITONJSON_STATUSSUCCESS) {
-    std::string tmp;
-    json.MemberAsString(key, &tmp);
-
-    if (required && tmp.empty()) {
-      return HCTR_TRITON_ERROR(
-          INVALID_ARG, "The parameter '", key,
-          "' is mandatory. Please confirm that it has been added to the "
-          "configuration file.");
+  if (json.Find(key)) {
+    if (json.MemberAsUInt(key, &value) != TRITONJSON_STATUSSUCCESS) {
+      std::string tmp;
+      RETURN_IF_ERROR(json.MemberAsString(key, &tmp));
+      value = std::stoull(tmp);
     }
-    value = std::stoull(tmp);
+  } else if (required) {
+    return HCTR_ARG_MANDATORY_ERROR(key);
   }
 
   // HCTR_TRITON_LOG(INFO, key, ": ", value);
@@ -172,12 +167,10 @@ TritonJsonHelper::parse(
     std::string& value, const common::TritonJson::Value& json,
     const char* const key, const bool required)
 {
-  const TRITONSERVER_Error* error = json.MemberAsString(key, &value);
-  if (required && error != TRITONJSON_STATUSSUCCESS) {
-    return HCTR_TRITON_ERROR(
-        INVALID_ARG, "The parameter '", key,
-        "' is mandatory. Please confirm that it has been added to the "
-        "configuration file.");
+  if (json.Find(key)) {
+    RETURN_IF_ERROR(json.MemberAsString(key, &value));
+  } else if (required) {
+    return HCTR_ARG_MANDATORY_ERROR(key);
   }
 
   // HCTR_TRITON_LOG(INFO, key, ": \"", value, "\"");
@@ -298,7 +291,7 @@ TritonJsonHelper::parse(
 
 TRITONSERVER_Error*
 TritonJsonHelper::parse(
-    HugeCTR::CPUMemoryHashMapAlgorithm_t& value,
+    HugeCTR::DatabaseHashMapAlgorithm_t& value,
     const common::TritonJson::Value& json, const char* const key,
     const bool required)
 {
@@ -313,10 +306,10 @@ TritonJsonHelper::parse(
     return nullptr;
   }
 
-  HugeCTR::CPUMemoryHashMapAlgorithm_t enum_value;
+  HugeCTR::DatabaseHashMapAlgorithm_t enum_value;
   std::unordered_set<const char*> names;
 
-  enum_value = HugeCTR::CPUMemoryHashMapAlgorithm_t::STL;
+  enum_value = HugeCTR::DatabaseHashMapAlgorithm_t::STL;
   names = {hctr_enum_to_c_str(enum_value)};
   for (const char* name : names)
     if (tmp == name) {
@@ -324,7 +317,7 @@ TritonJsonHelper::parse(
       return nullptr;
     }
 
-  enum_value = HugeCTR::CPUMemoryHashMapAlgorithm_t::PHM;
+  enum_value = HugeCTR::DatabaseHashMapAlgorithm_t::PHM;
   names = {hctr_enum_to_c_str(enum_value)};
   for (const char* name : names)
     if (tmp == name) {
@@ -335,7 +328,7 @@ TritonJsonHelper::parse(
   // No match.
   return HCTR_TRITON_ERROR(
       INVALID_ARG, "Unable to map parameter '", key, "' = \"", tmp,
-      "\" to CPUMemoryHashMapAlgorithm_t!");
+      "\" to DatabaseHashMapAlgorithm_t!");
 }
 
 TRITONSERVER_Error*
@@ -387,22 +380,21 @@ TritonJsonHelper::parse(
     std::vector<float>& value, common::TritonJson::Value& json,
     const char* const key, const bool required)
 {
-  common::TritonJson::Value tmp;
-  const TRITONSERVER_Error* error = json.MemberAsArray(key, &tmp);
-  if (required && error != TRITONJSON_STATUSSUCCESS) {
-    return HCTR_TRITON_ERROR(
-        INVALID_ARG, "The parameter '", key,
-        "' is mandatory. Please confirm that it has been added to the "
-        "configuration file.");
-  }
-  for (size_t i = 0; i < tmp.ArraySize(); i++) {
-    double v = std::numeric_limits<double>::signaling_NaN();
-    if (tmp.IndexAsDouble(i, &v) != TRITONJSON_STATUSSUCCESS) {
-      std::string s;
-      RETURN_IF_ERROR(tmp.IndexAsString(i, &s));
-      v = std::stod(s);
+  if (json.Find(key)) {
+    common::TritonJson::Value tmp;
+    RETURN_IF_ERROR(json.MemberAsArray(key, &tmp));
+
+    for (size_t i = 0; i < tmp.ArraySize(); i++) {
+      double v = std::numeric_limits<double>::signaling_NaN();
+      if (tmp.IndexAsDouble(i, &v) != TRITONJSON_STATUSSUCCESS) {
+        std::string s;
+        RETURN_IF_ERROR(tmp.IndexAsString(i, &s));
+        v = std::stod(s);
+      }
+      value.emplace_back(static_cast<float>(v));
     }
-    value.emplace_back(static_cast<float>(v));
+  } else if (required) {
+    return HCTR_ARG_MANDATORY_ERROR(key);
   }
 
   // HCTR_TRITON_LOG(INFO, key, ": [", hctr_str_join(", ", value), " ]");
@@ -414,22 +406,21 @@ TritonJsonHelper::parse(
     std::vector<int32_t>& value, common::TritonJson::Value& json,
     const char* const key, const bool required)
 {
-  common::TritonJson::Value tmp;
-  const TRITONSERVER_Error* error = json.MemberAsArray(key, &tmp);
-  if (required && error != TRITONJSON_STATUSSUCCESS) {
-    return HCTR_TRITON_ERROR(
-        INVALID_ARG, "The parameter '", key,
-        "' is mandatory. Please confirm that it has been added to the "
-        "configuration file.");
-  }
-  for (size_t i = 0; i < tmp.ArraySize(); i++) {
-    int64_t v = 0;
-    if (tmp.IndexAsInt(i, &v) != TRITONJSON_STATUSSUCCESS) {
-      std::string s;
-      RETURN_IF_ERROR(tmp.IndexAsString(i, &s));
-      v = std::stoll(s);
+  if (json.Find(key)) {
+    common::TritonJson::Value tmp;
+    RETURN_IF_ERROR(json.MemberAsArray(key, &tmp));
+
+    for (size_t i = 0; i < tmp.ArraySize(); i++) {
+      int64_t v = 0;
+      if (tmp.IndexAsInt(i, &v) != TRITONJSON_STATUSSUCCESS) {
+        std::string s;
+        RETURN_IF_ERROR(tmp.IndexAsString(i, &s));
+        v = std::stoll(s);
+      }
+      value.emplace_back(static_cast<int32_t>(v));
     }
-    value.emplace_back(static_cast<int>(v));
+  } else if (required) {
+    return HCTR_ARG_MANDATORY_ERROR(key);
   }
 
   // HCTR_TRITON_LOG(INFO, key, ": [", hctr_str_join(", ", value), " ]");
@@ -441,22 +432,20 @@ TritonJsonHelper::parse(
     std::vector<std::string>& value, common::TritonJson::Value& json,
     const char* const key, const bool required)
 {
-  common::TritonJson::Value tmp;
-  const TRITONSERVER_Error* error = json.MemberAsArray(key, &tmp);
-  if (required && error != TRITONJSON_STATUSSUCCESS) {
-    return HCTR_TRITON_ERROR(
-        INVALID_ARG, "The parameter '", key,
-        "' is mandatory. Please confirm that it has been added to the "
-        "configuration file.");
-  }
-  for (size_t i = 0; i < tmp.ArraySize(); i++) {
-    std::string v;
-    RETURN_IF_ERROR(tmp.IndexAsString(i, &v));
-    value.emplace_back(v);
+  if (json.Find(key)) {
+    common::TritonJson::Value tmp;
+    RETURN_IF_ERROR(json.MemberAsArray(key, &tmp));
+
+    for (size_t i = 0; i < tmp.ArraySize(); i++) {
+      std::string v;
+      RETURN_IF_ERROR(tmp.IndexAsString(i, &v));
+      value.emplace_back(v);
+    }
+  } else if (required) {
+    return HCTR_ARG_MANDATORY_ERROR(key);
   }
 
   // HCTR_TRITON_LOG(INFO, key, ": [", hctr_str_join(", ", value), " ]");
   return nullptr;
 }
-
 }}}  // namespace triton::backend::hugectr

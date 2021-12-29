@@ -155,7 +155,7 @@ class TritonJsonHelper {
       const char* key, bool required);
 
   /**
-   * Maps JSON string values that represent a \p CPUMemoryHashMapAlgorithm_t .
+   * Maps JSON string values that represent a \p DatabaseHashMapAlgorithm_t .
    * @param value The place where the value should be stored.
    * @param json JSON object.
    * @param key Name of the member.
@@ -164,7 +164,7 @@ class TritonJsonHelper {
    * @return \p nullptr or error value if error occurred.
    */
   static TRITONSERVER_Error* parse(
-      HugeCTR::CPUMemoryHashMapAlgorithm_t& value,
+      HugeCTR::DatabaseHashMapAlgorithm_t& value,
       const common::TritonJson::Value& json, const char* key, bool required);
 
   /**
