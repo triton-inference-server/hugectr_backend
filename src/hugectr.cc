@@ -366,70 +366,11 @@ HugeCTRBackend::ParseParameterServer(const std::string& path)
       support_int64_key_, parameter_server_config, "supportlonglong", true));
   HCTR_TRITON_LOG(INFO, "Support 64-bit keys = ", support_int64_key_);
 
-  // CPU memory database parameters.
-  HugeCTR::CPUMemoryDatabaseParams cpu_memory_db_params;
-  if (parameter_server_config.Find("cpu_memory_db", &json)) {
-    auto& params = cpu_memory_db_params;
-    const std::string log_prefix = "CPU memory database -> ";
-    const char* key;
-
-    key = "type";
-    RETURN_IF_ERROR(TritonJsonHelper::parse(params.type, json, key, false));
-    HCTR_TRITON_LOG(INFO, log_prefix, "type = ", params.type);
-
-    // Backend specific.
-    key = "algorithm";
-    RETURN_IF_ERROR(
-        TritonJsonHelper::parse(params.algorithm, json, key, false));
-    HCTR_TRITON_LOG(INFO, log_prefix, "algorithm = ", params.algorithm);
-
-    key = "num_partitions";
-    RETURN_IF_ERROR(
-        TritonJsonHelper::parse(params.num_partitions, json, key, false));
-    HCTR_TRITON_LOG(
-        INFO, log_prefix, "number of partitions = ", params.num_partitions);
-
-    key = "overflow_margin";
-    RETURN_IF_ERROR(
-        TritonJsonHelper::parse(params.overflow_margin, json, key, false));
-    HCTR_TRITON_LOG(
-        INFO, log_prefix, "overflow margin = ", params.overflow_margin);
-
-    key = "overflow_policy";
-    RETURN_IF_ERROR(
-        TritonJsonHelper::parse(params.overflow_policy, json, key, false));
-    HCTR_TRITON_LOG(
-        INFO, log_prefix, "overflow policy = ", params.overflow_policy);
-
-    key = "overflow_resolution_target";
-    RETURN_IF_ERROR(TritonJsonHelper::parse(
-        params.overflow_resolution_target, json, key, false));
-    HCTR_TRITON_LOG(
-        INFO, log_prefix,
-        "overflow resolution target = ", params.overflow_resolution_target);
-
-    // Initialization related.
-    key = "initial_cache_rate";
-    RETURN_IF_ERROR(
-        TritonJsonHelper::parse(params.initial_cache_rate, json, key, false));
-    HCTR_TRITON_LOG(
-        INFO, log_prefix, "initial cache rate = ", params.initial_cache_rate);
-
-    // Real-time update mechanism related.
-    key = "update_filters";
-    params.update_filters.clear();
-    RETURN_IF_ERROR(
-        TritonJsonHelper::parse(params.update_filters, json, key, false));
-    HCTR_TRITON_LOG(
-        INFO, log_prefix, "update filters = [",
-        hctr_str_join(", ", params.update_filters), "]");
-  }
-
-  // Distributed database parameters.
-  HugeCTR::DistributedDatabaseParams distributed_db_params;
-  if (parameter_server_config.Find("distributed_db", &json)) {
-    auto& params = distributed_db_params;
-    const std::string log_prefix = "Distributed database -> ";
+  // Volatile database parameters.
+  HugeCTR::VolatileDatabaseParams volatile_db_params;
+  if (parameter_server_config.Find("volatile_db", &json)) {
+    auto& params = volatile_db_params;
+    const std::string log_prefix = "Volatile database -> ";
     const char* key;
 
     key = "type";
@@ -452,6 +393,11 @@ HugeCTRBackend::ParseParameterServer(const std::string& path)
         INFO, log_prefix, "password = <",
         params.password.empty() ? "empty" : "specified", ">");
 
+    key = "algorithm";
+    RETURN_IF_ERROR(
+        TritonJsonHelper::parse(params.algorithm, json, key, false));
+    HCTR_TRITON_LOG(INFO, log_prefix, "algorithm = ", params.algorithm);
+
     key = "num_partitions";
     RETURN_IF_ERROR(
         TritonJsonHelper::parse(params.num_partitions, json, key, false));
@@ -472,6 +418,7 @@ HugeCTRBackend::ParseParameterServer(const std::string& path)
         INFO, log_prefix,
         "max. batch size (SET) = ", params.max_set_batch_size);
 
+    // Overflow handling related.
     key = "overflow_margin";
     RETURN_IF_ERROR(
         TritonJsonHelper::parse(params.overflow_margin, json, key, false));
@@ -728,8 +675,7 @@ HugeCTRBackend::ParseParameterServer(const std::string& path)
         hctr_str_join(", ", params.default_value_for_each_table), "]");
 
     // TODO: Move to paramter server common parameters?
-    params.cpu_memory_db = cpu_memory_db_params;
-    params.distributed_db = distributed_db_params;
+    params.volatile_db = volatile_db_params;
     params.persistent_db = persistent_db_params;
     params.update_source = update_source_params;
 
