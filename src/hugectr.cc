@@ -244,7 +244,8 @@ class HugeCTRBuffer : public std::enable_shared_from_this<HugeCTRBuffer<T>> {
 class HugeCTRBackend {
  public:
   static TRITONSERVER_Error* Create(
-      TRITONBACKEND_Backend* triton_backend_, HugeCTRBackend** backend);
+      TRITONBACKEND_Backend* triton_backend_, HugeCTRBackend** backend,
+      std::string ps_json_config_file);
 
   // Get the handle to the TRITONBACKEND model.
   TRITONBACKEND_Backend* TritonBackend() { return triton_backend_; }
@@ -277,10 +278,12 @@ class HugeCTRBackend {
   TRITONSERVER_Error* HugeCTREmbedding_backend();
   TRITONSERVER_Error* ParseParameterServer(const std::string& path);
   uint64_t GetModelVersion(const std::string& model_name);
+  std::string ParameterServerJsonFile();
   bool UpdateModelVersion(const std::string& model_name, uint64_t version);
 
  private:
   TRITONBACKEND_Backend* triton_backend_;
+  std::string ps_json_config_file_;
   HugeCTR::HugectrUtility<unsigned int>* EmbeddingTable_int32;
   HugeCTR::HugectrUtility<long long>* EmbeddingTable_int64;
 
@@ -295,14 +298,16 @@ class HugeCTRBackend {
 
   bool support_int64_key_ = false;
 
-  HugeCTRBackend(TRITONBACKEND_Backend* triton_backend_);
+  HugeCTRBackend(
+      TRITONBACKEND_Backend* triton_backend_, std::string ps_json_config_file);
 };
 
 TRITONSERVER_Error*
 HugeCTRBackend::Create(
-    TRITONBACKEND_Backend* triton_backend_, HugeCTRBackend** backend)
+    TRITONBACKEND_Backend* triton_backend_, HugeCTRBackend** backend,
+    std::string ps_json_config_file)
 {
-  *backend = new HugeCTRBackend(triton_backend_);
+  *backend = new HugeCTRBackend(triton_backend_, ps_json_config_file);
   return nullptr;  // success
 }
 
@@ -325,8 +330,15 @@ HugeCTRBackend::UpdateModelVersion(
   return true;
 }
 
-HugeCTRBackend::HugeCTRBackend(TRITONBACKEND_Backend* triton_backend)
-    : triton_backend_(triton_backend)
+std::string
+HugeCTRBackend::ParameterServerJsonFile()
+{
+  return ps_json_config_file_;
+}
+
+HugeCTRBackend::HugeCTRBackend(
+    TRITONBACKEND_Backend* triton_backend, std::string ps_json_config_file)
+    : triton_backend_(triton_backend), ps_json_config_file_(ps_json_config_file)
 {
   // current much Model Backend initialization handled by TritonBackend_Backend
 }
@@ -680,12 +692,13 @@ HugeCTRBackend::ParseParameterServer(const std::string& path)
     params.update_source = update_source_params;
 
     // Done!
-    if (!inference_params_map.emplace(model_name, params).second) {
-      return HCTR_TRITON_ERROR(
-          INVALID_ARG,
-          "Name conflict. Multiple of the configured models are named exactly "
-          "the same!");
-    }
+    inference_params_map.emplace(model_name, params);
+    /*if (!inference_params_map.emplace(model_name, params).second) {
+            return HCTR_TRITON_ERROR(
+                INVALID_ARG,
+                "Name conflict. Multiple of the configured models are named
+         exactly " "the same!");
+      } */
   }
 
   return nullptr;
@@ -767,7 +780,11 @@ class ModelState {
   std::shared_ptr<HugeCTR::embedding_interface> GetEmbeddingCache(
       int64_t device_id)
   {
-    return embedding_cache_map[device_id];
+    if (embedding_cache_map.find(device_id) != embedding_cache_map.end()) {
+      return embedding_cache_map[device_id];
+    } else {
+      return nullptr;
+    }
   }
 
   // Get input data entry map
@@ -1315,11 +1332,27 @@ ModelState::Create_EmbeddingCache()
   if (count > 0 && support_gpu_cache_) {
     if (support_int64_key_ && EmbeddingTable_int64->GetEmbeddingCache(
                                   name_, gpu_shape[0]) == nullptr) {
+      HCTR_TRITON_LOG(
+          INFO, "Parsing network file of ", name_,
+          ", which will be used for online deployment. The network file path "
+          "is ",
+          hugectr_config_);
+      EmbeddingTable_int64->parse_networks_per_model(
+          hugectr_config_, Model_Inference_Para);
+      HCTR_TRITON_LOG(
+          INFO, "Update Database of Parameter Server for model ", name_);
+      EmbeddingTable_int64->update_database_per_model(
+          hugectr_config_, Model_Inference_Para);
+      HCTR_TRITON_LOG(INFO, "Create embedding cache for model ", name_);
       EmbeddingTable_int64->create_embedding_cache_per_model(
           hugectr_config_, Model_Inference_Para);
     }
     if (!support_int64_key_ && EmbeddingTable_int32->GetEmbeddingCache(
                                    name_, gpu_shape[0]) == nullptr) {
+      EmbeddingTable_int32->parse_networks_per_model(
+          hugectr_config_, Model_Inference_Para);
+      EmbeddingTable_int32->update_database_per_model(
+          hugectr_config_, Model_Inference_Para);
       EmbeddingTable_int32->create_embedding_cache_per_model(
           hugectr_config_, Model_Inference_Para);
     }
@@ -1378,8 +1411,10 @@ ModelState::~ModelState()
       EmbeddingTable_int64->destory_embedding_cache_per_model(name_);
     } else {
       EmbeddingTable_int32->destory_embedding_cache_per_model(name_);
-      ;
     }
+    HCTR_TRITON_LOG(
+        INFO, "******Destorying Embedding Cache for model ", name_,
+        " successfully");
   }
   embedding_cache_map.clear();
   for (auto& ec_refresh_thread : cache_refresh_threads) {
@@ -1676,7 +1711,7 @@ TRITONBACKEND_Initialize(TRITONBACKEND_Backend* backend)
   // for all the models, which will be shared by all the models to update
   // embedding cache
   HugeCTRBackend* hugectr_backend;
-  RETURN_IF_ERROR(HugeCTRBackend::Create(backend, &hugectr_backend));
+  RETURN_IF_ERROR(HugeCTRBackend::Create(backend, &hugectr_backend, ps_path));
   RETURN_IF_ERROR(TRITONBACKEND_BackendSetState(
       backend, reinterpret_cast<void*>(hugectr_backend)));
 
@@ -1756,6 +1791,15 @@ TRITONBACKEND_ModelInitialize(TRITONBACKEND_Model* model)
   uint64_t model_ps_version = backend_state->GetModelVersion(name);
   uint64_t model_current_version;
   RETURN_IF_ERROR(TRITONBACKEND_ModelVersion(model, &model_current_version));
+  if (backend_state->HugeCTRModelConfigurationMap().count(name) == 0) {
+    HCTR_TRITON_LOG(
+        INFO,
+        "Parsing the latest Parameter Server json config file for deploying "
+        "model ",
+        name, " online");
+    backend_state->ParseParameterServer(
+        backend_state->ParameterServerJsonFile());
+  }
   ModelState::Create(
       model, &model_state, backend_state->HugeCTRParameterServerInt32(),
       backend_state->HugeCTRParameterServerInt64(),
