@@ -25,8 +25,8 @@
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #pragma once
 
-#include <string>
 #include <sstream>
+#include <string>
 #include <vector>
 
 namespace triton { namespace backend { namespace hugectr {
@@ -34,39 +34,42 @@ namespace triton { namespace backend { namespace hugectr {
 /**
  * CPP style concats arguments to Triton log entry.
  */
-#define HCTR_TRITON_LOG(LEVEL, ...)                                                        \
-  do {                                                                                     \
-    const std::string& msg = hctr_str_concat(__VA_ARGS__);                                 \
-    LOG_IF_ERROR(                                                                          \
-      TRITONSERVER_LogMessage(TRITONSERVER_LOG_##LEVEL, __FILE__, __LINE__, msg.c_str()),  \
-      ("failed to log message: "));                                                        \
+#define HCTR_TRITON_LOG(LEVEL, ...)                                     \
+  do {                                                                  \
+    const std::string& msg = hctr_str_concat(__VA_ARGS__);              \
+    LOG_IF_ERROR(                                                       \
+        TRITONSERVER_LogMessage(                                        \
+            TRITONSERVER_LOG_##LEVEL, __FILE__, __LINE__, msg.c_str()), \
+        ("failed to log message: "));                                   \
   } while (0)
 
 /**
  * CPP style concats arguments to create a Triton error object.
  */
-#define HCTR_TRITON_ERROR(CODE, ...)                           \
-  TRITONSERVER_ErrorNew(TRITONSERVER_ERROR_##CODE,             \
-                        hctr_str_concat(__VA_ARGS__).c_str())
+#define HCTR_TRITON_ERROR(CODE, ...) \
+  TRITONSERVER_ErrorNew(             \
+      TRITONSERVER_ERROR_##CODE, hctr_str_concat(__VA_ARGS__).c_str())
 
 /**
  * Like RETURN_ERROR_IF_TRUE, but with CPP style string concatenation.
- * 
- * REMARK For compatiblity! In most situations these make the code harder to read!
+ *
+ * REMARK For compatiblity! In most situations these make the code harder to
+ * read!
  */
-#define HCTR_RETURN_TRITION_ERROR_IF_TRUE(PRED, CODE, ...)  \
-  do {                                                      \
-    if ((PRED)) {                                           \
-      return HCTR_TRITON_ERROR(CODE, ##__VA_ARGS__);        \
-    }                                                       \
+#define HCTR_RETURN_TRITION_ERROR_IF_TRUE(PRED, CODE, ...) \
+  do {                                                     \
+    if ((PRED)) {                                          \
+      return HCTR_TRITON_ERROR(CODE, ##__VA_ARGS__);       \
+    }                                                      \
   } while (0)
 
 /**
  * Like RETURN_ERROR_IF_TRUE, but with CPP style string concatenation.
- * 
- * REMARK For compatiblity! In most situations these make the code harder to read!
+ *
+ * REMARK For compatiblity! In most situations these make the code harder to
+ * read!
  */
-#define HCTR_RETURN_TRITON_ERROR_IF_FALSE(PRED, CODE, ...)        \
+#define HCTR_RETURN_TRITON_ERROR_IF_FALSE(PRED, CODE, ...) \
   HCTR_RETURN_TRITION_ERROR_IF_TRUE(!(PRED), CODE, ##__VA_ARGS__)
 
 /**
@@ -76,7 +79,9 @@ namespace triton { namespace backend { namespace hugectr {
  * @return String representation.
  */
 template <typename TIt, typename = std::_RequireInputIter<TIt>>
-inline std::string hctr_str_concat_it(TIt begin, const TIt& end) {
+inline std::string
+hctr_str_concat_it(TIt begin, const TIt& end)
+{
   std::stringstream ss;
   for (; begin != end; begin++) {
     ss << *begin;
@@ -89,8 +94,11 @@ inline std::string hctr_str_concat_it(TIt begin, const TIt& end) {
  * @param values The values to be joined.
  * @return String representation.
  */
-template <typename TContainer, typename TValue = typename TContainer::value_type>
-inline std::string hctr_str_concat(const TContainer& values) {
+template <
+    typename TContainer, typename TValue = typename TContainer::value_type>
+inline std::string
+hctr_str_concat(const TContainer& values)
+{
   return hctr_str_concat_it(values.begin(), values.end());
 }
 
@@ -100,12 +108,16 @@ inline std::string hctr_str_concat(const TContainer& values) {
  * @return String representation.
  */
 template <typename TValue>
-inline std::string hctr_str_concat(const std::initializer_list<TValue>& values) {
+inline std::string
+hctr_str_concat(const std::initializer_list<TValue>& values)
+{
   return hctr_str_concat_it(values.begin(), values.end());
 }
 
 template <typename TArg0, typename TArg1>
-inline std::string hctr_str_concat(const TArg0& arg0, const TArg1& arg1) {
+inline std::string
+hctr_str_concat(const TArg0& arg0, const TArg1& arg1)
+{
   std::stringstream ss;
   ss << arg0 << arg1;
   return ss.str();
@@ -118,8 +130,10 @@ inline std::string hctr_str_concat(const TArg0& arg0, const TArg1& arg1) {
  * @param args All remaining values.
  * @return String representation.
  */
-template <typename TArg0, typename TArg1, typename ...TArgs>
-inline std::string hctr_str_concat(const TArg0& arg0, const TArg1& arg1, TArgs&& ...args) {
+template <typename TArg0, typename TArg1, typename... TArgs>
+inline std::string
+hctr_str_concat(const TArg0& arg0, const TArg1& arg1, TArgs&&... args)
+{
   std::stringstream ss;
   ss << arg0 << arg1;
   (ss << ... << args);
@@ -131,7 +145,9 @@ inline std::string hctr_str_concat(const TArg0& arg0, const TArg1& arg1, TArgs&&
  * @param value The value to render.
  * @return String representation.
  */
-inline std::string hctr_str_concat(const char* const& value) {
+inline std::string
+hctr_str_concat(const char* const& value)
+{
   return value;
 }
 
@@ -141,7 +157,9 @@ inline std::string hctr_str_concat(const char* const& value) {
  * @return String representation.
  */
 template <size_t LENGTH>
-inline std::string hctr_str_concat(const char (&value)[LENGTH]) {
+inline std::string
+hctr_str_concat(const char (&value)[LENGTH])
+{
   return value;
 }
 
@@ -150,7 +168,9 @@ inline std::string hctr_str_concat(const char (&value)[LENGTH]) {
  * @param value The value to render.
  * @return String representation.
  */
-inline std::string hctr_str_concat(const std::string& value) {
+inline std::string
+hctr_str_concat(const std::string& value)
+{
   return value;
 }
 
@@ -162,11 +182,13 @@ inline std::string hctr_str_concat(const std::string& value) {
  * @return String representation.
  */
 template <typename TSep, typename TIt, typename = std::_RequireInputIter<TIt>>
-inline std::string hctr_str_join(const TSep& separator, TIt begin, const TIt& end) {
+inline std::string
+hctr_str_join(const TSep& separator, TIt begin, const TIt& end)
+{
   if (begin == end) {
     return {};
   }
-  
+
   std::stringstream ss;
   ss << *begin;
   begin++;
@@ -184,8 +206,12 @@ inline std::string hctr_str_join(const TSep& separator, TIt begin, const TIt& en
  * @param values The values to be joined.
  * @return String representation.
  */
-template <typename TSep, typename TContainer, typename TValue = typename TContainer::value_type>
-inline std::string hctr_str_join(const TSep& separator, const TContainer& values) {
+template <
+    typename TSep, typename TContainer,
+    typename TValue = typename TContainer::value_type>
+inline std::string
+hctr_str_join(const TSep& separator, const TContainer& values)
+{
   return hctr_str_join(separator, values.begin(), values.end());
 }
 
@@ -196,8 +222,10 @@ inline std::string hctr_str_join(const TSep& separator, const TContainer& values
  * @return String representation.
  */
 template <typename TSep, typename TValue>
-inline std::string hctr_str_join(const TSep& separator,
-                                 const std::initializer_list<TValue>& values) {
+inline std::string
+hctr_str_join(
+    const TSep& separator, const std::initializer_list<TValue>& values)
+{
   return hctr_str_join(separator, values.begin(), values.end());
 }
 
@@ -210,16 +238,22 @@ inline std::string hctr_str_join(const TSep& separator,
  * @return String representation.
  */
 template <typename TSep, typename TArg0, typename TArg1, typename... TArgs>
-inline std::string hctr_str_join(const TSep& separator,
-                                 const TArg0& arg0, const TArg1& arg1, TArgs&&... args) {
+inline std::string
+hctr_str_join(
+    const TSep& separator, const TArg0& arg0, const TArg1& arg1,
+    TArgs&&... args)
+{
   std::stringstream ss;
   ss << arg0 << separator << arg1;
   ((ss << separator << args), ...);
   return ss.str();
 }
 
-inline void hctr_str_split(const std::string& string, const char separator,
-                           std::vector<std::string>& parts) {
+inline void
+hctr_str_split(
+    const std::string& string, const char separator,
+    std::vector<std::string>& parts)
+{
   std::stringstream ss(string);
   std::string part;
   while (std::getline(ss, part, separator)) {
@@ -227,8 +261,9 @@ inline void hctr_str_split(const std::string& string, const char separator,
   }
 }
 
-inline std::vector<std::string> hctr_str_split(const std::string& string, 
-                                               const char separator) {
+inline std::vector<std::string>
+hctr_str_split(const std::string& string, const char separator)
+{
   std::vector<std::string> parts;
   hctr_str_split(string, separator, parts);
   return parts;

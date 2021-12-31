@@ -25,11 +25,11 @@
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 cmake_minimum_required(VERSION 3.17)
-
 project(tritonhugectrbackend LANGUAGES C CXX)
 
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CUDA_STANDARD 17)
+list(APPEND CMAKE_MODULE_PATH ${PROJECT_SOURCE_DIR}/cmake/Modules)
 
 #
 # Options
@@ -52,6 +52,23 @@ set(TRITON_HUGRCTRRUNTIME_LIB_PATHS "/usr/local/hugectr/lib" CACHE PATH "Paths t
 if(NOT CMAKE_BUILD_TYPE)
   set(CMAKE_BUILD_TYPE Release)
 endif()
+
+option(CLANGFORMAT "Setup clangformat target" ON)
+if(CLANGFORMAT)
+  include(ClangFormat)
+
+  file(GLOB_RECURSE HUGECTR_TRITON_BACKEND_SRCS
+    ${PROJECT_SOURCE_DIR}/include/*.hpp
+    ${PROJECT_SOURCE_DIR}/include/*.cuh
+    ${PROJECT_SOURCE_DIR}/src/*.cc
+    ${PROJECT_SOURCE_DIR}/src/*.cpp
+    ${PROJECT_SOURCE_DIR}/src/*.cu
+  )
+
+  set(clangformat_srcs ${HUGECTR_TRITON_BACKEND_SRCS})
+  clangformat_setup("${clangformat_srcs}")
+endif()
+
 
 #
 # Dependencies

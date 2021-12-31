@@ -24,105 +24,99 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-#include "functional"
-#include "chrono"
-#include "thread"
 #include "atomic"
+#include "chrono"
+#include "condition_variable"
+#include "functional"
+#include "iostream"
 #include "memory"
 #include "mutex"
-#include "condition_variable"
-#include "iostream"
+#include "thread"
 #include "thread_pool.hpp"
 
 namespace triton { namespace backend { namespace hugectr {
 #ifndef _TIMER_H_
 #define _TIMER_H_
-class Timer
-{
-    public:
-    Timer():_expired(true),_try_to_expire(false){}
+class Timer {
+ public:
+  Timer() : _expired(true), _try_to_expire(false) {}
 
-    Timer(const Timer& timer)
+  Timer(const Timer& timer)
+  {
+    _expired = timer._expired.load();
+    _try_to_expire = timer._try_to_expire.load();
+  }
+
+  ~Timer() { stop(); }
+
+  void stop()
+  {
+    if (_expired) {
+      return;
+    }
+    if (_try_to_expire) {
+      return;
+    }
+    // wait for timer stop
+    _try_to_expire = true;
     {
-        _expired = timer._expired.load();
-        _try_to_expire = timer._try_to_expire.load();
+      std::unique_lock<std::mutex> locker(_mutex);
+      _con_var_expired.wait(locker, [this] { return _expired = true; });
+      if (_expired == true) {
+        _try_to_expire = false;
+      }
     }
+  }
 
-    ~Timer()
+  void start(size_t interval, std::function<void()> task)
+  {
+    if (_expired == false) {
+      return;
+    }
+    _expired = false;
+    // launch thread
+    //_thread = std::thread(std::bind(&Timer::run,this,task));
+    std::thread([this, interval, task]() {
+      while (!_try_to_expire) {
+        std::this_thread::sleep_for(std::chrono::seconds(interval));
+        task();
+      }
+      {
+        std::lock_guard<std::mutex> locker(_mutex);
+        _expired = true;
+        _con_var_expired.notify_one();
+      }
+    }).detach();
+  }
+
+  void startonce(size_t delay, std::function<void()> task)
+  {
+    auto fn = [&, task, delay](size_t, size_t) {
+      std::this_thread::sleep_for(std::chrono::seconds(delay));
+      task();
+    };
+    ThreadPool::get().post(fn);
+  }
+
+ private:
+  void run(size_t interval, std::function<void()> task)
+  {
+    while (!_try_to_expire) {
+      std::this_thread::sleep_for(std::chrono::seconds(interval));
+      task();
+    }
     {
-        stop();
+      std::lock_guard<std::mutex> locker(_mutex);
+      _expired = true;
+      _con_var_expired.notify_one();
     }
-
-    void stop(){
-        if(_expired){
-            return;
-        }
-        if(_try_to_expire){
-            return;
-        }
-        //wait for timer stop
-        _try_to_expire=true;
-        {
-            std::unique_lock<std::mutex> locker(_mutex);
-            _con_var_expired.wait(locker,[this]{return _expired=true;});
-            if(_expired == true){
-                _try_to_expire = false;
-            }
-        }
-    }
-
-    void start(size_t interval,std::function<void()> task)
-    {
-        if(_expired == false){
-            return;
-        }
-        _expired = false;
-        //launch thread
-        //_thread = std::thread(std::bind(&Timer::run,this,task));
-        std::thread([this,interval,task](){
-            while(!_try_to_expire)
-            {
-                std::this_thread::sleep_for(std::chrono::seconds(interval));
-                task();
-            }
-            {
-                std::lock_guard<std::mutex> locker(_mutex);
-                _expired = true;
-                _con_var_expired.notify_one();
-            }
-        }).detach();
-
-    }
-
-    void startonce(size_t delay,std::function<void()> task){
-        auto fn = [&,task,delay](size_t, size_t) {
-            std::this_thread::sleep_for(std::chrono::seconds(delay));
-            task();
-        };
-        ThreadPool::get().post(fn);
-    }
-
-    private:
-    void run(size_t interval, std::function<void()> task){
-        while(!_try_to_expire)
-        {
-            std::this_thread::sleep_for(std::chrono::seconds(interval));
-            task();
-        }
-        {
-            std::lock_guard<std::mutex> locker(_mutex);
-            _expired = true;
-            _con_var_expired.notify_one();
-        }
-    }
-    //The status of timer
-    std::atomic<bool> _expired;
-    std::atomic<bool> _try_to_expire;
-    std::mutex _mutex;
-    std::condition_variable _con_var_expired;
+  }
+  // The status of timer
+  std::atomic<bool> _expired;
+  std::atomic<bool> _try_to_expire;
+  std::mutex _mutex;
+  std::condition_variable _con_var_expired;
 };
-#endif 
+#endif
 
-}
-}
-}
+}}}  // namespace triton::backend::hugectr

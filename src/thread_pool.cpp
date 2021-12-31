@@ -22,7 +22,8 @@ namespace triton { namespace backend { namespace hugectr {
 
 ThreadPool::ThreadPool() : ThreadPool(0) {}
 
-ThreadPool::ThreadPool(size_t num_threads) : terminate_(false) {
+ThreadPool::ThreadPool(size_t num_threads) : terminate_(false)
+{
   // Determine eventual number of threads.
   if (num_threads == 0) {
     const char* num_threads_str = getenv("HCTR_DEFAULT_CONCURRENCY");
@@ -39,7 +40,8 @@ ThreadPool::ThreadPool(size_t num_threads) : terminate_(false) {
   }
 }
 
-ThreadPool::~ThreadPool() {
+ThreadPool::~ThreadPool()
+{
   terminate_ = true;
   sempahore_.notify_all();
   for (auto& thread : pool_) {
@@ -47,10 +49,16 @@ ThreadPool::~ThreadPool() {
   }
 }
 
-size_t ThreadPool::size() const { return pool_.size(); }
+size_t
+ThreadPool::size() const
+{
+  return pool_.size();
+}
 
-ThreadPoolResult ThreadPool::post(ThreadPoolTask task) {
-  std::packaged_task<void(size_t,size_t)> actual_task(std::move(task));
+ThreadPoolResult
+ThreadPool::post(ThreadPoolTask task)
+{
+  std::packaged_task<void(size_t, size_t)> actual_task(std::move(task));
   ThreadPoolResult result = actual_task.get_future();
   {
     std::unique_lock<std::mutex> lock(queue_guard_);
@@ -60,23 +68,29 @@ ThreadPoolResult ThreadPool::post(ThreadPoolTask task) {
   return result;
 }
 
-void ThreadPool::await(std::vector<ThreadPoolResult>& results) {
+void
+ThreadPool::await(std::vector<ThreadPoolResult>& results)
+{
   for (const auto& result : results) {
     result.wait();
   }
 }
 
-ThreadPool& ThreadPool::get() {
+ThreadPool&
+ThreadPool::get()
+{
   static std::unique_ptr<ThreadPool> default_pool;
   static std::once_flag semaphore;
   call_once(semaphore, []() { default_pool = std::make_unique<ThreadPool>(); });
   return *default_pool.get();
 }
 
-void ThreadPool::run(const size_t thread_num) {
+void
+ThreadPool::run(const size_t thread_num)
+{
   const size_t num_threads = pool_.size();
   while (!terminate_) {
-    thread_local std::packaged_task<void(size_t,size_t)> task;
+    thread_local std::packaged_task<void(size_t, size_t)> task;
     {
       std::unique_lock<std::mutex> lock(queue_guard_);
       sempahore_.wait(lock, [&] { return terminate_ || queue_.size(); });
@@ -86,11 +100,8 @@ void ThreadPool::run(const size_t thread_num) {
       task = std::move(queue_.front());
       queue_.pop_front();
     }
-    task(thread_num,num_threads);
+    task(thread_num, num_threads);
   }
 }
 
-}  // namespace hugectr
-
-} // namespace backend
-}// namespace triton
+}}}  // namespace triton::backend::hugectr

@@ -116,10 +116,7 @@ As of version 3.3 of HugeCTR individual hierarchy stages of the hierachical para
 {
     "supportlonglong": false,
     ...
-    "cpu_memory_db": {
-      "type": "disabled"
-    },
-    "distributed_db": {
+    "volatile_db": {
       "type": "redis_cluster",
       "address": "192.168.0.10:7000;192.168.0.20:7000;192.168.0.30:7000",
       "num_partitions": 8,
@@ -141,7 +138,7 @@ Hence, we disable local CPU memory caching *(enabled by default)*, and instead t
 * **Distributed Database Redis Cluster**  
 Synchronous lookup for Redis cluster: Each Model instance looks up the required embedding keys from the localized GPU cache, which will also store the missing embedding keys (Keys not found in the GPU cache) into missing keys buffer. The missing keys buffer is exchanged with the Redis instance synchronously, which in turn performs the look up operation on any missing embedding keys. Thereby, the distributed Redis cluster acts as a 2nd-level cache that can completely replace the localized parameter server for loading the complete embedded table of all models. 
 
-  Users only need to set the ip and port of each node to enable the Redis cluster service into the HugeCTR Hierarchical Parameter Server. However, the Redis cluster as a distributed memory cache is still limited by the size of CPU memory in each node. In other words, the size of the embedded table of all models still cannot exceed the total CPU memory of the cluster. Therefore, the user can use `"initial_cache_rate"` in `distributed_db` block to control the size of the model embedding table loaded into the Redis cluster.
+  Users only need to set the ip and port of each node to enable the Redis cluster service into the HugeCTR Hierarchical Parameter Server. However, the Redis cluster as a distributed memory cache is still limited by the size of CPU memory in each node. In other words, the size of the embedded table of all models still cannot exceed the total CPU memory of the cluster. Therefore, the user can use `"initial_cache_rate"` in `volatile_db` block to control the size of the model embedding table loaded into the Redis cluster.
   
   To take advantage of an Redis cluster with HugeCTR, the following configuration options need to be added to be added to ps.json:
 
@@ -149,7 +146,7 @@ Synchronous lookup for Redis cluster: Each Model instance looks up the required 
   {
     "supportlonglong": false,
     ...
-    "distributed_db": {
+    "volatile_db": {
       "type": "redis_cluster",
       "address": "192.168.0.10:7000;192.168.0.20:7000;192.168.0.30:7000",
       "num_partitions": 8,
