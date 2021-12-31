@@ -1,6 +1,6 @@
 FROM  gitlab-master.nvidia.com:5005/dl/hugectr/hugectr:devel_inference
 # for testing
-ARG HUGECTR_BRANCH=fix-hps-known-issues-v3.4
+ARG HUGECTR_BRANCH=v3.4-integration
 ARG INFERENCE_BRANCH=main
 ARG TRITON_BRANCH=r21.09
 ARG INFERENCE_MODE=ON
