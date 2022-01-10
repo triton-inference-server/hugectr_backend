@@ -1196,32 +1196,6 @@ ModelState::ParseModelConfig()
       HCTR_TRITON_LOG(
           INFO, "dense_file = ", Model_Inference_Para.dense_model_file);
     }
-    if (parameters.Find("gpucache", &value)) {
-      RETURN_IF_ERROR(TritonJsonHelper::parse(
-          support_gpu_cache_, value, "string_value", true));
-      HCTR_TRITON_LOG(INFO, "support gpu cache = ", support_gpu_cache_);
-
-      if (support_gpu_cache_ != Model_Inference_Para.use_gpu_embedding_cache) {
-        return HCTR_TRITON_ERROR(
-            INVALID_ARG, "Expected value for 'gpucache' = '",
-            support_gpu_cache_, "', ",
-            "which is inconsistent with parameter server JSON configuration "
-            "file.");
-      }
-      Model_Inference_Para.use_gpu_embedding_cache = support_gpu_cache_;
-    }
-
-    if (parameters.Find("mixed_precision", &value)) {
-      RETURN_IF_ERROR(TritonJsonHelper::parse(
-          use_mixed_precision_, value, "string_value", true));
-      HCTR_TRITON_LOG(INFO, "support mixed_precision = ", use_mixed_precision_);
-
-    if (parameters.Find("dense_file", &value)) {
-      RETURN_IF_ERROR(TritonJsonHelper::parse(
-          Model_Inference_Para.dense_model_file, value, "string_value", true));
-      HCTR_TRITON_LOG(
-          INFO, "dense_file = ", Model_Inference_Para.dense_model_file);
-    }
 
     if (parameters.Find("gpucache", &value)) {
       RETURN_IF_ERROR(TritonJsonHelper::parse(
