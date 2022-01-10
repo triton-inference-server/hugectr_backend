@@ -1079,7 +1079,9 @@ ModelState::ValidateModelConfig()
   return nullptr;  // success
 }
 
-TRITONSERVER_Error* ModelState::ParseModelConfig() {
+TRITONSERVER_Error*
+ModelState::ParseModelConfig()
+{
   common::TritonJson::WriteBuffer buffer;
   RETURN_IF_ERROR(model_config_.PrettyWrite(&buffer));
   HCTR_TRITON_LOG(INFO, "The model configuration: ", buffer.Contents());
@@ -1187,22 +1189,6 @@ TRITONSERVER_Error* ModelState::ParseModelConfig() {
       Model_Inference_Para.sparse_model_files.clear();
       hctr_str_split(tmp, ',', Model_Inference_Para.sparse_model_files);
     }
-    
-    if (parameters.Find("gpucache", &value)) {
-      RETURN_IF_ERROR(TritonJsonHelper::parse(support_gpu_cache_, value, "string_value", true));
-      HCTR_TRITON_LOG(INFO, "support gpu cache = ", support_gpu_cache_);
-
-      if (support_gpu_cache_ != Model_Inference_Para.use_gpu_embedding_cache) {
-        return HCTR_TRITON_ERROR(INVALID_ARG,
-          "Expected value for 'gpucache' = '", support_gpu_cache_, "', ",
-          "which is inconsistent with parameter server JSON configuration file.");
-      }
-      Model_Inference_Para.use_gpu_embedding_cache = support_gpu_cache_;
-    }
-
-    if (parameters.Find("mixed_precision", &value)) {
-      RETURN_IF_ERROR(TritonJsonHelper::parse(use_mixed_precision_, value, "string_value", true));
-      HCTR_TRITON_LOG(INFO, "support mixed_precision = ", use_mixed_precision_);
 
     if (parameters.Find("dense_file", &value)) {
       RETURN_IF_ERROR(TritonJsonHelper::parse(
@@ -1453,7 +1439,10 @@ class ModelInstanceState {
   ~ModelInstanceState();
 
   // Get the handle to the TRITONBACKEND model instance.
-  TRITONBACKEND_ModelInstance* TritonModelInstance() { return triton_model_instance_; }
+  TRITONBACKEND_ModelInstance* TritonModelInstance()
+  {
+    return triton_model_instance_;
+  }
 
   // Get the name, kind and device ID of the instance.
   const std::string& Name() const { return name_; }
@@ -1517,7 +1506,8 @@ class ModelInstanceState {
   HugeCTR::HugeCTRModel* hugectrmodel_;
 };
 
-TRITONSERVER_Error* ModelInstanceState::Create(
+TRITONSERVER_Error*
+ModelInstanceState::Create(
     ModelState* model_state, TRITONBACKEND_ModelInstance* triton_model_instance,
     ModelInstanceState** state, HugeCTR::InferenceParams instance_params)
 {
@@ -1602,7 +1592,8 @@ ModelInstanceState::ModelInstanceState(
   prediction_buf->allocate();
 }
 
-ModelInstanceState::~ModelInstanceState() {
+ModelInstanceState::~ModelInstanceState()
+{
   // release all the buffers
   embedding_cache.reset();
   model_state_->GetEmbeddingCache(device_id_).reset();
@@ -1679,7 +1670,8 @@ TRITONBACKEND_Initialize(TRITONBACKEND_Backend* backend)
   // that the model json configuration file path must be specified specify in
   // the command-line.
   TRITONSERVER_Message* backend_config_message;
-  RETURN_IF_ERROR(TRITONBACKEND_BackendConfig(backend, &backend_config_message));
+  RETURN_IF_ERROR(
+      TRITONBACKEND_BackendConfig(backend, &backend_config_message));
 
   TRITONBACKEND_ArtifactType artifact_type;
   const char* location;
@@ -1732,7 +1724,9 @@ TRITONBACKEND_Initialize(TRITONBACKEND_Backend* backend)
 // Implementing TRITONBACKEND_Finalize is optional unless state is set
 // using TRITONBACKEND_BackendSetState. The backend must free this
 // state and perform any other global cleanup.
-TRITONSERVER_Error* TRITONBACKEND_Finalize(TRITONBACKEND_Backend* backend) {
+TRITONSERVER_Error*
+TRITONBACKEND_Finalize(TRITONBACKEND_Backend* backend)
+{
   void* vstate;
 
   RETURN_IF_ERROR(TRITONBACKEND_BackendState(backend, &vstate));
@@ -1776,7 +1770,8 @@ TRITONBACKEND_ModelInitialize(TRITONBACKEND_Model* model)
   RETURN_IF_ERROR(TRITONBACKEND_ModelBackend(model, &backend));
 
   TRITONSERVER_Message* backend_config_message;
-  RETURN_IF_ERROR(TRITONBACKEND_BackendConfig(backend, &backend_config_message));
+  RETURN_IF_ERROR(
+      TRITONBACKEND_BackendConfig(backend, &backend_config_message));
 
   const char* buffer;
   size_t byte_size;
@@ -1837,7 +1832,9 @@ TRITONBACKEND_ModelInitialize(TRITONBACKEND_Model* model)
 // Implementing TRITONBACKEND_ModelFinalize is optional unless state
 // is set using TRITONBACKEND_ModelSetState. The backend must free
 // this state and perform any other cleanup.
-TRITONSERVER_Error* TRITONBACKEND_ModelFinalize(TRITONBACKEND_Model* model) {
+TRITONSERVER_Error*
+TRITONBACKEND_ModelFinalize(TRITONBACKEND_Model* model)
+{
   void* vstate;
   RETURN_IF_ERROR(TRITONBACKEND_ModelState(model, &vstate));
   ModelState* model_state = reinterpret_cast<ModelState*>(vstate);
@@ -1890,10 +1887,13 @@ TRITONBACKEND_ModelInstanceInitialize(TRITONBACKEND_ModelInstance* instance)
 // Implementing TRITONBACKEND_ModelInstanceFinalize is optional unless
 // state is set using TRITONBACKEND_ModelInstanceSetState. The backend
 // must free this state and perform any other cleanup.
-TRITONSERVER_Error* TRITONBACKEND_ModelInstanceFinalize(TRITONBACKEND_ModelInstance* instance) {
+TRITONSERVER_Error*
+TRITONBACKEND_ModelInstanceFinalize(TRITONBACKEND_ModelInstance* instance)
+{
   void* vstate;
   RETURN_IF_ERROR(TRITONBACKEND_ModelInstanceState(instance, &vstate));
-  ModelInstanceState* instance_state = reinterpret_cast<ModelInstanceState*>(vstate);
+  ModelInstanceState* instance_state =
+      reinterpret_cast<ModelInstanceState*>(vstate);
 
   HCTR_TRITON_LOG(
       INFO, "TRITONBACKEND_ModelInstanceFinalize: delete instance state");
@@ -1904,9 +1904,11 @@ TRITONSERVER_Error* TRITONBACKEND_ModelInstanceFinalize(TRITONBACKEND_ModelInsta
 }
 
 // Implementing TRITONBACKEND_ModelInstanceExecute is required.
-TRITONSERVER_Error* TRITONBACKEND_ModelInstanceExecute(TRITONBACKEND_ModelInstance* instance,
-                                                       TRITONBACKEND_Request** requests,
-                                                       const uint32_t request_count) {
+TRITONSERVER_Error*
+TRITONBACKEND_ModelInstanceExecute(
+    TRITONBACKEND_ModelInstance* instance, TRITONBACKEND_Request** requests,
+    const uint32_t request_count)
+{
   // Triton will not call this function simultaneously for the same
   // 'instance'. But since this backend could be used by multiple
   // instances from multiple models the implementation needs to handle
@@ -2088,6 +2090,7 @@ TRITONSERVER_Error* TRITONBACKEND_ModelInstanceExecute(TRITONBACKEND_ModelInstan
     int64_t numofcat;
     int64_t num_of_sample_des = 1;
     int64_t num_of_sample_cat = 1;
+
     GUARDED_RESPOND_IF_ERROR(
         responses, r,
         TRITONBACKEND_InputProperties(
@@ -2302,7 +2305,9 @@ TRITONSERVER_Error* TRITONBACKEND_ModelInstanceExecute(TRITONBACKEND_ModelInstan
         if (responses[r] == nullptr) {
           GUARDED_RESPOND_IF_ERROR(
               responses, r,
-              TRITONSERVER_ErrorNew(TRITONSERVER_ERROR_UNSUPPORTED, "failed to get input buffer in GPU memory"));
+              TRITONSERVER_ErrorNew(
+                  TRITONSERVER_ERROR_UNSUPPORTED,
+                  "failed to get input buffer in GPU memory"));
         }
         // Step 4. Perform prediction in device and copy result to cpu output
         // buffer
@@ -2341,8 +2346,9 @@ TRITONSERVER_Error* TRITONBACKEND_ModelInstanceExecute(TRITONBACKEND_ModelInstan
     // NumSample-> Number of samples in current request
     // DeviceID-> Current model initialized  on device ID
     LOG_IF_ERROR(
-      TRITONBACKEND_ResponseSetIntParameter(responses[r], "NumSample", num_of_samples),
-      "failed return Number of samples");
+        TRITONBACKEND_ResponseSetIntParameter(
+            responses[r], "NumSample", num_of_samples),
+        "failed return Number of samples");
     LOG_IF_ERROR(
         TRITONBACKEND_ResponseSetIntParameter(
             responses[r], "DeviceID", instance_state->DeviceId()),
