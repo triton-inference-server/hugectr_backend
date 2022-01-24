@@ -814,6 +814,7 @@ class ModelState {
   // Get the name and version of the model.
   const std::string& Name() const { return name_; }
   uint64_t Version() const { return version_; }
+  TRITONSERVER_Error* SetPSModelVersion(uint64_t current_version);
 
   // Validate that model configuration is supported by this backend.
   TRITONSERVER_Error* ValidateModelConfig();
@@ -857,7 +858,7 @@ class ModelState {
  private:
   ModelState(
       TRITONSERVER_Server* triton_server, TRITONBACKEND_Model* triton_model,
-      const char* name, const uint64_t version, const uint64_t version_ps,
+      const char* name, const uint64_t version, uint64_t version_ps,
       common::TritonJson::Value&& model_config,
       HugeCTR::HugectrUtility<unsigned int>* EmbeddingTable_int32,
       HugeCTR::HugectrUtility<long long>* EmbeddingTable_int64,
@@ -867,7 +868,7 @@ class ModelState {
   TRITONBACKEND_Model* triton_model_;
   const std::string name_;
   const uint64_t version_;
-  const uint64_t version_ps_;
+  uint64_t version_ps_;
   int64_t max_batch_size_ = 64;
   int64_t slot_num_ = 10;
   int64_t dese_num_ = 50;
@@ -951,7 +952,7 @@ ModelState::Create(
 
 ModelState::ModelState(
     TRITONSERVER_Server* triton_server, TRITONBACKEND_Model* triton_model,
-    const char* name, const uint64_t version, const uint64_t model_ps_version,
+    const char* name, const uint64_t version, uint64_t model_ps_version,
     common::TritonJson::Value&& model_config,
     HugeCTR::HugectrUtility<unsigned int>* EmbeddingTable_int32,
     HugeCTR::HugectrUtility<long long>* EmbeddingTable_int64,
@@ -990,6 +991,12 @@ ModelState::EmbeddingCacheRefresh(const std::string& model_name, int device_id)
       ".");
 }
 
+TRITONSERVER_Error*
+ModelState::SetPSModelVersion(uint64_t current_version)
+{
+  version_ps_ = current_version;
+  return nullptr;
+}
 
 TRITONSERVER_Error*
 ModelState::ValidateModelConfig()
@@ -1380,8 +1387,10 @@ ModelState::Create_EmbeddingCache()
             EmbeddingTable_int32->GetEmbeddingCache(name_, gpu_shape[i]);
       }
       if (version_ps_ > 0 && version_ps_ != version_) {
-        cache_refresh_threads.push_back(std::thread(
-            &ModelState::EmbeddingCacheRefresh, this, name_, gpu_shape[i]));
+        timer.startonce(
+            0,
+            std::bind(
+                &ModelState::EmbeddingCacheRefresh, this, name_, gpu_shape[i]));
       }
     }
   }
@@ -1406,7 +1415,7 @@ ModelState::Create_EmbeddingCache()
 
 ModelState::~ModelState()
 {
-  if (support_gpu_cache_) {
+  if (support_gpu_cache_ && version_ps_ == version_) {
     if (support_int64_key_) {
       EmbeddingTable_int64->destory_embedding_cache_per_model(name_);
     } else {
@@ -1800,6 +1809,15 @@ TRITONBACKEND_ModelInitialize(TRITONBACKEND_Model* model)
     backend_state->ParseParameterServer(
         backend_state->ParameterServerJsonFile());
   }
+  if (backend_state->HugeCTRModelConfigurationMap().count(name) == 0) {
+    HCTR_TRITON_LOG(
+        WARN,
+        "Fail to parse the latest Parameter Server json config file for "
+        "deploying "
+        "model ",
+        name, " online");
+    return nullptr;
+  }
   ModelState::Create(
       model, &model_state, backend_state->HugeCTRParameterServerInt32(),
       backend_state->HugeCTRParameterServerInt64(),
@@ -1835,9 +1853,20 @@ TRITONBACKEND_ModelInitialize(TRITONBACKEND_Model* model)
 TRITONSERVER_Error*
 TRITONBACKEND_ModelFinalize(TRITONBACKEND_Model* model)
 {
+  const char* name;
+  RETURN_IF_ERROR(TRITONBACKEND_ModelName(model, &name));
+  TRITONBACKEND_Backend* backend;
+  RETURN_IF_ERROR(TRITONBACKEND_ModelBackend(model, &backend));
+  void* vbackendstate;
+  RETURN_IF_ERROR(TRITONBACKEND_BackendState(backend, &vbackendstate));
+  HugeCTRBackend* backend_state =
+      reinterpret_cast<HugeCTRBackend*>(vbackendstate);
+  uint64_t latest_model_ps_version = backend_state->GetModelVersion(name);
+
   void* vstate;
   RETURN_IF_ERROR(TRITONBACKEND_ModelState(model, &vstate));
   ModelState* model_state = reinterpret_cast<ModelState*>(vstate);
+  model_state->SetPSModelVersion(latest_model_ps_version);
 
   HCTR_TRITON_LOG(INFO, "TRITONBACKEND_ModelFinalize: delete model state");
 
@@ -1854,20 +1883,33 @@ TRITONBACKEND_ModelInstanceInitialize(TRITONBACKEND_ModelInstance* instance)
 {
   const char* name;
   RETURN_IF_ERROR(TRITONBACKEND_ModelInstanceName(instance, &name));
+  // The instance can access the corresponding model and backend as well... here
+  // we get the model and backend and from that get the model's state such that
+  // to dinstinguish whether current model is deployed on-line
+  TRITONBACKEND_Model* model;
+  RETURN_IF_ERROR(TRITONBACKEND_ModelInstanceModel(instance, &model));
+  const char* modelname;
+  RETURN_IF_ERROR(TRITONBACKEND_ModelName(model, &modelname));
+  void* vmodelstate;
+  RETURN_IF_ERROR(TRITONBACKEND_ModelState(model, &vmodelstate));
+  ModelState* model_state = reinterpret_cast<ModelState*>(vmodelstate);
+  TRITONBACKEND_Backend* backend;
+  void* vbackendstate;
+  RETURN_IF_ERROR(TRITONBACKEND_ModelBackend(model, &backend));
+  RETURN_IF_ERROR(TRITONBACKEND_BackendState(backend, &vbackendstate));
+  HugeCTRBackend* backend_state =
+      reinterpret_cast<HugeCTRBackend*>(vbackendstate);
+  if (backend_state->HugeCTRModelConfigurationMap().count(modelname) == 0) {
+    HCTR_TRITON_LOG(
+        WARN, "Please make sure that the configuration of model ", modelname,
+        "has been added to the Parameter Server json configuration file!");
+    return nullptr;
+  }
   int32_t device_id;
   RETURN_IF_ERROR(TRITONBACKEND_ModelInstanceDeviceId(instance, &device_id));
   HCTR_TRITON_LOG(
       INFO, "TRITONBACKEND_ModelInstanceInitialize: ", name, " (device ",
       device_id, ")");
-
-  // The instance can access the corresponding model as well... here
-  // we get the model and from that get the model's state.
-  TRITONBACKEND_Model* model;
-  RETURN_IF_ERROR(TRITONBACKEND_ModelInstanceModel(instance, &model));
-
-  void* vmodelstate;
-  RETURN_IF_ERROR(TRITONBACKEND_ModelState(model, &vmodelstate));
-  ModelState* model_state = reinterpret_cast<ModelState*>(vmodelstate);
 
   // With each instance we create a ModelInstanceState object and
   // associate it with the TRITONBACKEND_ModelInstance.
