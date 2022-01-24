@@ -431,6 +431,13 @@ HugeCTRBackend::ParseParameterServer(const std::string& path)
         "max. batch size (SET) = ", params.max_set_batch_size);
 
     // Overflow handling related.
+    key = "refresh_time_after_fetch";
+    RETURN_IF_ERROR(TritonJsonHelper::parse(
+        params.refresh_time_after_fetch, json, key, false));
+    HCTR_TRITON_LOG(
+        INFO, log_prefix,
+        "refresh time after fetch = ", params.refresh_time_after_fetch);
+
     key = "overflow_margin";
     RETURN_IF_ERROR(
         TritonJsonHelper::parse(params.overflow_margin, json, key, false));
@@ -450,12 +457,20 @@ HugeCTRBackend::ParseParameterServer(const std::string& path)
         INFO, log_prefix,
         "overflow resolution target = ", params.overflow_resolution_target);
 
-    // Initialization related.
+    // Caching behavior related.
     key = "initial_cache_rate";
     RETURN_IF_ERROR(
         TritonJsonHelper::parse(params.initial_cache_rate, json, key, false));
     HCTR_TRITON_LOG(
         INFO, log_prefix, "initial cache rate = ", params.initial_cache_rate);
+
+    key = "cache_missed_embeddings";
+    RETURN_IF_ERROR(TritonJsonHelper::parse(
+        params.cache_missed_embeddings, json, key, false));
+    HCTR_TRITON_LOG(
+        INFO, log_prefix,
+        "cache missed embeddings = ", params.cache_missed_embeddings);
+
 
     // Real-time update mechanism related.
     key = "update_filters";
@@ -693,12 +708,6 @@ HugeCTRBackend::ParseParameterServer(const std::string& path)
 
     // Done!
     inference_params_map.emplace(model_name, params);
-    /*if (!inference_params_map.emplace(model_name, params).second) {
-            return HCTR_TRITON_ERROR(
-                INVALID_ARG,
-                "Name conflict. Multiple of the configured models are named
-         exactly " "the same!");
-      } */
   }
 
   return nullptr;
