@@ -1,7 +1,7 @@
 # Deployment with HugeCTR Hierarchical Parameter Server
 
 ## Overview
-HugeCTR Hierarchical Parameter Server implemented a hierarchical storage mechanism between local SSDs and CPU memory, which breaks the convention that the embedding table must be stored in local CPU memory. The distributed Redis cluster is introduced as a CPU cache to store larger embedding tables and interact with the GPU embedding cache directly. The local RocksDB serves as a query engine to back up the complete embedding table on the local SSDs in order to assist the Redis cluster to perform missing embedding keys look up.
+HugeCTR Hierarchical Parameter Server implemented a hierarchical storage mechanism between local SSDs and CPU memory, which breaks the convention that the embedding table must be stored in local CPU memory. The distributed Redis cluster is introduced as a CPU cache to store larger embedding tables and interact with the GPU embedding cache directly. The local RocksDB serves as a query engine to back up the complete embedding table on the local SSDs in order to assist the Redis cluster to perform missing embedding keys look up. For a detailed documentation of hugectr hierarchical parameter server, please refer to [this documentation](https://github.com/NVIDIA-Merlin/HugeCTR/blob/master/docs/hugectr_parameter_server.md).
  
 
 ## Getting Started 
