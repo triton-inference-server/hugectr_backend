@@ -45,12 +45,12 @@ You can pull the `Merlin-Training` container by running the following command:
 DLRM model traning:
 
 ```
-docker run --gpus=all -it --cap-add SYS_NIC -v ${PWD}:/dlrm_train/ --net=host nvcr.io/nvidia/merlin/merlin-training:21.09 /bin/bash
+docker run --gpus=all -it --cap-add SYS_NIC -v ${PWD}:/dlrm_train/ --net=host nvcr.io/nvidia/merlin/merlin-training:22.02 /bin/bash
 ```
 
 Wide&Deep model training:
 ```
-docker run --gpus=all -it --cap-add SYS_NICE -v ${PWD}:/wdl_train/ --net=host nvcr.io/nvidia/merlin/merlin-training:21.09 /bin/bash
+docker run --gpus=all -it --cap-add SYS_NICE -v ${PWD}:/wdl_train/ --net=host nvcr.io/nvidia/merlin/merlin-training:22.02 /bin/bash
 ```
 
 The container will open a shell when the run command execution is completed. You'll have to start the jupyter lab on the Docker container. It should look similar to this:
