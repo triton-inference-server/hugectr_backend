@@ -1,12 +1,12 @@
 # Deployment with HugeCTR Hierarchical Parameter Server
 
 ## Overview
-HugeCTR Hierarchical Parameter Server implemented a hierarchical storage mechanism between local SSDs and CPU memory, which breaks the convention that the embedding table must be stored in local CPU memory. The distributed Redis cluster is introduced as a CPU cache to store larger embedding tables and interact with the GPU embedding cache directly. The local RocksDB serves as a query engine to back up the complete embedding table on the local SSDs in order to assist the Redis cluster to perform missing embedding keys look up.
+HugeCTR Inference Hierarchical Parameter Server implemented a hierarchical storage mechanism between local SSDs and CPU memory, which breaks the convention that the embedding table must be stored in local CPU memory. The distributed Redis cluster is introduced as a CPU cache to store larger embedding tables and interact with the GPU embedding cache directly. The local RocksDB serves as a query engine to back up the complete embedding table on the local SSDs in order to assist the Redis cluster to perform missing embedding keys look up. For a detailed documentation of hugectr hierarchical parameter server, please refer to [this documentation](../../docs/hierarchical_parameter_server.md).
  
 
 ## Getting Started 
 
-We provide an HugeCTR model deployment examples, which explain the steps to deploy HugeCTR model using Triton in hierarchical parameter server framework.
+We provide an HugeCTR model deployment examples, which explain the steps to deploy HugeCTR model using Triton in hierarchical inference parameter server framework.
 
 There are two containers that are needed in order to train and deploy the HugeCTR Model. The first one is for preprocessing with NVTabular and training a model with the HugeCTR framework. The other one is for serving/inference using Triton. 
 
@@ -144,7 +144,7 @@ mkdir -p wdl_infer
 
 Wide&Deep model inference container:
 ```
-docker run -it --gpus=all --shm-size=1g --ulimit memlock=-1 --ulimit stack=67108864 --net=host -v wdl_infer:/wdl_infer/ -v wdl_train:/wdl_train/ -v your_rocksdb_path:/wdl_infer/rocksdb/ nvcr.io/nvidia/merlin/merlin-inference:21.09
+docker run -it --gpus=all --shm-size=1g --ulimit memlock=-1 --ulimit stack=67108864 --net=host -v wdl_infer:/wdl_infer/ -v wdl_train:/wdl_train/ -v your_rocksdb_path:/wdl_infer/rocksdb/ nvcr.io/nvidia/merlin/merlin-inference:22.02
 ```
 The container will open a shell when the run command execution is completed. It should look similar to this:
 ```

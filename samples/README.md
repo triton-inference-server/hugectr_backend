@@ -45,12 +45,12 @@ You can pull the `Merlin-Training` container by running the following command:
 DLRM model traning:
 
 ```
-docker run --gpus=all -it --cap-add SYS_NIC -v ${PWD}:/dlrm_train/ --net=host nvcr.io/nvidia/merlin/merlin-training:21.09 /bin/bash
+docker run --gpus=all -it --cap-add SYS_NIC -v ${PWD}:/dlrm_train/ --net=host nvcr.io/nvidia/merlin/merlin-training:22.02 /bin/bash
 ```
 
 Wide&Deep model training:
 ```
-docker run --gpus=all -it --cap-add SYS_NICE -v ${PWD}:/wdl_train/ --net=host nvcr.io/nvidia/merlin/merlin-training:21.09 /bin/bash
+docker run --gpus=all -it --cap-add SYS_NICE -v ${PWD}:/wdl_train/ --net=host nvcr.io/nvidia/merlin/merlin-training:22.02 /bin/bash
 ```
 
 The container will open a shell when the run command execution is completed. You'll have to start the jupyter lab on the Docker container. It should look similar to this:
@@ -154,7 +154,7 @@ tritonserver --model-repository=/wdl_infer/model/ --load-model=wdl \
     --backend-config=hugectr,ps=/wdl_infer/model/ps.json
 ```
 
-Note: The model-repository path is /`model_name`_infer/model/. The path for the DLRM (Wide&Deep) model network json file is /`model_name`_infer/model/`model_name`/1/`model_name`.json. The path for the parameter server configuration file is /`model_name`/model/ps.json.
+Note: The model-repository path is /`model_name`_infer/model/. The path for the DLRM (Wide&Deep) model network json file is /`model_name`_infer/model/`model_name`/1/`model_name`.json. The path for the hierarchical inference parameter server configuration file is /`model_name`/model/ps.json.
 
 After you start Triton you will see output on the console showing the server starting up. At this stage you have loaded the `dlrm` model in the  `HugeCTR_DLRM_Inference` notebook to be able to send the request. All the models should load successfully. If a model fails to load the status will report the failure and a reason for the failure. 
 
@@ -212,7 +212,7 @@ In order to deploy the HugeCTR model, some customized configuration items need t
   }
 ]
 ```  
-The model files (the path of the embedded table file) needs to be configured in a separate "`modelname`_infer/model/ps.json", because the localized parameter server will pre-load the embedding tables independently. The minimum required PS configuration file is as follows:
+The model files (the path of the embedded table file) needs to be configured in a separate "`modelname`_infer/model/ps.json", because the localized inference parameter server will pre-load the embedding tables independently. The minimum required PS configuration file is as follows:
 
 ```json.
 {
