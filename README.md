@@ -108,7 +108,6 @@ The following should be noted when using Model Repository Extension functions:
  ## Metrix
  Triton provides Prometheus metrics indicating GPU and request statistics. Use Prometheus to gather metrics into usable, actionable entries, giving you the data you need to manage alerts and performance information in your environment. Prometheus is usually used along side Grafana. Grafana is a visualization tool that pulls Prometheus metrics and makes it easier to monitor. You can build your own metrix system based on our example, see [HugeCTR Backend Metrics](docs/metrics.md).  
 
-## Independent Parameter Server Configuration
 ## Independent Inference Hierarchical Parameter Server Configuration
 In the latest version, Hugectr backend has decoupled the inference Parameter Server-related configuration from the Triton configuration file(config.pbtxt), making it easier to configure the embedding table-related parameters per model. Especially for the configuration of multiple embedded tables per model, avoid too many command parameters when launching the Triton server.
 
