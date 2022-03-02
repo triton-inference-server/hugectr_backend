@@ -29,7 +29,7 @@
 [![License](https://img.shields.io/badge/License-BSD3-lightgrey.svg)](https://opensource.org/licenses/BSD-3-Clause)
 
 # HugeCTR Backend
-The HugeCTR Backend is a recommender model deployment framework that was designed to effectively use GPU memory to accelerate the Inference by decoupling the Parameter server, embedding cache, and model weight. The HugeCTR Backend supports concurrent model inference execution across multiple GPUs by embedding cache that is shared between multiple model instances. For more information, see [HugeCTR Inference Architecture](docs/architecture.md#hugectr-inference-framework).  
+The HugeCTR Backend is a recommender model deployment framework that was designed to effectively use GPU memory to accelerate the Inference by decoupling the embdding tabls, embedding cache, and model weight. The HugeCTR Backend supports concurrent model inference execution across multiple GPUs by embedding cache that is shared between multiple model instances. For more information, see [HugeCTR Inference Architecture](docs/architecture.md#hugectr-inference-framework).  
 
 ## Quick Start
 You can either install the HugeCTR Backend using Docker images in NGC, or build the HugeCTR Backend from scratch based on your own specific requirements using the same NGC HugeCTR Backend Docker images if you're an advanced user.
@@ -56,7 +56,7 @@ All NVIDIA Merlin components are available as open-source projects. However, a m
 
 Docker images for the HugeCTR Backend are available in the NVIDIA container repository on https://ngc.nvidia.com/catalog/containers/nvidia:merlin:merlin-inference. You can pull and launch the container by running the following command:
 ```
-docker run --gpus=1 --rm -it nvcr.io/nvidia/merlin/merlin-inference:21.09  # Start interaction mode  
+docker run --gpus=1 --rm -it nvcr.io/nvidia/merlin/merlin-inference:22.02  # Start interaction mode  
 ```
 
 **NOTE**: As of HugeCTR version 3.0, the HugeCTR container is no longer being released separately. If you're an advanced user, you should use the unified Merlin container to build the HugeCTR Training or Inference Docker image from scratch based on your own specific requirements. You can obtain the unified Merlin container by logging into NGC or by going [here](https://github.com/NVIDIA/HugeCTR/tree/master/tools/dockerfiles). 
@@ -99,20 +99,21 @@ Since the HugeCTR Backend is a customizable Triton component, it is capable of s
 From V3.3.1, HugeCTR Backend is fully compatible with the [Model Control EXPLICIT Mode](https://github.com/triton-inference-server/server/blob/main/docs/model_management.md#model-control-mode-explicit) of Triton. Adding the configuration of a new model to the HPS configuration file. The HugeCTR Backend has supported online deployment of new models by [the load API](https://github.com/triton-inference-server/server/blob/master/docs/protocol/extension_model_repository.md#load) of Triton. The old models can also be recycled online by [the unload API](https://github.com/triton-inference-server/server/blob/master/docs/protocol/extension_model_repository.md#unload).
 
 The following should be noted when using Model Repository Extension functions:  
- - Depoly new models online: [The load API](https://github.com/triton-inference-server/server/blob/master/docs/protocol/extension_model_repository.md#load) will load not only the network dense weight as part of the HugeCTR model, but inserting the embedding table of new models to Hierarchical Parameter Server and creating the embedding cache based on model definition in [Independent Parameter Server Configuration](./Independent_Parameter_Server_Configuration), which means the Parameter server will independently provide an initialization mechanism for the new embedding table and embedding cache of new models.
+ - Depoly new models online: [The load API](https://github.com/triton-inference-server/server/blob/master/docs/protocol/extension_model_repository.md#load) will load not only the network dense weight as part of the HugeCTR model, but inserting the embedding table of new models to Hierarchical Inference Parameter Server and creating the embedding cache based on model definition in [Independent Parameter Server Configuration](./Independent_Parameter_Server_Configuration), which means the Parameter server will independently provide an initialization mechanism for the new embedding table and embedding cache of new models.
 
- - Update the deployed model online: [The load API](https://github.com/triton-inference-server/server/blob/master/docs/protocol/extension_model_repository.md#load) will load the network dense weight as part of the HugeCTR model and updating the embedding tables of the latest model file to Hierarchical Parameter Server and refreshing the embedding cache, which means the Parameter server will independently provide an updated mechanism for existing embedding tables.
+ - Update the deployed model online: [The load API](https://github.com/triton-inference-server/server/blob/master/docs/protocol/extension_model_repository.md#load) will load the network dense weight as part of the HugeCTR model and updating the embedding tables of the latest model file to Inference Hierarchical Parameter Server and refreshing the embedding cache, which means the Parameter server will independently provide an updated mechanism for existing embedding tables.
 
- - Recycle old models: [The unload API](https://github.com/triton-inference-server/server/blob/master/docs/protocol/extension_model_repository.md#unload) will request that the HugeCTR model network's weights be unloaded from Triton and release the corresponding embedded cache from devices, which means the embedding tables corresponding to the model will still remain in the Hierarchical Parameter Server Database.
+ - Recycle old models: [The unload API](https://github.com/triton-inference-server/server/blob/master/docs/protocol/extension_model_repository.md#unload) will request that the HugeCTR model network's weights be unloaded from Triton and release the corresponding embedded cache from devices, which means the embedding tables corresponding to the model will still remain in the Inference Hierarchical Parameter Server Database.
 
  ## Metrix
  Triton provides Prometheus metrics indicating GPU and request statistics. Use Prometheus to gather metrics into usable, actionable entries, giving you the data you need to manage alerts and performance information in your environment. Prometheus is usually used along side Grafana. Grafana is a visualization tool that pulls Prometheus metrics and makes it easier to monitor. You can build your own metrix system based on our example, see [HugeCTR Backend Metrics](docs/metrics.md).  
 
 ## Independent Parameter Server Configuration
-In the latest version, Hugectr backend has decoupled the Parameter Server-related configuration from the Triton configuration file(config.pbtxt), making it easier to configure the embedding table-related parameters per model. Especially for the configuration of multiple embedded tables per model, avoid too many command parameters when launching the Triton server.
+## Independent Inference Hierarchical Parameter Server Configuration
+In the latest version, Hugectr backend has decoupled the inference Parameter Server-related configuration from the Triton configuration file(config.pbtxt), making it easier to configure the embedding table-related parameters per model. Especially for the configuration of multiple embedded tables per model, avoid too many command parameters when launching the Triton server.
 
 In order to deploy the HugeCTR model, some customized configuration items need to be added as follows.
-The configuration file of Parameter Server should be formatted using the JSON format. 
+The configuration file of inference Parameter Server should be formatted using the JSON format.  
 
 **NOTE**: The Models clause needs to be included as a list, the specific configuration of each model as an item. **sparse_file** can be filled with multiple embedding table paths to support multiple embedding tables per model. Please refer to [VCSR Example](docs/architecture.md#variant-compressed-sparse-row-input) for modifying the input data format to support multiple embedding tables per model.   
 
@@ -151,8 +152,8 @@ The configuration file of Parameter Server should be formatted using the JSON fo
 }
 ```
 
-## HugeCTR Hierarchical Parameter Server 
-HugeCTR Hierarchical Parameter Server implemented a hierarchical storage mechanism between local SSDs and CPU memory, which breaks the convention that the embedding table must be stored in local CPU memory. `Distributed Database` layer allows utilizing Redis cluster deployments, to store and retrieve embeddings in/from the RAM memory available in your cluster. The `Persistent Database` layer links HugeCTR with a persistent database. Each node that has such a persistent storage layer configured retains a separate copy of all embeddings in its locally available non-volatile memory. see [Distributed Deployment](docs/architecture.md#distributed-deployment-with-hierarchical-hugectr-parameter-server) and [HugeCTR Hierarchical Parameter Server](https://github.com/NVIDIA-Merlin/HugeCTR/blob/master/docs/hugectr_parameter_server.md) for more details.
+## HugeCTR Inference Hierarchical Parameter Server 
+HugeCTR Inference Hierarchical Parameter Server implemented a hierarchical storage mechanism between local SSDs and CPU memory, which breaks the convention that the embedding table must be stored in local CPU memory. `Distributed Database` layer allows utilizing Redis cluster deployments, to store and retrieve embeddings in/from the RAM memory available in your cluster. The `Persistent Database` layer links HugeCTR with a persistent database. Each node that has such a persistent storage layer configured retains a separate copy of all embeddings in its locally available non-volatile memory. see [Distributed Deployment](docs/architecture.md#distributed-deployment-with-hierarchical-hugectr-parameter-server) and [HugeCTR Inference  Hierarchical Parameter Server](docs/hierarchical_parameter_server.md) for more details.
 
 In the following table, we provide an overview of the typical properties different parameter database layers (and the embedding cache). We emphasize that this table is just intended to provide a rough orientation. Properties of actual deployments may deviate.
 
@@ -172,10 +173,10 @@ In order to ensure that the running model can be updated online, we will update 
 * ### Embedding Cache Asynchronous Insertion Mechanism  
 We have supported the asynchronous insertion of missing embedding keys into the embedding cache. This feature can be activated automatically through user-defined hit rate threshold in configuration file.When the real hit rate of the embedding cache is higher than the user-defined threshold, the embedding cache will insert the missing key asynchronously, and vice versa, it will still be inserted in a synchronous way to ensure high accuracy of inference requests. Through the asynchronous insertion method, compared with the previous synchronous method, the real hit rate of the embedding cache can be further improved after the embedding cache reaches the user-defined threshold.
 
-* ### Performance optimization of Parameter Server
-We have added support for multiple database interfaces to our parameter server. In particular, we added an “in memory” database, that utilizes the local CPU memory for storing and recalling embeddings and uses multi-threading to accelerate look-up and storage.  
+* ### Performance Optimization of Inference Parameter Server
+We have added support for multiple database interfaces to our inference parameter server. In particular, we added an “in memory” database, that utilizes the local CPU memory for storing and recalling embeddings and uses multi-threading to accelerate look-up and storage.  
 Further, we revised support for “distributed” storage of embeddings in a Redis cluster. This way, you can use the combined CPU-accessible memory of your cluster for storing embeddings. The new implementation is up over two orders of magnitude faster than the previous.  
 Further, we performance-optimized support for the “persistent” storage and retrieval of embeddings via RocksDB through the structured use of column families.
 Creating a hierarchical storage (i.e. using Redis as distributed cache, and RocksDB as fallback), is supported as well. These advantages are free to end-users, as there is no need to adjust the PS configuration.  
-We plan to further integrate the hierarchical parameter server with other features, such as the GPU backed embedding caches in upcoming releases. Stay tuned!  
+We plan to further integrate the inference hierarchical parameter server with other features, such as the GPU backed embedding caches in upcoming releases. Stay tuned!  
 

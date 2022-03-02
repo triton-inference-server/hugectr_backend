@@ -137,7 +137,7 @@ target_link_libraries(
   PUBLIC
     triton-backend-utils    # from repo-backend
     triton-core-serverstub  # from repo-core
-    ${TRITON_HUGRCTRRUNTIME_LIB_PATHS}/libhugectr_inference.so # from Hugectr 
+    ${TRITON_HUGRCTRRUNTIME_LIB_PATHS}/libhuge_ctr_inference.so # from Hugectr
 )
 
 set_target_properties(
