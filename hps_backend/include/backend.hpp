@@ -57,10 +57,17 @@ class HPSBackend {
   // Get the handle to the TRITONBACKEND model.
   TRITONBACKEND_Backend* TritonBackend() { return triton_backend_; }
 
+  // Parse the HPS Configuration json file
+  TRITONSERVER_Error* ParseParameterServer(const std::string& path);
+
+  uint64_t GetModelVersion(const std::string& model_name);
+
+  bool UpdateModelVersion(const std::string& model_name, uint64_t version);
+
   ~HPSBackend();
 
   // Hierarchical long long type Parameter Server
-  HugeCTR::HugectrUtility<long long>* HugeCTRParameterServer()
+  HugeCTR::HugectrUtility<long long>* HierarchicalParameterServer()
   {
     return EmbeddingTable_int64;
   }
@@ -76,7 +83,9 @@ class HPSBackend {
     return inference_params_map;
   }
 
-  // Initialize HugeCTR Embedding Table
+  std::string ParameterServerJsonFile() { return ps_json_config_file_; }
+
+  // Initialize Embedding Tables based on deployed models
   TRITONSERVER_Error* HPS_backend();
 
  private:
@@ -89,6 +98,7 @@ class HPSBackend {
   std::map<std::string, HugeCTR::InferenceParams> inference_params_map;
 
   std::map<std::string, uint64_t> model_version_map;
+
   std::mutex version_map_mutex;
 
   common::TritonJson::Value parameter_server_config;

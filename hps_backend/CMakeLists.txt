@@ -110,7 +110,6 @@ add_library(
   src/backend.cpp
   src/model_state.cpp
   src/model_instance_state.cpp
-
 )
 
 add_library(

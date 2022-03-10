@@ -76,7 +76,7 @@ class ModelInstanceState {
   TRITONSERVER_Error* ProcessRequest(int64_t numofsamples);
 
   // Create Embedding_cache
-  TRITONSERVER_Error* LoadHugeCTRModel();
+  TRITONSERVER_Error* LoadHPSInstance();
 
 
   std::shared_ptr<HugeCTRBuffer<long long>> GetCatColBuffer_int64()
@@ -86,9 +86,9 @@ class ModelInstanceState {
 
   std::shared_ptr<HugeCTRBuffer<int>> GetRowBuffer() { return row_ptr_buf; }
 
-  std::shared_ptr<HugeCTRBuffer<float>> GetEmVecBuffer()
+  std::shared_ptr<HugeCTRBuffer<float>> GetLookupResultBuffer()
   {
-    return prediction_buf;
+    return lookup_result_buf;
   }
 
  private:
@@ -109,7 +109,7 @@ class ModelInstanceState {
   // There buffers will be shared for all the requests
   std::shared_ptr<HugeCTRBuffer<long long>> cat_column_index_buf_int64;
   std::shared_ptr<HugeCTRBuffer<int>> row_ptr_buf;
-  std::shared_ptr<HugeCTRBuffer<float>> prediction_buf;
+  std::shared_ptr<HugeCTRBuffer<float>> lookup_result_buf;
   std::shared_ptr<HugeCTR::embedding_interface> embedding_cache;
   HugeCTR::InferenceParams instance_params_;
 };

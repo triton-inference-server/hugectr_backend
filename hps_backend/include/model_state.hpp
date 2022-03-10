@@ -64,6 +64,9 @@ class ModelState {
   // Get the HugeCTR model cat feature size.
   int64_t CatNum() const { return cat_num_; }
 
+  // Get the HugeCTR model slots size.
+  int64_t SlotNum() const { return slot_num_; }
+
   // Get the HugeCTR model Embedding size.
   int64_t EmbeddingSize() const { return embedding_size_; }
 
@@ -140,6 +143,7 @@ class ModelState {
   uint64_t version_ps_;
   int64_t max_batch_size_ = 64;
   int64_t cat_num_ = 50;
+  int64_t slot_num_ = 10;
   int64_t embedding_size_ = 64;
   float cache_size_per = 0.5;
   float hit_rate_threshold = 0.8;
