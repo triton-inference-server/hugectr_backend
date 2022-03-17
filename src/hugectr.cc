@@ -41,9 +41,9 @@
 #include "cuda_runtime_api.h"
 #include "dirent.h"
 #include "dlfcn.h"
-#include "inference/embedding_interface.hpp"
+#include "hps/embedding_interface.hpp"
+#include "hps/inference_utils.hpp"
 #include "inference/hugectrmodel.hpp"
-#include "inference/inference_utils.hpp"
 #include "timer.hpp"
 #include "triton/backend/backend_common.h"
 

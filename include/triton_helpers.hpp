@@ -27,7 +27,7 @@
 
 #include <boost/algorithm/string.hpp>
 #include <functional>
-#include <inference/inference_utils.hpp>
+#include <hps/inference_utils.hpp>
 #include <triton_common.hpp>
 
 #include "triton/backend/backend_common.h"
