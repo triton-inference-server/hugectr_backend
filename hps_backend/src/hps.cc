@@ -34,7 +34,7 @@
 #include <backend.hpp>
 #include <cstdlib>
 #include <fstream>
-#include <hps/embedding_interface.hpp>
+#include <hps/embedding_cache_base.hpp>
 #include <hps/inference_utils.hpp>
 #include <map>
 #include <memory>

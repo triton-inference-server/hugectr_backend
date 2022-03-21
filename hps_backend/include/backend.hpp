@@ -28,8 +28,8 @@
 #include <algorithm>
 #include <cstdlib>
 #include <fstream>
-#include <hps/embedding_interface.hpp>
-#include <hps/inference_utils.hpp>
+#include <hps/embedding_cache_base.hpp>
+#include <hps/hier_parameter_server_base.hpp>
 #include <map>
 #include <memory>
 #include <mutex>
@@ -67,7 +67,8 @@ class HPSBackend {
   ~HPSBackend();
 
   // Hierarchical long long type Parameter Server
-  HugeCTR::HugectrUtility<long long>* HierarchicalParameterServer()
+  std::shared_ptr<HugeCTR::HierParameterServerBase>
+  HierarchicalParameterServer()
   {
     return EmbeddingTable_int64;
   }
@@ -91,7 +92,7 @@ class HPSBackend {
  private:
   TRITONBACKEND_Backend* triton_backend_;
   std::string ps_json_config_file_;
-  HugeCTR::HugectrUtility<long long>* EmbeddingTable_int64;
+  std::shared_ptr<HugeCTR::HierParameterServerBase> EmbeddingTable_int64;
 
   std::vector<std::string> model_network_files;
 

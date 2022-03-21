@@ -28,7 +28,7 @@
 #include <algorithm>
 #include <cstdlib>
 #include <fstream>
-#include <hps/embedding_interface.hpp>
+#include <hps/embedding_cache_base.hpp>
 #include <hps/inference_utils.hpp>
 #include <hps_buffer.hpp>
 #include <map>
@@ -110,7 +110,7 @@ class ModelInstanceState {
   std::shared_ptr<HugeCTRBuffer<long long>> cat_column_index_buf_int64;
   std::shared_ptr<HugeCTRBuffer<int>> row_ptr_buf;
   std::shared_ptr<HugeCTRBuffer<float>> lookup_result_buf;
-  std::shared_ptr<HugeCTR::embedding_interface> embedding_cache;
+  std::shared_ptr<HugeCTR::EmbeddingCacheBase> embedding_cache;
   HugeCTR::InferenceParams instance_params_;
 };
 

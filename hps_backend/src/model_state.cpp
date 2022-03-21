@@ -43,7 +43,7 @@ ModelState::ModelState(
     TRITONSERVER_Server* triton_server, TRITONBACKEND_Model* triton_model,
     const char* name, const uint64_t version, uint64_t model_ps_version,
     common::TritonJson::Value&& model_config,
-    HugeCTR::HugectrUtility<long long>* EmbeddingTable_int64,
+    std::shared_ptr<HugeCTR::HierParameterServerBase> EmbeddingTable_int64,
     HugeCTR::InferenceParams Model_Inference_Para)
     : triton_server_(triton_server), triton_model_(triton_model), name_(name),
       version_(version), version_ps_(model_ps_version),
@@ -57,7 +57,7 @@ ModelState::ModelState(
 TRITONSERVER_Error*
 ModelState::Create(
     TRITONBACKEND_Model* triton_model, ModelState** state,
-    HugeCTR::HugectrUtility<long long>* EmbeddingTable_int64,
+    std::shared_ptr<HugeCTR::HierParameterServerBase> EmbeddingTable_int64,
     HugeCTR::InferenceParams Model_Inference_Para, uint64_t model_ps_version)
 {
   TRITONSERVER_Message* config_message;
@@ -275,22 +275,21 @@ ModelState::Create_EmbeddingCache()
 {
   int64_t count = gpu_shape.size();
   if (count > 0 && support_gpu_cache_) {
-    if (support_int64_key_ && EmbeddingTable_int64->GetEmbeddingCache(
+    if (support_int64_key_ && EmbeddingTable_int64->get_embedding_cache(
                                   name_, gpu_shape[0]) == nullptr) {
       HPS_TRITON_LOG(
           INFO, "Parsing network file of ", name_,
           ", which will be used for online deployment. The network file path "
           "is ",
           hugectr_config_);
-      EmbeddingTable_int64->parse_networks_per_model(
-          hugectr_config_, Model_Inference_Para);
+      // EmbeddingTable_int64->parse_networks_per_model(hugectr_config_,
+      // Model_Inference_Para);
       HPS_TRITON_LOG(
           INFO, "Update Database of Parameter Server for model ", name_);
-      EmbeddingTable_int64->update_database_per_model(
-          hugectr_config_, Model_Inference_Para);
+      EmbeddingTable_int64->update_database_per_model(Model_Inference_Para);
       HPS_TRITON_LOG(INFO, "Create embedding cache for model ", name_);
       EmbeddingTable_int64->create_embedding_cache_per_model(
-          hugectr_config_, Model_Inference_Para);
+          Model_Inference_Para);
     }
   }
   for (int i = 0; i < count; i++) {
@@ -310,7 +309,7 @@ ModelState::Create_EmbeddingCache()
       if (support_int64_key_) {
         Model_Inference_Para.device_id = gpu_shape[i];
         embedding_cache_map[gpu_shape[i]] =
-            EmbeddingTable_int64->GetEmbeddingCache(name_, gpu_shape[i]);
+            EmbeddingTable_int64->get_embedding_cache(name_, gpu_shape[i]);
       }
     }
   }

@@ -27,7 +27,8 @@
 #include <algorithm>
 #include <cstdlib>
 #include <fstream>
-#include <hps/embedding_interface.hpp>
+#include <hps/embedding_cache_base.hpp>
+#include <hps/hier_parameter_server_base.hpp>
 #include <hps/inference_utils.hpp>
 #include <map>
 #include <memory>
@@ -50,7 +51,7 @@ class ModelState {
  public:
   static TRITONSERVER_Error* Create(
       TRITONBACKEND_Model* triton_model, ModelState** state,
-      HugeCTR::HugectrUtility<long long>* EmbeddingTable_int64,
+      std::shared_ptr<HugeCTR::HierParameterServerBase> EmbeddingTable_int64,
       HugeCTR::InferenceParams Model_Inference_Para, uint64_t model_ps_version);
 
   ~ModelState();
@@ -71,7 +72,7 @@ class ModelState {
   int64_t EmbeddingSize() const { return embedding_size_; }
 
   // Get Embedding Cache
-  std::shared_ptr<HugeCTR::embedding_interface> GetEmbeddingCache(
+  std::shared_ptr<HugeCTR::EmbeddingCacheBase> GetEmbeddingCache(
       int64_t device_id)
   {
     if (embedding_cache_map.find(device_id) != embedding_cache_map.end()) {
@@ -120,7 +121,8 @@ class ModelState {
   void Refresh_Embedding_Cache();
 
   // HugeCTR long long PS
-  const HugeCTR::HugectrUtility<long long>* HugeCTRParameterServerInt64() const
+  const std::shared_ptr<HugeCTR::HierParameterServerBase>
+  HugeCTRParameterServerInt64() const
   {
     return EmbeddingTable_int64;
   }
@@ -133,7 +135,7 @@ class ModelState {
       TRITONSERVER_Server* triton_server, TRITONBACKEND_Model* triton_model,
       const char* name, const uint64_t version, uint64_t version_ps,
       common::TritonJson::Value&& model_config,
-      HugeCTR::HugectrUtility<long long>* EmbeddingTable_int64,
+      std::shared_ptr<HugeCTR::HierParameterServerBase> EmbeddingTable_int64,
       HugeCTR::InferenceParams Model_Inference_Para);
 
   TRITONSERVER_Server* triton_server_;
@@ -161,10 +163,10 @@ class ModelState {
   bool support_gpu_cache_ = true;
   bool use_mixed_precision_ = false;
 
-  HugeCTR::HugectrUtility<long long>* EmbeddingTable_int64;
+  std::shared_ptr<HugeCTR::HierParameterServerBase> EmbeddingTable_int64;
   HugeCTR::InferenceParams Model_Inference_Para;
 
-  std::map<int64_t, std::shared_ptr<HugeCTR::embedding_interface>>
+  std::map<int64_t, std::shared_ptr<HugeCTR::EmbeddingCacheBase>>
       embedding_cache_map;
 
   std::map<std::string, size_t> input_map_{{"CATCOLUMN", 1}, {"ROWINDEX", 2}};
