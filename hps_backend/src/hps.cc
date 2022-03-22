@@ -448,7 +448,7 @@ TRITONBACKEND_ModelInstanceExecute(
     HPS_RETURN_TRITON_ERROR_IF_FALSE(
         instance_state->StateForModel()->GetInputmap().count(input_name) > 0,
         INVALID_ARG,
-        "expected input name as DES, CATCOLUMN and ROWINDEX in request, but "
+        "expected input name as CATCOLUMN and ROWINDEX in request, but "
         "got ",
         input_name);
 
@@ -458,17 +458,7 @@ TRITONBACKEND_ModelInstanceExecute(
     HPS_RETURN_TRITON_ERROR_IF_FALSE(
         instance_state->StateForModel()->GetInputmap().count(input_name) > 0,
         INVALID_ARG,
-        "expected input name as DES, CATCOLUMN and ROWINDEX in request, but "
-        "got ",
-        input_name);
-
-    GUARDED_RESPOND_IF_ERROR(
-        responses, r,
-        TRITONBACKEND_RequestInputName(request, 2 /* index */, &input_name));
-    HPS_RETURN_TRITON_ERROR_IF_FALSE(
-        instance_state->StateForModel()->GetInputmap().count(input_name) > 0,
-        INVALID_ARG,
-        "expected input name as DES, CATCOLUMN and ROWINDEX in request, but "
+        "expected input name as CATCOLUMN and ROWINDEX in request, but "
         "got ",
         input_name);
 
@@ -593,7 +583,9 @@ TRITONBACKEND_ModelInstanceExecute(
                 TRITONSERVER_ERROR_UNSUPPORTED,
                 "The number of Input sample greater than max batch size"));
       }
-      int64_t* out_putshape = &num_of_samples;
+      int64_t out_put =
+          numofcat * instance_state->StateForModel()->EmbeddingSize();
+      int64_t* out_putshape = &out_put;
       GUARDED_RESPOND_IF_ERROR(
           responses, r,
           TRITONBACKEND_ResponseOutput(
@@ -672,7 +664,7 @@ TRITONBACKEND_ModelInstanceExecute(
         SET_TIMESTAMP(exec_start_ns);
         min_exec_start_ns = std::min(min_exec_start_ns, exec_start_ns);
         // Model prediction
-        RETURN_IF_ERROR(instance_state->ProcessRequest(num_of_samples));
+        RETURN_IF_ERROR(instance_state->ProcessRequest(numofcat));
         HPS_TRITON_LOG(INFO, "******Processing request completed!******");
         CK_CUDA_THROW_(cudaMemcpy(
             output_buffer,

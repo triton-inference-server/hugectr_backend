@@ -39,6 +39,36 @@
 
 namespace triton { namespace backend { namespace hps {
 
+
+TRITONSERVER_Error*
+ModelInstanceState::Create(
+    ModelState* model_state, TRITONBACKEND_ModelInstance* triton_model_instance,
+    ModelInstanceState** state, HugeCTR::InferenceParams instance_params)
+{
+  const char* instance_name;
+  RETURN_IF_ERROR(
+      TRITONBACKEND_ModelInstanceName(triton_model_instance, &instance_name));
+
+  TRITONSERVER_InstanceGroupKind instance_kind;
+  RETURN_IF_ERROR(
+      TRITONBACKEND_ModelInstanceKind(triton_model_instance, &instance_kind));
+
+  int32_t device_id;
+  RETURN_IF_ERROR(
+      TRITONBACKEND_ModelInstanceDeviceId(triton_model_instance, &device_id));
+
+  int32_t instance_id;
+  RETURN_IF_ERROR(
+      TRITONBACKEND_ModelInstanceDeviceId(triton_model_instance, &instance_id));
+
+  *state = new ModelInstanceState(
+      model_state, triton_model_instance, instance_name, instance_kind,
+      device_id, instance_params);
+
+  return nullptr;  // success
+}
+
+
 ModelInstanceState::ModelInstanceState(
     ModelState* model_state, TRITONBACKEND_ModelInstance* triton_model_instance,
     const char* name, const TRITONSERVER_InstanceGroupKind kind,
@@ -99,15 +129,20 @@ ModelInstanceState::LoadHPSInstance()
       model_state_->HugeCTRJsonConfig());
   embedding_cache = model_state_->GetEmbeddingCache(device_id_);
   num_embedding_tables = embedding_cache->get_cache_config().num_emb_table_;
-  HPS_TRITON_LOG(INFO, "******Loading HugeCTR model successfully");
+  lookupsession_ =
+      HugeCTR::LookupSessionBase::create(instance_params_, embedding_cache);
+  HPS_TRITON_LOG(INFO, "******Loading HugeCTR lookup session successfully");
   return nullptr;
 }
 
 TRITONSERVER_Error*
-ModelInstanceState::ProcessRequest(int64_t numofsamples)
+ModelInstanceState::ProcessRequest(int64_t num_keys)
 {
   //  embedding_cache->look_up(cat_column_index_buf_int64->get_raw_ptr(),
   //  lookup_result_buf->get_ptr());
+  lookupsession_->lookup(
+      cat_column_index_buf_int64->get_raw_ptr(), lookup_result_buf->get_ptr(),
+      num_keys, 0);
   return nullptr;
 }
 

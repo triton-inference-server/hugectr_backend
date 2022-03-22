@@ -110,6 +110,7 @@ add_library(
   src/backend.cpp
   src/model_state.cpp
   src/model_instance_state.cpp
+  src/triton_helpers.cpp
 )
 
 add_library(

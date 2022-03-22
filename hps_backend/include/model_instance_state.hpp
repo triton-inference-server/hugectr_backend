@@ -30,6 +30,7 @@
 #include <fstream>
 #include <hps/embedding_cache_base.hpp>
 #include <hps/inference_utils.hpp>
+#include <hps/lookup_session_base.hpp>
 #include <hps_buffer.hpp>
 #include <map>
 #include <memory>
@@ -112,6 +113,7 @@ class ModelInstanceState {
   std::shared_ptr<HugeCTRBuffer<float>> lookup_result_buf;
   std::shared_ptr<HugeCTR::EmbeddingCacheBase> embedding_cache;
   HugeCTR::InferenceParams instance_params_;
+  std::shared_ptr<HugeCTR::LookupSessionBase> lookupsession_;
 };
 
 }}}  // namespace triton::backend::hps

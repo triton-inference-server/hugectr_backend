@@ -55,6 +55,13 @@ ModelState::ModelState(
 }
 
 TRITONSERVER_Error*
+ModelState::SetPSModelVersion(uint64_t current_version)
+{
+  version_ps_ = current_version;
+  return nullptr;
+}
+
+TRITONSERVER_Error*
 ModelState::Create(
     TRITONBACKEND_Model* triton_model, ModelState** state,
     std::shared_ptr<HugeCTR::HierParameterServerBase> EmbeddingTable_int64,
