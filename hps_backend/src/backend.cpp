@@ -61,17 +61,14 @@ HPSBackend::HPS_backend()
 {
   HPS_TRITON_LOG(
       INFO, "*****The Hierarchical Parameter Server is creating... *****");
-  std::vector<HugeCTR::InferenceParams> model_vet;
-  for (const auto& s : HierarchicalPSConfigurationMap()) {
-    model_vet.push_back(s.second);
-  }
-  HugeCTR::parameter_server_config ps_config{model_network_files, model_vet};
   if (support_int64_key_) {
     HPS_TRITON_LOG(
         INFO,
         "***** Hierarchical Parameter Server(Int64) is creating... *****");
     EmbeddingTable_int64 =
-        HugeCTR::HierParameterServerBase::create(ps_config, model_vet);
+        HugeCTR::HierParameterServerBase::create(ps_json_config_file_);
+    SetHierarchicalPSConfigurationMap(
+        EmbeddingTable_int64->get_hps_model_configuration_map());
   }
   HPS_TRITON_LOG(
       INFO,

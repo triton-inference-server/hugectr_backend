@@ -169,7 +169,7 @@ class ModelState {
   std::map<int64_t, std::shared_ptr<HugeCTR::EmbeddingCacheBase>>
       embedding_cache_map;
 
-  std::map<std::string, size_t> input_map_{{"CATCOLUMN", 1}, {"ROWINDEX", 2}};
+  std::map<std::string, size_t> input_map_{{"KEYS", 0}, {"NUMKEYS", 1}};
 };
 
 

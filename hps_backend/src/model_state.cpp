@@ -145,23 +145,22 @@ ModelState::ValidateModelConfig()
       RETURN_IF_ERROR(TritonJsonHelper::parse(name, input, "name", true));
       HPS_RETURN_TRITON_ERROR_IF_FALSE(
           GetInputmap().count(name) > 0, INVALID_ARG,
-          "expected input name as DES,CATCOLUMN and ROWINDEX, but got ", name);
+          "expected input name as KEYS and NUMKEYS, but got ", name);
 
       // Datatype.
       std::string data_type;
       RETURN_IF_ERROR(
           TritonJsonHelper::parse(data_type, input, "data_type", true));
-      if (name == "CATCOLUMN") {
+      if (name == "KEYS") {
         HPS_RETURN_TRITON_ERROR_IF_FALSE(
-            data_type == "TYPE_UINT32" || data_type == "TYPE_INT64",
-            INVALID_ARG,
-            "expected CATCOLUMN input datatype as TYPE_UINT32 or TYPE_INT64, "
+            data_type == "TYPE_INT64", INVALID_ARG,
+            "expected KEYS input datatype as TYPE_INT64, "
             "got ",
             data_type);
-      } else if (name == "ROWINDEX") {
+      } else if (name == "NUMKEYS") {
         HPS_RETURN_TRITON_ERROR_IF_FALSE(
             data_type == "TYPE_INT32", INVALID_ARG,
-            "expected ROWINDEX input datatype as TYPE_FP32, got ", data_type);
+            "expected NUMKEYS input datatype as TYPE_FP32, got ", data_type);
       }
 
       // Input shape.
@@ -248,12 +247,6 @@ ModelState::ParseModelConfig()
   common::TritonJson::Value parameters;
   if (model_config_.Find("parameters", &parameters)) {
     common::TritonJson::Value value;
-
-    if (parameters.Find("slots", &value)) {
-      RETURN_IF_ERROR(
-          TritonJsonHelper::parse(slot_num_, value, "string_value", true));
-      HPS_TRITON_LOG(INFO, "slots set = ", slot_num_);
-    }
 
     if (parameters.Find("cat_feature_num", &value)) {
       RETURN_IF_ERROR(

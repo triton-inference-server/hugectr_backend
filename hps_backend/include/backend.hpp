@@ -84,6 +84,15 @@ class HPSBackend {
     return inference_params_map;
   }
 
+  void SetHierarchicalPSConfigurationMap(
+      std::map<std::string, HugeCTR::InferenceParams> model_config_amp)
+  {
+    inference_params_map.clear();
+    for (auto& model_config : model_config_amp) {
+      inference_params_map.emplace(model_config.first, model_config.second);
+    }
+  }
+
   std::string ParameterServerJsonFile() { return ps_json_config_file_; }
 
   // Initialize Embedding Tables based on deployed models

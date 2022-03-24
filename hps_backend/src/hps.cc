@@ -131,7 +131,6 @@ TRITONBACKEND_Initialize(TRITONBACKEND_Backend* backend)
   RETURN_IF_ERROR(TRITONBACKEND_BackendSetState(
       backend, reinterpret_cast<void*>(hps_backend)));
 
-  RETURN_IF_ERROR(hps_backend->ParseParameterServer(ps_path));
   RETURN_IF_ERROR(hps_backend->HPS_backend());
 
   return nullptr;  // success
@@ -448,7 +447,7 @@ TRITONBACKEND_ModelInstanceExecute(
     HPS_RETURN_TRITON_ERROR_IF_FALSE(
         instance_state->StateForModel()->GetInputmap().count(input_name) > 0,
         INVALID_ARG,
-        "expected input name as CATCOLUMN and ROWINDEX in request, but "
+        "expected input name as KEYS and NUMKEYS in request, but "
         "got ",
         input_name);
 
@@ -458,17 +457,17 @@ TRITONBACKEND_ModelInstanceExecute(
     HPS_RETURN_TRITON_ERROR_IF_FALSE(
         instance_state->StateForModel()->GetInputmap().count(input_name) > 0,
         INVALID_ARG,
-        "expected input name as CATCOLUMN and ROWINDEX in request, but "
+        "expected input name as KEYS and NUMKEYS in request, but "
         "got ",
         input_name);
 
-    const char catcol_input_name[] = "CATCOLUMN";
+    const char catcol_input_name[] = "KEYS";
     TRITONBACKEND_Input* catcol_input = nullptr;
     GUARDED_RESPOND_IF_ERROR(
         responses, r,
         TRITONBACKEND_RequestInput(request, catcol_input_name, &catcol_input));
 
-    const char row_input_name[] = "ROWINDEX";
+    const char row_input_name[] = "NUMKEYS";
     TRITONBACKEND_Input* row_input = nullptr;
     GUARDED_RESPOND_IF_ERROR(
         responses, r,
