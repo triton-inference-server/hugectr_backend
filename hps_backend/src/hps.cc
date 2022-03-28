@@ -40,11 +40,11 @@
 #include <memory>
 #include <model_instance_state.hpp>
 #include <mutex>
+#include <numeric>
 #include <sstream>
 #include <thread>
 #include <triton_helpers.hpp>
 #include <vector>
-
 
 namespace triton { namespace backend { namespace hps {
 
@@ -467,11 +467,12 @@ TRITONBACKEND_ModelInstanceExecute(
         responses, r,
         TRITONBACKEND_RequestInput(request, catcol_input_name, &catcol_input));
 
-    const char row_input_name[] = "NUMKEYS";
-    TRITONBACKEND_Input* row_input = nullptr;
+    const char numkeys_input_name[] = "NUMKEYS";
+    TRITONBACKEND_Input* numkeys_input = nullptr;
     GUARDED_RESPOND_IF_ERROR(
         responses, r,
-        TRITONBACKEND_RequestInput(request, row_input_name, &row_input));
+        TRITONBACKEND_RequestInput(
+            request, numkeys_input_name, &numkeys_input));
 
     // We also validated that the model configuration specifies only a
     // single output, but the request is not required to request any
@@ -496,42 +497,46 @@ TRITONBACKEND_ModelInstanceExecute(
     }
 
     TRITONSERVER_DataType cat_datatype;
-    TRITONSERVER_DataType row_datatype;
+    TRITONSERVER_DataType numkeys_datatype;
 
-    const int64_t* input_shape;
+    const int64_t* cat_input_shape;
+    const int64_t* num_keys_shape;
     uint32_t cat_dims_count;
-    uint32_t row_dims_count;
+    uint32_t numkeys_dims_count;
     uint64_t cat_byte_size;
-    uint64_t row_byte_size;
+    uint64_t numkeys_byte_size;
     uint32_t cat_input_buffer_count;
-    uint32_t rowindex_input_buffer_count;
+    uint32_t numkeys_input_buffer_count;
     int64_t num_of_samples = 0;
     int64_t numofcat;
-    int64_t num_of_sample_cat = 1;
+    std::vector<size_t> num_keys_per_table;
 
     GUARDED_RESPOND_IF_ERROR(
         responses, r,
         TRITONBACKEND_InputProperties(
-            catcol_input, nullptr /* input_name */, &cat_datatype, &input_shape,
-            &cat_dims_count, &cat_byte_size, &cat_input_buffer_count));
+            catcol_input, nullptr /* input_name */, &cat_datatype,
+            &cat_input_shape, &cat_dims_count, &cat_byte_size,
+            &cat_input_buffer_count));
     HPS_TRITON_LOG(
         INFO, "\tinput ", catcol_input_name,
         ": datatype = ", TRITONSERVER_DataTypeString(cat_datatype),
-        ", shape = ", backend::ShapeToString(input_shape, cat_dims_count),
+        ", shape = ", backend::ShapeToString(cat_input_shape, cat_dims_count),
         ", byte_size = ", cat_byte_size,
         ", buffer_count = ", cat_input_buffer_count);
 
     GUARDED_RESPOND_IF_ERROR(
         responses, r,
         TRITONBACKEND_InputProperties(
-            row_input, nullptr /* input_name */, &row_datatype, &input_shape,
-            &row_dims_count, &row_byte_size, &rowindex_input_buffer_count));
+            numkeys_input, nullptr /* input_name */, &numkeys_datatype,
+            &num_keys_shape, &numkeys_dims_count, &numkeys_byte_size,
+            &numkeys_input_buffer_count));
     HPS_TRITON_LOG(
-        INFO, "\tinput ", row_input_name,
-        ": datatype = ", TRITONSERVER_DataTypeString(row_datatype),
-        ", shape = ", backend::ShapeToString(input_shape, row_dims_count),
-        ", byte_size = ", row_byte_size,
-        ", buffer_count = ", rowindex_input_buffer_count);
+        INFO, "\tinput ", numkeys_input_name,
+        ": datatype = ", TRITONSERVER_DataTypeString(numkeys_datatype),
+        ", shape = ",
+        backend::ShapeToString(num_keys_shape, numkeys_dims_count),
+        ", byte_size = ", numkeys_byte_size,
+        ", buffer_count = ", numkeys_input_buffer_count);
 
 
     if (responses[r] == nullptr) {
@@ -543,15 +548,6 @@ TRITONBACKEND_ModelInstanceExecute(
 
     HPS_TRITON_LOG(INFO, "\trequested_output ", requested_output_name);
 
-    // If the model doesn't support batching with two-dimension tensor then each
-    // request is necessarily batch-size 1. So the first dimension of the shape
-    // is the batch size=1.
-    if (cat_dims_count > 0) {
-      total_batch_size += input_shape[0];
-    } else {
-      total_batch_size++;
-    }
-
     // We only need to produce an output if it was requested.
     if (requested_output_count > 0) {
       // Hugectr model will handls all the inpput on device and predict the
@@ -559,9 +555,9 @@ TRITONBACKEND_ModelInstanceExecute(
       //
       //   1. Validate input tensor.
       //
-      //   2. Initialize the output tensor.
+      //   2. Copy all input data -> Device Buffer.
       //
-      //   3. Copy all input data -> Device Buffer.
+      //   3. Initialize the output tensor.
       //
       //   4. Iterate over the input tensor buffers, pass to the HugeCTR predict
       //   and copy the
@@ -572,55 +568,18 @@ TRITONBACKEND_ModelInstanceExecute(
       TRITONBACKEND_Output* output;
 
       numofcat = cat_byte_size / sizeof(long long);
-      num_of_sample_cat = numofcat / instance_state->StateForModel()->CatNum();
 
-      num_of_samples = num_of_sample_cat;
+      num_of_samples = numofcat / instance_state->StateForModel()->CatNum();
       if (num_of_samples > instance_state->StateForModel()->BatchSize()) {
         GUARDED_RESPOND_IF_ERROR(
             responses, r,
             TRITONSERVER_ErrorNew(
                 TRITONSERVER_ERROR_UNSUPPORTED,
-                "The number of Input sample greater than max batch size"));
-      }
-      int64_t out_put =
-          numofcat * instance_state->StateForModel()->EmbeddingSize();
-      int64_t* out_putshape = &out_put;
-      GUARDED_RESPOND_IF_ERROR(
-          responses, r,
-          TRITONBACKEND_ResponseOutput(
-              response, &output, requested_output_name, TRITONSERVER_TYPE_FP32,
-              out_putshape, 1));
-      if (responses[r] == nullptr) {
-        HPS_TRITON_LOG(
-            ERROR, "request ", r,
-            ": failed to create response output, error response sent");
-        continue;
+                "The number of Input samples greater than max batch size"));
       }
 
-      // Step 2. Initialize the output tensor.
-      void* output_buffer;
-      TRITONSERVER_MemoryType output_memory_type = TRITONSERVER_MEMORY_GPU;
-      int64_t output_memory_type_id = 0;
-      GUARDED_RESPOND_IF_ERROR(
-          responses, r,
-          TRITONBACKEND_OutputBuffer(
-              output, &output_buffer,
-              numofcat * instance_state->StateForModel()->EmbeddingSize() *
-                  sizeof(float),
-              &output_memory_type, &output_memory_type_id));
-      if (responses[r] == nullptr) {
-        GUARDED_RESPOND_IF_ERROR(
-            responses, r,
-            TRITONSERVER_ErrorNew(
-                TRITONSERVER_ERROR_UNSUPPORTED,
-                "failed to create output buffer in GPU memory"));
-        HPS_TRITON_LOG(
-            ERROR, "request ", r,
-            ": failed to create output buffer in CPU memory, error response "
-            "sent");
-        continue;
-      }
-      // Step 3. Copy all input data -> Device Buffer.
+
+      // Step 2. Copy all input data -> Device Buffer.
       for (uint32_t b = 0; b < cat_input_buffer_count; ++b) {
         TRITONSERVER_MemoryType input_memory_type = TRITONSERVER_MEMORY_GPU;
         int64_t input_memory_type_id = 0;
@@ -630,20 +589,16 @@ TRITONBACKEND_ModelInstanceExecute(
             TRITONBACKEND_InputBuffer(
                 catcol_input, b, &cat_buffer, &cat_byte_size,
                 &input_memory_type, &input_memory_type_id));
-
         CK_CUDA_THROW_(cudaMemcpy(
             instance_state->GetCatColBuffer_int64()->get_raw_ptr(), cat_buffer,
             cat_byte_size, cudaMemcpyHostToHost));
 
-        const void* row_buffer = nullptr;
+        const void* numkeys_buffer = nullptr;
         GUARDED_RESPOND_IF_ERROR(
             responses, r,
             TRITONBACKEND_InputBuffer(
-                row_input, b, &row_buffer, &row_byte_size, &input_memory_type,
-                &input_memory_type_id));
-        CK_CUDA_THROW_(cudaMemcpy(
-            instance_state->GetRowBuffer()->get_raw_ptr(), row_buffer,
-            row_byte_size, cudaMemcpyHostToDevice));
+                numkeys_input, b, &numkeys_buffer, &numkeys_byte_size,
+                &input_memory_type, &input_memory_type_id));
 
 
         if (responses[r] == nullptr) {
@@ -653,6 +608,51 @@ TRITONBACKEND_ModelInstanceExecute(
                   TRITONSERVER_ERROR_UNSUPPORTED,
                   "failed to get input buffer in GPU memory"));
         }
+
+        // Step 3. Initialize the output tensor.
+        num_keys_per_table.assign(
+            reinterpret_cast<const int*>(numkeys_buffer),
+            reinterpret_cast<const int*>(numkeys_buffer) + num_keys_shape[1]);
+
+        std::vector<size_t> ev_size_list{instance_state->GetModelConfigutation()
+                                             .embedding_vecsize_per_table};
+        int64_t output_buffer_size = std::inner_product(
+            ev_size_list.begin(), ev_size_list.end(),
+            num_keys_per_table.begin(), 0);
+        int64_t* out_putshape = &output_buffer_size;
+        GUARDED_RESPOND_IF_ERROR(
+            responses, r,
+            TRITONBACKEND_ResponseOutput(
+                response, &output, requested_output_name,
+                TRITONSERVER_TYPE_FP32, out_putshape, 1));
+        if (responses[r] == nullptr) {
+          HPS_TRITON_LOG(
+              ERROR, "request ", r,
+              ": failed to create response output, error response sent");
+          continue;
+        }
+
+        void* output_buffer;
+        TRITONSERVER_MemoryType output_memory_type = TRITONSERVER_MEMORY_GPU;
+        int64_t output_memory_type_id = 0;
+        GUARDED_RESPOND_IF_ERROR(
+            responses, r,
+            TRITONBACKEND_OutputBuffer(
+                output, &output_buffer, output_buffer_size * sizeof(float),
+                &output_memory_type, &output_memory_type_id));
+        if (responses[r] == nullptr) {
+          GUARDED_RESPOND_IF_ERROR(
+              responses, r,
+              TRITONSERVER_ErrorNew(
+                  TRITONSERVER_ERROR_UNSUPPORTED,
+                  "failed to create output buffer in GPU memory"));
+          HPS_TRITON_LOG(
+              ERROR, "request ", r,
+              ": failed to create output buffer in CPU memory, error response "
+              "sent");
+          continue;
+        }
+
         // Step 4. Perform prediction in device and copy result to cpu output
         // buffer
         HPS_TRITON_LOG(
@@ -663,14 +663,12 @@ TRITONBACKEND_ModelInstanceExecute(
         SET_TIMESTAMP(exec_start_ns);
         min_exec_start_ns = std::min(min_exec_start_ns, exec_start_ns);
         // Model prediction
-        RETURN_IF_ERROR(instance_state->ProcessRequest(numofcat));
+        RETURN_IF_ERROR(instance_state->ProcessRequest(num_keys_per_table));
         HPS_TRITON_LOG(INFO, "******Processing request completed!******");
         CK_CUDA_THROW_(cudaMemcpy(
             output_buffer,
             instance_state->GetLookupResultBuffer()->get_raw_ptr(),
-            numofcat * instance_state->StateForModel()->EmbeddingSize() *
-                sizeof(float),
-            cudaMemcpyDeviceToHost));
+            output_buffer_size * sizeof(float), cudaMemcpyDeviceToHost));
 
         uint64_t exec_end_ns = 0;
         SET_TIMESTAMP(exec_end_ns);

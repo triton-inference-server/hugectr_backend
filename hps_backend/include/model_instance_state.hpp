@@ -74,7 +74,7 @@ class ModelInstanceState {
   ModelState* StateForModel() const { return model_state_; }
 
   // Get the prediction result that corresponds to this instance.
-  TRITONSERVER_Error* ProcessRequest(int64_t numofsamples);
+  TRITONSERVER_Error* ProcessRequest(std::vector<size_t> num_keys_per_table);
 
   // Create Embedding_cache
   TRITONSERVER_Error* LoadHPSInstance();
@@ -91,6 +91,8 @@ class ModelInstanceState {
   {
     return lookup_result_buf;
   }
+
+  HugeCTR::InferenceParams GetModelConfigutation() { return instance_params_; }
 
  private:
   ModelInstanceState(

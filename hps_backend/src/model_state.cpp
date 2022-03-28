@@ -32,6 +32,7 @@
 #include <memory>
 #include <model_state.hpp>
 #include <mutex>
+#include <numeric>
 #include <sstream>
 #include <thread>
 #include <triton_helpers.hpp>
@@ -244,28 +245,29 @@ ModelState::ParseModelConfig()
   }
 
   // Parse HugeCTR model customized configuration.
-  common::TritonJson::Value parameters;
-  if (model_config_.Find("parameters", &parameters)) {
-    common::TritonJson::Value value;
 
-    if (parameters.Find("cat_feature_num", &value)) {
-      RETURN_IF_ERROR(
-          TritonJsonHelper::parse(cat_num_, value, "string_value", true));
-      HPS_TRITON_LOG(INFO, "cat_feature number = ", cat_num_);
 
-      if (cat_num_ <= 0) {
-        return HPS_TRITON_ERROR(
-            INVALID_ARG, "expected at least one categorical feature, got ",
-            cat_num_);
-      }
-    }
-
-    if (parameters.Find("embedding_vector_size", &value)) {
-      RETURN_IF_ERROR(TritonJsonHelper::parse(
-          embedding_size_, value, "string_value", true));
-      HPS_TRITON_LOG(INFO, "embedding size = ", embedding_size_);
-    }
+  if (Model_Inference_Para.maxnum_catfeature_query_per_table_per_sample.size() >
+      0) {
+    cat_num_ = accumulate(
+        Model_Inference_Para.maxnum_catfeature_query_per_table_per_sample
+            .begin(),
+        Model_Inference_Para.maxnum_catfeature_query_per_table_per_sample.end(),
+        0);
   }
+
+  if (cat_num_ <= 0) {
+    return HPS_TRITON_ERROR(
+        INVALID_ARG, "expected at least one categorical feature, got ",
+        cat_num_);
+  }
+
+  if (Model_Inference_Para.embedding_vecsize_per_table.size() > 0) {
+    embedding_size_ = accumulate(
+        Model_Inference_Para.embedding_vecsize_per_table.begin(),
+        Model_Inference_Para.embedding_vecsize_per_table.end(), 0);
+  }
+
 
   return nullptr;
 }

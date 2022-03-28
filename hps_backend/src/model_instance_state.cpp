@@ -32,6 +32,7 @@
 #include <memory>
 #include <model_instance_state.hpp>
 #include <mutex>
+#include <numeric>
 #include <sstream>
 #include <thread>
 #include <triton_helpers.hpp>
@@ -95,21 +96,33 @@ ModelInstanceState::ModelInstanceState(
   cat_column_index_buf_int64->reserve(cat_column_index_dims);
   cat_column_index_buf_int64->allocate();
 
-  HPS_TRITON_LOG(INFO, "Categorical Row Index buffer allocation: ");
+  HPS_TRITON_LOG(
+      INFO, "Number of Categorical Feature per Table buffer allocation: ");
   row_ptr_buf = HugeCTRBuffer<int>::create();
-  std::vector<size_t> row_ptrs_dims = {static_cast<size_t>(
-      model_state_->BatchSize() * model_state_->SlotNum() +
-      model_state_->GetEmbeddingCache(device_id_)
-          ->get_cache_config()
-          .num_emb_table_)};
+  std::vector<size_t> row_ptrs_dims = {
+      static_cast<size_t>(model_state_->GetEmbeddingCache(device_id_)
+                              ->get_cache_config()
+                              .num_emb_table_)};
   row_ptr_buf->reserve(row_ptrs_dims);
   row_ptr_buf->allocate();
 
   HPS_TRITON_LOG(INFO, "Look_up result buffer allocation: ");
   lookup_result_buf = HugeCTRBuffer<float>::create();
-  std::vector<size_t> prediction_dims = {static_cast<size_t>(
-      model_state_->BatchSize() * model_state_->CatNum() *
-      model_state_->EmbeddingSize())};
+  size_t lookup_buffer_length = model_state_->BatchSize() *
+                                model_state_->CatNum() *
+                                model_state_->EmbeddingSize();
+  if (instance_params_.embedding_vecsize_per_table.size() ==
+      instance_params_.maxnum_catfeature_query_per_table_per_sample.size()) {
+    lookup_buffer_length =
+        model_state_->BatchSize() *
+        std::transform_reduce(
+            instance_params_.embedding_vecsize_per_table.begin(),
+            instance_params_.embedding_vecsize_per_table.end(),
+            instance_params_.maxnum_catfeature_query_per_table_per_sample
+                .begin(),
+            0);
+  }
+  std::vector<size_t> prediction_dims = {lookup_buffer_length};
   lookup_result_buf->reserve(prediction_dims);
   lookup_result_buf->allocate();
 }
@@ -136,13 +149,24 @@ ModelInstanceState::LoadHPSInstance()
 }
 
 TRITONSERVER_Error*
-ModelInstanceState::ProcessRequest(int64_t num_keys)
+ModelInstanceState::ProcessRequest(std::vector<size_t> num_keys_per_table)
 {
-  //  embedding_cache->look_up(cat_column_index_buf_int64->get_raw_ptr(),
-  //  lookup_result_buf->get_ptr());
+  std::vector<const void*> keys_per_table{
+      cat_column_index_buf_int64->get_raw_ptr()};
+  std::vector<float*> lookup_buffer_offset_per_table{
+      lookup_result_buf->get_ptr()};
+
+  for (size_t index = 0; index < num_keys_per_table.size() - 1; ++index) {
+    keys_per_table.push_back(reinterpret_cast<const void*>(
+        (long long*)cat_column_index_buf_int64->get_raw_ptr() +
+        num_keys_per_table[index]));
+    lookup_buffer_offset_per_table.push_back(
+        lookup_result_buf->get_ptr() +
+        instance_params_.embedding_vecsize_per_table[index] *
+            num_keys_per_table[index]);
+  }
   lookupsession_->lookup(
-      cat_column_index_buf_int64->get_raw_ptr(), lookup_result_buf->get_ptr(),
-      num_keys, 0);
+      keys_per_table, lookup_buffer_offset_per_table, num_keys_per_table);
   return nullptr;
 }
 
