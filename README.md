@@ -59,10 +59,10 @@ Docker images for the HugeCTR Backend are available in the NVIDIA container repo
 docker run --gpus=1 --rm -it nvcr.io/nvidia/merlin/merlin-inference:22.02  # Start interaction mode  
 ```
 
-**NOTE**: As of HugeCTR version 3.0, the HugeCTR container is no longer being released separately. If you're an advanced user, you should use the unified Merlin container to build the HugeCTR Training or Inference Docker image from scratch based on your own specific requirements. You can obtain the unified Merlin container by logging into NGC or by going [here](https://github.com/NVIDIA/HugeCTR/tree/master/tools/dockerfiles). 
+**NOTE**: As of HugeCTR version 3.0, the HugeCTR container is no longer being released separately. If you're an advanced user, you should use the unified Merlin container to build the HugeCTR Training or Inference Docker image from scratch based on your own specific requirements. You can obtain the unified Merlin container by logging into NGC or by going [here](https://github.com/NVIDIA-Merlin/Merlin/blob/main/docker/inference/dockerfile.ctr). 
 
 ### Build the HugeCTR Backend from Scratch
-Before you can build the HugeCTR Backend from scratch, you must first compile HugeCTR, generate a shared library (libhugectr_inference.so), and build HugeCTR. The default path where all the HugeCTR libraries and header files are installed in is /usr/local/hugectr. Before building HugeCTR from scratch, you should download the HugeCTR repository and the third-party modules that it relies on by running the following commands:
+Before you can build the HugeCTR Backend from scratch, you must first compile HugeCTR, generate a shared library (libhuge_ctr_inference.so), and build HugeCTR. The default path where all the HugeCTR libraries and header files are installed in is /usr/local/hugectr. Before building HugeCTR from scratch, you should download the HugeCTR repository and the third-party modules that it relies on by running the following commands:
 ```
 git clone https://github.com/NVIDIA/HugeCTR.git
 cd HugeCTR
@@ -85,7 +85,7 @@ After you've built HugeCTR from scratch, do the following:
    $ make install
    ```
    
-   **NOTE**: Where <rxx.yy> is the version of Triton that you want to deploy, like `r21.09`. Please remember to specify the absolute path of the local directory that installs the HugeCTR Backend for the `--backend-directory` argument when launching the Triton server.
+   **NOTE**: Where <rxx.yy> is the version of Triton that you want to deploy, like `r22.01`. Please remember to specify the absolute path of the local directory that installs the HugeCTR Backend for the `--backend-directory` argument when launching the Triton server.
    
    The following Triton repositories, which are required, will be pulled and used in the build. By default, the "main" branch/tag will be used for each repository. However, the 
    following cmake arguments can be used to override the "main" branch/tag:
@@ -108,6 +108,7 @@ The following should be noted when using Model Repository Extension functions:
  ## Metrix
  Triton provides Prometheus metrics indicating GPU and request statistics. Use Prometheus to gather metrics into usable, actionable entries, giving you the data you need to manage alerts and performance information in your environment. Prometheus is usually used along side Grafana. Grafana is a visualization tool that pulls Prometheus metrics and makes it easier to monitor. You can build your own metrix system based on our example, see [HugeCTR Backend Metrics](docs/metrics.md).  
 
+
 ## Independent Inference Hierarchical Parameter Server Configuration
 In the latest version, Hugectr backend has decoupled the inference Parameter Server-related configuration from the Triton configuration file(config.pbtxt), making it easier to configure the embedding table-related parameters per model. Especially for the configuration of multiple embedded tables per model, avoid too many command parameters when launching the Triton server.
 
@@ -118,8 +119,6 @@ The configuration file of inference Parameter Server should be formatted using t
 
 ```json.
 {
-    "supportlonglong":false,
-    "db_type":"local",
     "models":[
         {
             "model":"dcn",
@@ -127,12 +126,12 @@ The configuration file of inference Parameter Server should be formatted using t
             "dense_file":"/model/dcn/1/_dense_file.model",
             "network_file":"/model/dcn/1/dcn.json",
             "num_of_worker_buffer_in_pool": "4"
-			"deployed_device_list":["0"],
-			"max_batch_size":"1024",
-			"default_value_for_each_table":["0.0"],
+            "deployed_device_list":["0"],
+            "max_batch_size":"1024",
+            "default_value_for_each_table":["0.0"],
             "hit_rate_threshold":"0.9",
-			"gpucacheper":"0.5",
-			"gpucache":"true"
+            "gpucacheper":"0.5",
+            "gpucache":"true"
         },
         {
             "model":"wdl",
@@ -140,19 +139,19 @@ The configuration file of inference Parameter Server should be formatted using t
             "dense_file":"/model/wdl/1/_dense_2000.model",
             "network_file":"/model/wdl/1/wdl_infer.json",
             "num_of_worker_buffer_in_pool": "4",
-			"deployed_device_list":["1"],
-			"max_batch_size":"1024",
-			"default_value_for_each_table":["0.0","0.0"],
+            "deployed_device_list":["1"],
+            "max_batch_size":"1024",
+            "default_value_for_each_table":["0.0","0.0"],
             "hit_rate_threshold":"0.9",
-			"gpucacheper":"0.5",
-			"gpucache":"true"
+            "gpucacheper":"0.5",
+            "gpucache":"true"
         }
     ]  
 }
 ```
 
 ## HugeCTR Inference Hierarchical Parameter Server 
-HugeCTR Inference Hierarchical Parameter Server implemented a hierarchical storage mechanism between local SSDs and CPU memory, which breaks the convention that the embedding table must be stored in local CPU memory. `Distributed Database` layer allows utilizing Redis cluster deployments, to store and retrieve embeddings in/from the RAM memory available in your cluster. The `Persistent Database` layer links HugeCTR with a persistent database. Each node that has such a persistent storage layer configured retains a separate copy of all embeddings in its locally available non-volatile memory. see [Distributed Deployment](docs/architecture.md#distributed-deployment-with-hierarchical-hugectr-parameter-server) and [HugeCTR Inference  Hierarchical Parameter Server](docs/hierarchical_parameter_server.md) for more details.
+HugeCTR Inference Hierarchical Parameter Server implemented a hierarchical storage mechanism between local SSDs and CPU memory, which breaks the convention that the embedding table must be stored in local CPU memory. `volatile_db Database` layer allows utilizing Redis cluster deployments, to store and retrieve embeddings in/from the RAM memory available in your cluster. The `Persistent Database` layer links HugeCTR with a persistent database. Each node that has such a persistent storage layer configured retains a separate copy of all embeddings in its locally available non-volatile memory. see [Distributed Deployment](docs/architecture.md#distributed-deployment-with-hierarchical-hugectr-parameter-server) and [HugeCTR Inference  Hierarchical Parameter Server](docs/hierarchical_parameter_server.md) for more details.
 
 In the following table, we provide an overview of the typical properties different parameter database layers (and the embedding cache). We emphasize that this table is just intended to provide a rough orientation. Properties of actual deployments may deviate.
 
@@ -177,5 +176,4 @@ We have added support for multiple database interfaces to our inference paramete
 Further, we revised support for “distributed” storage of embeddings in a Redis cluster. This way, you can use the combined CPU-accessible memory of your cluster for storing embeddings. The new implementation is up over two orders of magnitude faster than the previous.  
 Further, we performance-optimized support for the “persistent” storage and retrieval of embeddings via RocksDB through the structured use of column families.
 Creating a hierarchical storage (i.e. using Redis as distributed cache, and RocksDB as fallback), is supported as well. These advantages are free to end-users, as there is no need to adjust the PS configuration.  
-We plan to further integrate the inference hierarchical parameter server with other features, such as the GPU backed embedding caches in upcoming releases. Stay tuned!  
 
