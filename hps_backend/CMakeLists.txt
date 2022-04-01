@@ -25,7 +25,7 @@
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 cmake_minimum_required(VERSION 3.17)
-project(tritonhugectrbackend LANGUAGES C CXX)
+project(tritonhpsbackend LANGUAGES C CXX)
 
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CUDA_STANDARD 17)
@@ -37,7 +37,7 @@ list(APPEND CMAKE_MODULE_PATH ${PROJECT_SOURCE_DIR}/cmake/Modules)
 # Must include options required for this project as well as any
 # projects included in this one by FetchContent.
 #
-# GPU support is disabled by default because hugectr backend doesn't
+# GPU support is enbaled by default because hierarchical parameter server backend does
 # support GPUs.
 #
 option(TRITON_ENABLE_GPU "Enable GPU support in backend" ON)
@@ -46,7 +46,7 @@ option(TRITON_ENABLE_STATS "Include statistics collections in backend" ON)
 set(TRITON_COMMON_REPO_TAG "main" CACHE STRING "Tag for triton-inference-server/common repo")
 set(TRITON_CORE_REPO_TAG "main" CACHE STRING "Tag for triton-inference-server/core repo")
 set(TRITON_BACKEND_REPO_TAG "main" CACHE STRING "Tag for triton-inference-server/backend repo")
-set(TRITON_HUGRCTRRUNTIME_LIB_PATHS "/usr/local/hugectr/lib" CACHE PATH "Paths to HugeCTR Inference lib")
+set(TRITON_HPSRUNTIME_LIB_PATHS "/usr/local/hugectr/lib" CACHE PATH "Paths to Hierarchical Parameter Server lib")
 
 
 if(NOT CMAKE_BUILD_TYPE)
@@ -57,7 +57,7 @@ option(CLANGFORMAT "Setup clangformat target" ON)
 if(CLANGFORMAT)
   include(ClangFormat)
 
-  file(GLOB_RECURSE HUGECTR_TRITON_BACKEND_SRCS
+  file(GLOB_RECURSE HPS_TRITON_BACKEND_SRCS
     ${PROJECT_SOURCE_DIR}/include/*.hpp
     ${PROJECT_SOURCE_DIR}/include/*.cuh
     ${PROJECT_SOURCE_DIR}/src/*.cc
@@ -65,7 +65,7 @@ if(CLANGFORMAT)
     ${PROJECT_SOURCE_DIR}/src/*.cu
   )
 
-  set(clangformat_srcs ${HUGECTR_TRITON_BACKEND_SRCS})
+  set(clangformat_srcs ${HPS_TRITON_BACKEND_SRCS})
   clangformat_setup("${clangformat_srcs}")
 endif()
 
@@ -101,30 +101,31 @@ FetchContent_MakeAvailable(repo-common repo-core repo-backend)
 #
 # Shared library implementing the Triton Backend API
 #
-configure_file(src/libtriton_hugectr.ldscript libtriton_hugectr.ldscript COPYONLY)
+configure_file(src/libtriton_hps.ldscript libtriton_hps.ldscript COPYONLY)
 
 
 add_library(
-  triton-hugectr-backend SHARED
-  src/hugectr.cc
+  triton-hps-backend SHARED
+  src/hps.cc
+  src/backend.cpp
+  src/model_state.cpp
+  src/model_instance_state.cpp
   src/triton_helpers.cpp
-  src/thread_pool.cpp
-  include/timer.hpp
 )
 
 add_library(
-  TritonHugeCTRBackend::triton-hugectr-backend ALIAS triton-hugectr-backend
+  TritonHPSBackend::triton-hps-backend ALIAS triton-hps-backend
 )
 
 target_include_directories(
-  triton-hugectr-backend
+  triton-hps-backend
   PRIVATE
   ${CMAKE_CURRENT_SOURCE_DIR}/include
 )
 
-target_compile_features(triton-hugectr-backend PRIVATE cxx_std_11)
+target_compile_features(triton-hps-backend PRIVATE cxx_std_11)
 target_compile_options(
-  triton-hugectr-backend PRIVATE
+  triton-hps-backend PRIVATE
   $<$<OR:$<CXX_COMPILER_ID:Clang>,$<CXX_COMPILER_ID:AppleClang>,$<CXX_COMPILER_ID:GNU>>:
     -Wall -Wextra -Wno-unused-parameter -Wno-type-limits -Werror>
 )
@@ -133,59 +134,59 @@ target_compile_options(
 MESSAGE(${PROJECT_SOURCE_DIR})
 
 target_link_libraries(
-  triton-hugectr-backend
-  PUBLIC
+  triton-hps-backend
+  PRIVATE
     triton-backend-utils    # from repo-backend
     triton-core-serverstub  # from repo-core
-    ${TRITON_HUGRCTRRUNTIME_LIB_PATHS}/libhuge_ctr_inference.so # from Hugectr
+    ${TRITON_HPSRUNTIME_LIB_PATHS}/libhuge_ctr_hps.so # from Hugectr
 )
 
 set_target_properties(
-  triton-hugectr-backend PROPERTIES
+  triton-hps-backend PROPERTIES
   POSITION_INDEPENDENT_CODE ON
   CUDA_ARCHITECTURES OFF
-  OUTPUT_NAME triton_hugectr
-  LINK_DEPENDS ${CMAKE_CURRENT_BINARY_DIR}/libtriton_hugectr.ldscript
-  LINK_FLAGS "-Wl,--version-script libtriton_hugectr.ldscript"
+  OUTPUT_NAME triton_hps
+  LINK_DEPENDS ${CMAKE_CURRENT_BINARY_DIR}/libtriton_hps.ldscript
+  LINK_FLAGS "-Wl,--version-script libtriton_hps.ldscript"
 )
 
 #
 # Install
 #
 include(GNUInstallDirs)
-set(INSTALL_CONFIGDIR ${CMAKE_INSTALL_LIBDIR}/cmake/TritonHugeCTRBackend
+set(INSTALL_CONFIGDIR ${CMAKE_INSTALL_LIBDIR}/cmake/TritonHPSBackend
 )
 
 install(
   TARGETS
-    triton-hugectr-backend
+    triton-hps-backend
   EXPORT
-    triton-hugectr-backend-targets
-  LIBRARY DESTINATION ${CMAKE_INSTALL_PREFIX}/backends/hugectr
-  ARCHIVE DESTINATION ${CMAKE_INSTALL_PREFIX}/backends/hugectr
+    triton-hps-backend-targets
+  LIBRARY DESTINATION ${CMAKE_INSTALL_PREFIX}/backends/hps
+  ARCHIVE DESTINATION ${CMAKE_INSTALL_PREFIX}/backends/hps
 )
 
 install(
   EXPORT
-    triton-hugectr-backend-targets
+    triton-hps-backend-targets
   FILE
-    TritonHugeCTRBackendTargets.cmake
+    TritonHPSBackendTargets.cmake
   NAMESPACE
-    TritonHugeCTRBackend::
+    TritonHPSBackend::
   DESTINATION
     ${INSTALL_CONFIGDIR}
 )
 
 include(CMakePackageConfigHelpers)
 configure_package_config_file(
-  ${CMAKE_CURRENT_LIST_DIR}/cmake/TritonHugeCTRBackendConfig.cmake.in
-  ${CMAKE_CURRENT_BINARY_DIR}/TritonHugeCTRBackendConfig.cmake
+  ${CMAKE_CURRENT_LIST_DIR}/cmake/TritonHPSBackendConfig.cmake.in
+  ${CMAKE_CURRENT_BINARY_DIR}/TritonHPSBackendConfig.cmake
   INSTALL_DESTINATION ${INSTALL_CONFIGDIR}
 )
 
 install(
   FILES
-  ${CMAKE_CURRENT_BINARY_DIR}/TritonHugeCTRBackendConfig.cmake
+  ${CMAKE_CURRENT_BINARY_DIR}/TritonHPSBackendConfig.cmake
   DESTINATION ${INSTALL_CONFIGDIR}
 )
 
@@ -193,9 +194,9 @@ install(
 # Export from build tree
 #
 export(
-  EXPORT triton-hugectr-backend-targets
-  FILE ${CMAKE_CURRENT_BINARY_DIR}/TritonHugeCTRBackendTargets.cmake
-  NAMESPACE TritonHugeCTRBackend::
+  EXPORT triton-hps-backend-targets
+  FILE ${CMAKE_CURRENT_BINARY_DIR}/TritonHPSBackendTargets.cmake
+  NAMESPACE TritonHPSRBackend::
 )
 
-export(PACKAGE TritonHugeCTRBackend)
+export(PACKAGE TritonHPSBackend)

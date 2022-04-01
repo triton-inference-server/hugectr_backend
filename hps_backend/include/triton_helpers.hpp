@@ -25,14 +25,14 @@
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #pragma once
 
+#include <triton/backend/backend_common.h>
+
 #include <boost/algorithm/string.hpp>
 #include <functional>
 #include <hps/inference_utils.hpp>
 #include <triton_common.hpp>
 
-#include "triton/backend/backend_common.h"
-
-namespace triton { namespace backend { namespace hugectr {
+namespace triton { namespace backend { namespace hps {
 
 class TritonJsonHelper {
  public:
@@ -240,4 +240,4 @@ class TritonJsonHelper {
       const char* key, bool required);
 };
 
-}}}  // namespace triton::backend::hugectr
+}}}  // namespace triton::backend::hps
