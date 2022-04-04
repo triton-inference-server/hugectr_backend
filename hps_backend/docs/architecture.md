@@ -21,7 +21,7 @@ The following components make up the HugeCTR Backend framework:
 
 Here's an in-depth look into the design framework of the HugeCTR Inference interface:
 
-<div align=center><img src ="user_guide_src/Hierarchical_Parameter_Server_Design_Architecture.png"/></div>
+<div align=center><img src ="user_guide_src/Hierarchical_Parameter_Server_Design_Architecture.png" width="50%"/></div>
 <div align=center>Fig. 1. Hierarchical Parameter Server Design Architecture</div>
 
 In actual applications, a Hierarchical Parameter Server is used to load the embedding tables for all models. Since different models will obtain different embedding tables by training in different application scenarios, high memory overheads are to be expected during the inference process. By introducing a Parameter Server, the embedding table can be loaded directly into the GPU memory when the embedding table size is small, or if the GPU resources are exhausted, be loaded into the CPU's memory, or even into the solid-state drive (SSD) when the embedding table size is too large. This ensures that different models and the embedding tables shared between these models are isolated.
@@ -176,7 +176,7 @@ For ultra-large-scale embedding tables that still cannot fully load into the Red
   }
   ```
 
-<div align=center><img src ="user_guide_src/Hierarchical_Parameter_Server.png"/></div>
+<div align=center><img src ="user_guide_src/Hierarchical_Parameter_Server.png" width="80%"/></div>
 <div align=center>Fig. 2. HPS Inference Distributed Deployment Architecture</div>
 
 ## Hierarchical Parameter Server Input Format ##
@@ -201,7 +201,7 @@ The file format of the **vector file** as follows:
 
 * **Each vector needs to have a strict one-to-one correspondence with the order in the key file**.
 
-<div align=center><img src ="user_guide_src/Embedding_Table_Format.png"/></div>
+<div align=center><img src ="user_guide_src/Embedding_Table_Format.png" width="80%"/></div>
 <div align=center>Fig. 3. HPS Embedding Table Format</div>
 
 The storage levels of key-vector files corresponding to different embedding tables are as follows:
@@ -222,7 +222,8 @@ In order to effectively support batch concurrent lookup performance, the HPS bac
 
 #### Request Example
 We assume that the batch size in request is 2(two samples), and each sample needs to lookup the embedding vector from two embedding tables with different embedding vector sizes, which means the first two embedding keys in each sample need to be looked-up from the Embedding Table 1. The last 26 embedding keys are queried from Embedded Table 2. Therefore, the input request format is as follows:
-<div align=center><img src ="user_guide_src/Request_Format.png"/></div>
+
+<div align=center><img src ="user_guide_src/Request_Format.png" width="80%"/></div>
 <div align=center>Fig. 4. HPS Backend Request Example</div>
 
 ## Hierarchical Parameter Server API List ##
