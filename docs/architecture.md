@@ -31,21 +31,19 @@ Each embedding table will create an individual embedding cache on different GPUs
 ### Enabling the GPU Embedding Cache
 When the GPU embedding cache mechanism is enabled, the model will look up the embedding vector from the GPU embedding cache. If the embedding vector does not exist in the GPU embedding cache, it will return the default embedding vector. The default value is 0.  
  
-The following parameters have to be set in the config.pbtxt file for the HugeCTR Backend:
+The following parameters have to be set in the ps.json file for the HugeCTR Backend:
 
  ```json.
- parameters [
-...
-   {
-  key: "gpucache"
-  value: { string_value: "true" }
-  },
-  {
-  key: "gpucacheper"
-  value: { string_value: "0.5" }
-  },
-...
-]
+ ...
+    "models":[
+        {
+            "model":"wdl",
+            ...
+            "gpucacheper":0.5,
+            "gpucache":true
+            ...
+        }
+    ]  
 ```
 
 * **gpucache**: Use this option to enable the GPU embedding cache mechanism.
@@ -53,14 +51,13 @@ The following parameters have to be set in the config.pbtxt file for the HugeCTR
 
  ```json.
  ...
-"inference": {
-    "max_batchsize": 64,
-    "hit_rate_threshold": 0.6,
-    "dense_model_file": "/model/dcn/1/_dense_10000.model",
-    "sparse_model_file": "/model/dcn/1/0_sparse_10000.model",
-    "label": 1
-  },
-
+    "models":[
+    {
+      ...
+		  "hit_rate_threshold": 0.9,
+      ...
+    }
+  ]  
 ...
 ]
 ```
@@ -110,7 +107,7 @@ The hierarchical HugeCTR parameter server (PS) allows deploying models that exce
 
 At the bottom of the hierachy exists a permanent storage layer that maintains a full copy of your embedding tables in an inexpensive non-volatile memory location (typically file-system-based, e.g., a SSD/HDD). To improve access performance, various volatile memories such as local, but also remote RAM-resources can be utilized, thus, forming a cache hierarchy.
 
-As of version 3.3 of HugeCTR individual hierarchy stages of the hierachical parameter server are individually configurable. To introduce the concept, we next present a minimal configuration, where the local SSD/HDD of each node stores a fallback copy of the entire embedding table in a RocksDB column group, and via a Redis cluster, portions of the RAM in each node are used as a cache for frequently used embeddings. This configuration is equivalent to `"db_type" = "hierarchy"` in previous versions of HugeCTR. Please refer to the [HugeCTR Inference Hierarchical Parameter Server](./hierarchical_parameter_server.md) for details.
+As of version 3.3 of HugeCTR individual hierarchy stages of the hierachical parameter server are individually configurable. To introduce the concept, we next present a minimal configuration, where the local SSD/HDD of each node stores a fallback copy of the entire embedding table in a RocksDB column group, and via a Redis cluster, portions of the RAM in each node are used as a cache for frequently used embeddings. This configuration is equivalent to `"db_type" = "hierarchy"` in previous versions of HugeCTR. Please refer to the [HugeCTR Inference Hierarchical Parameter Server](../hps_backend/docs/hierarchical_parameter_server.md) for details.
 
 ```json
 {

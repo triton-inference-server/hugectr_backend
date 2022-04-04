@@ -29,7 +29,7 @@
 [![License](https://img.shields.io/badge/License-BSD3-lightgrey.svg)](https://opensource.org/licenses/BSD-3-Clause)
 
 # Hierarchical Parameter Server Backend
-The Hierarchical Parameter Server(HPS) Backend is a framework for embedding vectors looking up on large-scale embedding tables that was designed to effectively use GPU memory to accelerate the looking up by decoupling the embedding tables and embedding cache from the end-to-end inference pipeline of the deep recommendation model.. The HPS Backend supports concurrent model inference execution across multiple GPUs by embedding cache that is shared between multiple model instances. For more information, see [HugeCTR Inference Architecture](docs/architecture.md#hugectr-inference-framework).  
+The Hierarchical Parameter Server(HPS) Backend is a framework for embedding vectors looking up on large-scale embedding tables that was designed to effectively use GPU memory to accelerate the looking up by decoupling the embedding tables and embedding cache from the end-to-end inference pipeline of the deep recommendation model. The HPS Backend supports  executing multiple embedding vector looking-up services concurrently across multiple GPUs by embedding cache that is shared between multiple look_up sessions. For more information, see [HugeCTR Inference Architecture](docs/architecture.md#hugectr-inference-framework).  
 
 ## Quick Start
 You can build the HPS Backend from scratch and install to the specify path based on your own specific requirements using the NGC Merlin inference Docker images.
@@ -137,9 +137,7 @@ The configuration file of HPS Backend should be formatted using the JSON format.
 }
 ```
 
-* **embedding_vecsize_per_table**: This item determines the pre-allocated memory size on the host and device.  For the case of multiple embedding tables, we assume that the size of the embedding vector in each embedding table is different, then this configuration item requires the user to fill in each embedding table with maximum vector size. 
-* **maxnum_catfeature_query_per_table_per_sample**: This item  determines the pre-allocated memory size on the host and device. We assume that for each input sample, there is a maximum number of embedding keys per sample in each embedding table that need to be looked up, so the user needs to configure the maximum number of queries embedding keys per embedded table in this item.
-* **embedding_table_names**: This configuration item needs to be filled with the name of each embedded table, which will be used to name the data partition and data table in the hierarchical database backend.
+
 
  
 
