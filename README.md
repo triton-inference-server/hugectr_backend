@@ -68,7 +68,7 @@ git clone https://github.com/NVIDIA/HugeCTR.git
 cd HugeCTR
 git submodule update --init --recursive
 ```
-For more information, see [Building HugeCTR from Scratch](https://github.com/NVIDIA/HugeCTR/blob/master/docs/hugectr_user_guide.md#building-hugectr-from-scratch).
+For more information, see [Building HugeCTR from Scratch](https://nvidia-merlin.github.io/HugeCTR/master/hugectr_user_guide.html#building-hugectr-from-scratch).
 
 After you've built HugeCTR from scratch, do the following:
 1. Download the HugeCTR Backend repository by running the following commands:
@@ -99,7 +99,7 @@ Since the HugeCTR Backend is a customizable Triton component, it is capable of s
 From V3.3.1, HugeCTR Backend is fully compatible with the [Model Control EXPLICIT Mode](https://github.com/triton-inference-server/server/blob/main/docs/model_management.md#model-control-mode-explicit) of Triton. Adding the configuration of a new model to the HPS configuration file. The HugeCTR Backend has supported online deployment of new models by [the load API](https://github.com/triton-inference-server/server/blob/master/docs/protocol/extension_model_repository.md#load) of Triton. The old models can also be recycled online by [the unload API](https://github.com/triton-inference-server/server/blob/master/docs/protocol/extension_model_repository.md#unload).
 
 The following should be noted when using Model Repository Extension functions:  
- - Depoly new models online: [The load API](https://github.com/triton-inference-server/server/blob/master/docs/protocol/extension_model_repository.md#load) will load not only the network dense weight as part of the HugeCTR model, but inserting the embedding table of new models to Hierarchical Inference Parameter Server and creating the embedding cache based on model definition in [Independent Parameter Server Configuration](./Independent_Parameter_Server_Configuration), which means the Parameter server will independently provide an initialization mechanism for the new embedding table and embedding cache of new models.
+ - Depoly new models online: [The load API](https://github.com/triton-inference-server/server/blob/master/docs/protocol/extension_model_repository.md#load) will load not only the network dense weight as part of the HugeCTR model, but inserting the embedding table of new models to Hierarchical Inference Parameter Server and creating the embedding cache based on model definition in [Independent Parameter Server Configuration](https://gitlab-master.nvidia.com/dl/hugectr/hugectr_inference_backend/-/tree/main/hps_backend#independent-inference-hierarchical-parameter-server-configuration), which means the Parameter server will independently provide an initialization mechanism for the new embedding table and embedding cache of new models.
 
  - Update the deployed model online: [The load API](https://github.com/triton-inference-server/server/blob/master/docs/protocol/extension_model_repository.md#load) will load the network dense weight as part of the HugeCTR model and updating the embedding tables of the latest model file to Inference Hierarchical Parameter Server and refreshing the embedding cache, which means the Parameter server will independently provide an updated mechanism for existing embedding tables.
 
