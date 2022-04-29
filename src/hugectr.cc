@@ -1531,9 +1531,7 @@ ModelInstanceState::ModelInstanceState(
   row_ptr_buf = HugeCTRBuffer<int>::create();
   std::vector<size_t> row_ptrs_dims = {static_cast<size_t>(
       model_state_->BatchSize() * model_state_->SlotNum() +
-      model_state_->GetEmbeddingCache(device_id_)
-          ->get_cache_config()
-          .num_emb_table_)};
+      model_state_->ModelInferencePara().sparse_model_files.size())};
   row_ptr_buf->reserve(row_ptrs_dims);
   row_ptr_buf->allocate();
 
@@ -1559,7 +1557,8 @@ ModelInstanceState::LoadHugeCTRModel()
       INFO, "The model origin json configuration file path is: ",
       model_state_->HugeCTRJsonConfig());
   embedding_cache = model_state_->GetEmbeddingCache(device_id_);
-  num_embedding_tables = embedding_cache->get_cache_config().num_emb_table_;
+  num_embedding_tables =
+      model_state_->ModelInferencePara().sparse_model_files.size();
   hugectrmodel_ = HugeCTR::InferenceSessionBase::create(
       model_state_->HugeCTRJsonConfig(), instance_params_, embedding_cache);
   HCTR_TRITON_LOG(INFO, "******Loading HugeCTR model successfully");

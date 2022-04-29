@@ -30,7 +30,7 @@
 
 # Hierarchical Parameter Server Backend
 
-The Hierarchical Parameter Server(HPS) Backend is a framework for embedding vectors looking up on large-scale embedding tables that was designed to effectively use GPU memory to accelerate the looking up by decoupling the embedding tables and embedding cache from the end-to-end inference pipeline of the deep recommendation model. The HPS Backend supports executing multiple embedding vector looking-up services concurrently across multiple GPUs by embedding cache that is shared between multiple lookup sessions. For more information, see [Hierarchical Parameter Server Architecture](docs/architecture.md#hugectr-inference-framework).  
+The Hierarchical Parameter Server(HPS) Backend is a framework for embedding vectors looking up on large-scale embedding tables that was designed to effectively use GPU memory to accelerate the looking up by decoupling the embedding tables and embedding cache from the end-to-end inference pipeline of the deep recommendation model. The HPS Backend supports  executing multiple embedding vector looking-up services concurrently across multiple GPUs by embedding cache that is shared between multiple look_up sessions. For more information, see [Hierarchical Parameter Server Architecture](docs/architecture.md#hugectr-inference-framework).  
 
 ## Quick Start
 You can build the HPS Backend from scratch and install to the specify path based on your own specific requirements using the NGC Merlin inference Docker images.
@@ -57,7 +57,7 @@ All NVIDIA Merlin components are available as open-source projects. However, a m
 
 Docker images for the HugeCTR Backend are available in the NVIDIA container repository on https://ngc.nvidia.com/catalog/containers/nvidia:merlin:merlin-inference. You can pull and launch the container by running the following command:
 ```
-docker run --gpus=1 --rm -it nvcr.io/nvidia/merlin/merlin-inference:22.04  # Start interaction mode  
+docker run --gpus=1 --rm -it nvcr.io/nvidia/merlin/merlin-inference:22.05  # Start interaction mode  
 ```
 
 **NOTE**: As of HugeCTR version 3.0, the HugeCTR container is no longer being released separately. If you're an advanced user, you should use the unified Merlin container to build the HugeCTR Training or Inference Docker image from scratch based on your own specific requirements. You can obtain the unified Merlin container by logging into NGC or by going [here](https://github.com/NVIDIA-Merlin/Merlin/blob/main/docker/inference/dockerfile.ctr). 
@@ -69,7 +69,8 @@ git clone https://github.com/NVIDIA/HugeCTR.git
 cd HugeCTR
 git submodule update --init --recursive
 ```
-For more information, see [Building HugeCTR from Scratch](https://github.com/NVIDIA/HugeCTR/blob/master/docs/hugectr_user_guide.md#building-hugectr-from-scratch).
+
+For more information, see [Building HugeCTR from Scratch](https://nvidia-merlin.github.io/HugeCTR/master/hugectr_user_guide.html#building-hugectr-from-scratch).
 
 After you've built HugeCTR from scratch, do the following:
 1. Download the HugeCTR Backend repository by running the following commands:

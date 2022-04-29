@@ -1,5 +1,6 @@
 FROM  gitlab-master.nvidia.com:5005/dl/hugectr/hugectr:devel_inference
 # for testing
+
 ARG HUGECTR_BRANCH=master
 ARG INFERENCE_BRANCH=main
 ARG TRITON_BRANCH=r21.09
