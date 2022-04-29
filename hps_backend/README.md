@@ -29,6 +29,7 @@
 [![License](https://img.shields.io/badge/License-BSD3-lightgrey.svg)](https://opensource.org/licenses/BSD-3-Clause)
 
 # Hierarchical Parameter Server Backend
+
 The Hierarchical Parameter Server(HPS) Backend is a framework for embedding vectors looking up on large-scale embedding tables that was designed to effectively use GPU memory to accelerate the looking up by decoupling the embedding tables and embedding cache from the end-to-end inference pipeline of the deep recommendation model. The HPS Backend supports  executing multiple embedding vector looking-up services concurrently across multiple GPUs by embedding cache that is shared between multiple look_up sessions. For more information, see [Hierarchical Parameter Server Architecture](docs/architecture.md#hugectr-inference-framework).  
 
 ## Quick Start
@@ -68,6 +69,7 @@ git clone https://github.com/NVIDIA/HugeCTR.git
 cd HugeCTR
 git submodule update --init --recursive
 ```
+
 For more information, see [Building HugeCTR from Scratch](https://nvidia-merlin.github.io/HugeCTR/master/hugectr_user_guide.html#building-hugectr-from-scratch).
 
 After you've built HugeCTR from scratch, do the following:
@@ -136,8 +138,6 @@ The configuration file of HPS Backend should be formatted using the JSON format.
     ]
 }
 ```
-
-
 
  
 
