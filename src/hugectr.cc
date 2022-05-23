@@ -953,7 +953,7 @@ ModelState::EmbeddingCacheRefresh(const std::string& model_name, int device_id)
   }
   HCTR_TRITON_LOG(
       INFO, "The model ", model_name,
-      " has refreshed the embedding cache asynchronously on device ", device_id,
+      " has completed the asynchronous refresh of the embedding cache on device ", device_id,
       ".");
 }
 
@@ -1909,7 +1909,7 @@ TRITONBACKEND_ModelInstanceExecute(
   // another call to TRITONBACKEND_ModelInstanceExecute.
 
   HCTR_TRITON_LOG(
-      INFO, "model ", model_state->Name(), ", instance ",
+      VERBOSE, "model ", model_state->Name(), ", instance ",
       instance_state->Name(), ", executing ", request_count, " requests");
 
   // 'responses' is initialized with the response objects below and
@@ -1977,7 +1977,7 @@ TRITONBACKEND_ModelInstanceExecute(
     }
 
     HCTR_TRITON_LOG(
-        INFO, "request ", r, ": id = \"", request_id, "\"",
+        VERBOSE, "request ", r, ": id = \"", request_id, "\"",
         ", correlation_id = ", correlation_id, ", input_count = ", input_count,
         ", requested_output_count = ", requested_output_count);
 
@@ -2078,7 +2078,7 @@ TRITONBACKEND_ModelInstanceExecute(
             catcol_input, nullptr /* input_name */, &cat_datatype, &input_shape,
             &cat_dims_count, &cat_byte_size, &cat_input_buffer_count));
     HCTR_TRITON_LOG(
-        INFO, "\tinput ", catcol_input_name,
+        VERBOSE, "\tinput ", catcol_input_name,
         ": datatype = ", TRITONSERVER_DataTypeString(cat_datatype),
         ", shape = ", backend::ShapeToString(input_shape, cat_dims_count),
         ", byte_size = ", cat_byte_size,
@@ -2090,7 +2090,7 @@ TRITONBACKEND_ModelInstanceExecute(
             row_input, nullptr /* input_name */, &row_datatype, &input_shape,
             &row_dims_count, &row_byte_size, &rowindex_input_buffer_count));
     HCTR_TRITON_LOG(
-        INFO, "\tinput ", row_input_name,
+        VERBOSE, "\tinput ", row_input_name,
         ": datatype = ", TRITONSERVER_DataTypeString(row_datatype),
         ", shape = ", backend::ShapeToString(input_shape, row_dims_count),
         ", byte_size = ", row_byte_size,
@@ -2102,7 +2102,7 @@ TRITONBACKEND_ModelInstanceExecute(
             des_input, nullptr /* input_name */, &des_datatype, &input_shape,
             &des_dims_count, &des_byte_size, &des_input_buffer_count));
     HCTR_TRITON_LOG(
-        INFO, "\tinput ", des_input_name,
+        VERBOSE, "\tinput ", des_input_name,
         ": datatype = ", TRITONSERVER_DataTypeString(des_datatype),
         ", shape = ", backend::ShapeToString(input_shape, des_dims_count),
         ", byte_size = ", des_byte_size,
@@ -2126,7 +2126,7 @@ TRITONBACKEND_ModelInstanceExecute(
       continue;
     }
 
-    HCTR_TRITON_LOG(INFO, "\trequested_output ", requested_output_name);
+    HCTR_TRITON_LOG(VERBOSE, "\trequested_output ", requested_output_name);
 
     // If the model doesn't support batching with two-dimension tensor then each
     // request is necessarily batch-size 1. So the first dimension of the shape
@@ -2293,7 +2293,7 @@ TRITONBACKEND_ModelInstanceExecute(
         // Step 4. Perform prediction in device and copy result to cpu output
         // buffer
         HCTR_TRITON_LOG(
-            INFO, "*****Processing request on device***** ",
+            VERBOSE, "*****Processing request on device***** ",
             instance_state->DeviceId(), " for model ", instance_state->Name());
         // Set Timestamp here to compute the prediction execution time for each
         // request
@@ -2301,7 +2301,7 @@ TRITONBACKEND_ModelInstanceExecute(
         min_exec_start_ns = std::min(min_exec_start_ns, exec_start_ns);
         // Model prediction
         RETURN_IF_ERROR(instance_state->ProcessRequest(num_of_samples));
-        HCTR_TRITON_LOG(INFO, "******Processing request completed!******");
+        HCTR_TRITON_LOG(VERBOSE, "******Processing request completed!******");
         output_buffer_offset += buffer_byte_size;
         CK_CUDA_THROW_(cudaMemcpy(
             output_buffer, instance_state->GetPredictBuffer()->get_raw_ptr(),
@@ -2312,7 +2312,8 @@ TRITONBACKEND_ModelInstanceExecute(
         max_exec_end_ns = std::max(max_exec_end_ns, exec_end_ns);
         // Get the prediction execution time (ms)
         int64_t exe_time = (max_exec_end_ns - min_exec_start_ns) / 1000000;
-        HCTR_TRITON_LOG(INFO, "Prediction execution time is ", exe_time, " ms");
+        HCTR_TRITON_LOG(
+            VERBOSE, "Prediction execution time is ", exe_time, " ms");
       }
 
       if (responses[r] == nullptr) {
