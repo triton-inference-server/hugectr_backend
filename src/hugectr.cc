@@ -392,16 +392,17 @@ HugeCTRBackend::ParseParameterServer(const std::string& path)
         INFO, log_prefix, "password = <",
         params.password.empty() ? "empty" : "specified", ">");
 
-    key = "algorithm";
-    RETURN_IF_ERROR(
-        TritonJsonHelper::parse(params.algorithm, json, key, false));
-    HCTR_TRITON_LOG(INFO, log_prefix, "algorithm = ", params.algorithm);
-
     key = "num_partitions";
     RETURN_IF_ERROR(
         TritonJsonHelper::parse(params.num_partitions, json, key, false));
     HCTR_TRITON_LOG(
         INFO, log_prefix, "number of partitions = ", params.num_partitions);
+
+    key = "allocation_rate";
+    RETURN_IF_ERROR(
+        TritonJsonHelper::parse(params.allocation_rate, json, key, false));
+    HCTR_TRITON_LOG(
+        INFO, log_prefix, "allocation rate = ", params.allocation_rate);
 
     key = "max_get_batch_size";
     RETURN_IF_ERROR(
@@ -536,18 +537,17 @@ HugeCTRBackend::ParseParameterServer(const std::string& path)
     RETURN_IF_ERROR(TritonJsonHelper::parse(params.brokers, json, key, false));
     HCTR_TRITON_LOG(INFO, log_prefix, "brokers = ", params.brokers);
 
+    key = "receive_buffer_size";
+    RETURN_IF_ERROR(
+        TritonJsonHelper::parse(params.receive_buffer_size, json, key, false));
+    HCTR_TRITON_LOG(
+        INFO, log_prefix, "receive buffer size = ", params.receive_buffer_size);
+
     key = "poll_timeout_ms";
     RETURN_IF_ERROR(
         TritonJsonHelper::parse(params.poll_timeout_ms, json, key, false));
     HCTR_TRITON_LOG(
         INFO, log_prefix, "poll timeout = ", params.poll_timeout_ms, " ms");
-
-    key = "receive_buffer_size";
-    RETURN_IF_ERROR(
-        TritonJsonHelper::parse(params.receive_buffer_size, json, key, false));
-    HCTR_TRITON_LOG(
-        INFO, log_prefix,
-        "max. receive buffer size = ", params.receive_buffer_size);
 
     key = "max_batch_size";
     RETURN_IF_ERROR(
@@ -561,6 +561,13 @@ HugeCTRBackend::ParseParameterServer(const std::string& path)
     HCTR_TRITON_LOG(
         INFO, log_prefix, "failure backoff = ", params.failure_backoff_ms,
         " ms");
+
+    key = "max_commit_interval";
+    RETURN_IF_ERROR(
+        TritonJsonHelper::parse(params.max_commit_interval, json, key, false));
+    HCTR_TRITON_LOG(
+        INFO, log_prefix,
+        "max. commit interval = ", params.max_commit_interval);
   }
 
   // Model configurations.
