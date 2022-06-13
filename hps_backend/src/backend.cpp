@@ -161,7 +161,8 @@ HPSBackend::ParseParameterServer(const std::string& path)
     key = "allocation_rate";
     RETURN_IF_ERROR(
         TritonJsonHelper::parse(params.allocation_rate, json, key, false));
-    HPS_TRITON_LOG(INFO, log_prefix, "allocation rate = ", params.allocation_rate);
+    HPS_TRITON_LOG(
+        INFO, log_prefix, "allocation rate = ", params.allocation_rate);
 
     key = "max_get_batch_size";
     RETURN_IF_ERROR(
@@ -297,11 +298,10 @@ HPSBackend::ParseParameterServer(const std::string& path)
     HPS_TRITON_LOG(INFO, log_prefix, "brokers = ", params.brokers);
 
     key = "receive_buffer_size";
-    RETURN_IF_ERROR(TritonJsonHelper::parse(
-        params.receive_buffer_size, json, key, false));
+    RETURN_IF_ERROR(
+        TritonJsonHelper::parse(params.receive_buffer_size, json, key, false));
     HPS_TRITON_LOG(
-        INFO, log_prefix,
-        "receive buffer size = ", params.receive_buffer_size);
+        INFO, log_prefix, "receive buffer size = ", params.receive_buffer_size);
 
     key = "poll_timeout_ms";
     RETURN_IF_ERROR(
@@ -326,7 +326,8 @@ HPSBackend::ParseParameterServer(const std::string& path)
     RETURN_IF_ERROR(
         TritonJsonHelper::parse(params.max_commit_interval, json, key, false));
     HPS_TRITON_LOG(
-        INFO, log_prefix, "max. commit interval = ", params.max_commit_interval);
+        INFO, log_prefix,
+        "max. commit interval = ", params.max_commit_interval);
   }
 
   // Model configurations.

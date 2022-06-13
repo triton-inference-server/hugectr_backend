@@ -970,6 +970,7 @@ class ModelState {
   bool support_int64_key_ = false;
   bool support_gpu_cache_ = true;
   bool use_mixed_precision_ = false;
+  bool freeze_embedding_ = false;
 
   std::shared_ptr<HugeCTR::HierParameterServerBase> EmbeddingTable;
   HugeCTR::InferenceParams Model_Inference_Para;
@@ -1047,8 +1048,10 @@ ModelState::EmbeddingCacheRefresh(const std::string& model_name, int device_id)
       INFO, "The model ", model_name,
       " is refreshing the embedding cache asynchronously on device ", device_id,
       ".");
-  if (support_gpu_cache_) {
+  if (!freeze_embedding_) {
     EmbeddingTable->update_database_per_model(Model_Inference_Para);
+  }
+  if (support_gpu_cache_) {
     EmbeddingTable->refresh_embedding_cache(model_name, device_id);
   }
   HCTR_TRITON_LOG(
@@ -1309,6 +1312,11 @@ ModelState::ParseModelConfig()
     } else {
       support_gpu_cache_ = Model_Inference_Para.use_gpu_embedding_cache;
       HCTR_TRITON_LOG(INFO, "support gpu cache = ", support_gpu_cache_);
+    }
+
+    if (parameters.Find("freeze_sparse", &value)) {
+      RETURN_IF_ERROR(TritonJsonHelper::parse(
+          freeze_embedding_, value, "string_value", false));
     }
 
     if (parameters.Find("mixed_precision", &value)) {
@@ -1874,12 +1882,16 @@ TRITONBACKEND_ModelInitialize(TRITONBACKEND_Model* model)
   uint64_t model_ps_version = backend_state->GetModelVersion(name);
   uint64_t model_current_version;
   RETURN_IF_ERROR(TRITONBACKEND_ModelVersion(model, &model_current_version));
-  if (backend_state->HugeCTRModelConfigurationMap().count(name) == 0) {
+  if (backend_state->HugeCTRModelConfigurationMap().count(name) == 0 ||
+      model_ps_version != model_current_version) {
     HCTR_TRITON_LOG(
         INFO,
         "Parsing the latest Parameter Server json config file for deploying "
         "model ",
         name, " online");
+    HCTR_TRITON_LOG(
+        INFO, "Hierarchical PS version is ", model_ps_version,
+        " and the current Model Version is ", model_current_version);
     backend_state->ParseParameterServer(
         backend_state->ParameterServerJsonFile());
   }

@@ -56,7 +56,7 @@ All NVIDIA Merlin components are available as open-source projects. However, a m
 
 Docker images for the HugeCTR Backend are available in the NVIDIA container repository on https://ngc.nvidia.com/catalog/containers/nvidia:merlin:merlin-inference. You can pull and launch the container by running the following command:
 ```
-docker run --gpus=1 --rm -it nvcr.io/nvidia/merlin/merlin-inference:22.02  # Start interaction mode  
+docker run --gpus=1 --rm -it nvcr.io/nvidia/merlin/merlin-inference:22.06  # Start interaction mode  
 ```
 
 **NOTE**: As of HugeCTR version 3.0, the HugeCTR container is no longer being released separately. If you're an advanced user, you should use the unified Merlin container to build the HugeCTR Training or Inference Docker image from scratch based on your own specific requirements. You can obtain the unified Merlin container by logging into NGC or by going [here](https://github.com/NVIDIA-Merlin/Merlin/blob/main/docker/inference/dockerfile.ctr). 
@@ -85,7 +85,7 @@ After you've built HugeCTR from scratch, do the following:
    $ make install
    ```
    
-   **NOTE**: Where <rxx.yy> is the version of Triton that you want to deploy, like `r22.01`. Please remember to specify the absolute path of the local directory that installs the HugeCTR Backend for the `--backend-directory` argument when launching the Triton server.
+   **NOTE**: Where <rxx.yy> is the version of Triton that you want to deploy, like `r22.05`. Please remember to specify the absolute path of the local directory that installs the HugeCTR Backend for the `--backend-directory` argument when launching the Triton server.
    
    The following Triton repositories, which are required, will be pulled and used in the build. By default, the "main" branch/tag will be used for each repository. However, the 
    following cmake arguments can be used to override the "main" branch/tag:
@@ -125,26 +125,34 @@ The configuration file of inference Parameter Server should be formatted using t
             "sparse_files":["/model/dcn/1/0_sparse_file.model"],
             "dense_file":"/model/dcn/1/_dense_file.model",
             "network_file":"/model/dcn/1/dcn.json",
-            "num_of_worker_buffer_in_pool": "4"
-            "deployed_device_list":["0"],
-            "max_batch_size":"1024",
-            "default_value_for_each_table":["0.0"],
-            "hit_rate_threshold":"0.9",
-            "gpucacheper":"0.5",
-            "gpucache":"true"
+            "num_of_worker_buffer_in_pool": 4
+            "deployed_device_list":[0],
+            "max_batch_size":1024,
+            "default_value_for_each_table":[0.0],
+            "hit_rate_threshold":0.9,
+            "gpucacheper":0.5,
+            "gpucache":true,
+            "maxnum_des_feature_per_sample": 13,
+            "maxnum_catfeature_query_per_table_per_sample":[26],
+            "embedding_vecsize_per_table":[128],
+            "slot_num":26
         },
         {
             "model":"wdl",
             "sparse_files":["/model/wdl/1/0_sparse_2000.model","/model/wdl/1/1_sparse_2000.model"],
             "dense_file":"/model/wdl/1/_dense_2000.model",
             "network_file":"/model/wdl/1/wdl_infer.json",
-            "num_of_worker_buffer_in_pool": "4",
-            "deployed_device_list":["1"],
-            "max_batch_size":"1024",
-            "default_value_for_each_table":["0.0","0.0"],
-            "hit_rate_threshold":"0.9",
-            "gpucacheper":"0.5",
-            "gpucache":"true"
+            "num_of_worker_buffer_in_pool": 4,
+            "deployed_device_list":[1],
+            "max_batch_size":1024,
+            "default_value_for_each_table":[0.0,0.0],
+            "hit_rate_threshold":0.9,
+            "gpucacheper":0.5,
+            "gpucache":true,
+            "maxnum_des_feature_per_sample": 13,
+			"maxnum_catfeature_query_per_table_per_sample" : [2,26],
+			"embedding_vecsize_per_table" : [1,15],
+			"slot_num":28
         }
     ]  
 }
