@@ -99,11 +99,28 @@ Since the HugeCTR Backend is a customizable Triton component, it is capable of s
 From V3.3.1, HugeCTR Backend is fully compatible with the [Model Control EXPLICIT Mode](https://github.com/triton-inference-server/server/blob/main/docs/model_management.md#model-control-mode-explicit) of Triton. Adding the configuration of a new model to the HPS configuration file. The HugeCTR Backend has supported online deployment of new models by [the load API](https://github.com/triton-inference-server/server/blob/master/docs/protocol/extension_model_repository.md#load) of Triton. The old models can also be recycled online by [the unload API](https://github.com/triton-inference-server/server/blob/master/docs/protocol/extension_model_repository.md#unload).
 
 The following should be noted when using Model Repository Extension functions:  
- - Depoly new models online: [The load API](https://github.com/triton-inference-server/server/blob/master/docs/protocol/extension_model_repository.md#load) will load not only the network dense weight as part of the HugeCTR model, but inserting the embedding table of new models to Hierarchical Inference Parameter Server and creating the embedding cache based on model definition in [Independent Parameter Server Configuration](https://gitlab-master.nvidia.com/dl/hugectr/hugectr_inference_backend/-/tree/main/hps_backend#independent-inference-hierarchical-parameter-server-configuration), which means the Parameter server will independently provide an initialization mechanism for the new embedding table and embedding cache of new models.
+ - Depoly new models online: [The load API](https://github.com/triton-inference-server/server/blob/master/docs/protocol/extension_model_repository.md#load) will load not only the network dense weight as part of the HugeCTR model, but inserting the embedding table of new models to Hierarchical Inference Parameter Server and creating the embedding cache based on model definition in [Independent Parameter Server Configuration](https://gitlab-master.nvidia.com/dl/hugectr/hugectr_inference_backend/-/tree/main/hps_backend#independent-inference-hierarchical-parameter-server-configuration), which means the Parameter server will independently provide an initialization mechanism for the new embedding table and embedding cache of new models.  
+ 
+**Note:** If using the [HPS Inference Online Update](#hugectr-inference-hierarchical-parameter-server-online-update), in order to avoid the embedding table from being updated repeatedly by adding the *freeze_sparse*(false is default ) update option in the Triton configuration file (config.pbtxt).
 
+ ```
+ parameters:[
+    ...
+  {
+  key: "freeze_sparse"
+  value: { string_value: "true" }
+  }
+    ...
+]
+ ```
+ 
  - Update the deployed model online: [The load API](https://github.com/triton-inference-server/server/blob/master/docs/protocol/extension_model_repository.md#load) will load the network dense weight as part of the HugeCTR model and updating the embedding tables of the latest model file to Inference Hierarchical Parameter Server and refreshing the embedding cache, which means the Parameter server will independently provide an updated mechanism for existing embedding tables.
 
  - Recycle old models: [The unload API](https://github.com/triton-inference-server/server/blob/master/docs/protocol/extension_model_repository.md#unload) will request that the HugeCTR model network's weights be unloaded from Triton and release the corresponding embedded cache from devices, which means the embedding tables corresponding to the model will still remain in the Inference Hierarchical Parameter Server Database.
+
+ For specific samples, please refer to the [Triton Update Model](samples/hierarchical_deployment/hps_e2e_demo/Triton_Update_Model.ipynb). 
+
+**NOTE:** Depending on the [Triton model's version policy](https://github.com/triton-inference-server/server/blob/main/docs/model_configuration.md#version-policy), changes to the available versions may change which model version is served by default.
 
  ## Metrix
  Triton provides Prometheus metrics indicating GPU and request statistics. Use Prometheus to gather metrics into usable, actionable entries, giving you the data you need to manage alerts and performance information in your environment. Prometheus is usually used along side Grafana. Grafana is a visualization tool that pulls Prometheus metrics and makes it easier to monitor. You can build your own metrix system based on our example, see [HugeCTR Backend Metrics](docs/metrics.md).  
@@ -150,9 +167,9 @@ The configuration file of inference Parameter Server should be formatted using t
             "gpucacheper":0.5,
             "gpucache":true,
             "maxnum_des_feature_per_sample": 13,
-			"maxnum_catfeature_query_per_table_per_sample" : [2,26],
-			"embedding_vecsize_per_table" : [1,15],
-			"slot_num":28
+            "maxnum_catfeature_query_per_table_per_sample" : [2,26],
+            "embedding_vecsize_per_table" : [1,15],
+            "slot_num":28
         }
     ]  
 }
@@ -184,4 +201,11 @@ We have added support for multiple database interfaces to our inference paramete
 Further, we revised support for “distributed” storage of embeddings in a Redis cluster. This way, you can use the combined CPU-accessible memory of your cluster for storing embeddings. The new implementation is up over two orders of magnitude faster than the previous.  
 Further, we performance-optimized support for the “persistent” storage and retrieval of embeddings via RocksDB through the structured use of column families.
 Creating a hierarchical storage (i.e. using Redis as distributed cache, and RocksDB as fallback), is supported as well. These advantages are free to end-users, as there is no need to adjust the PS configuration.  
+
+## HugeCTR Inference Hierarchical Parameter Server Online Update
+
+If an incremental update has been applied to some embedding table entries, either during online training (=frequent/incremental updates), or after completing an offline training, the latest versions of the respectively updated embeddings have to be propagated to all inference nodes. Our HPS achieves this functionality using a dedicated online updating mechanism. The blue data-flow graph in below figure illustrates this process. First, the training nodes dump their updates to an [Apache Kafka-based message buffer](https://link.springer.com/referenceworkentry/10.1007/978-3-319-63962-8_196-1). This is done via our **Message Producer API**, which handles serialization, batching, and the organization of updates into distinct message queues for each embedding table. Inference nodes that have loaded the affected model can use the corresponding **Message Source API** to discover and subscribe to these message queues. Received updates are then subsequently applied to the respective local VDB shards and the PDB. The GPU embedding cache polls its associated VDB/PDB for updates and replaces embeddings if necessary. This refresh cycle is configurable to best fit the training schedule. When using online training, the GPU embedding cache periodically (e.g., every $n$ minutes, hours, etc.) scans for updates and refresh its contents. During offline training, poll-cycles are instigated by the [Triton model management API](https://github.com/triton-inference-server/server/blob/main/docs/model_management.md#model-control-mode-explicit). For specific samples, please refer to [Continuous Training](samples/hierarchical_deployment/hps_e2e_demo/Continuous_Training.ipynb) 
+
+<div align=center><img img width="80%" height="80%" src ="docs/user_guide_src/HugeCTR_Online_Update.png"/></div>
+<div align=center>Fig. 1. HugeCTR Inference Online Update</div>
 

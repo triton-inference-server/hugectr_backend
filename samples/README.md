@@ -163,7 +163,7 @@ Once the models are successfully loaded, you can launch jupyter-lab again in the
 ## Reference
 ### HugeCTR Backend configuration
 Please refer to  [(Triton model configuration)](https://github.com/triton-inference-server/server/blob/master/docs/model_configuration.md) first and  clarify the required configuration of the model in the specific inference scenario.
-In order to deploy the HugeCTR model, some customized configuration items need to be added as follows：
+In order to deploy the HugeCTR model, some customized configuration items can be added as optional as follows：
 ```json.
  parameters [
   {
@@ -178,6 +178,10 @@ In order to deploy the HugeCTR model, some customized configuration items need t
   key: "gpucache"
   value: { string_value: "true" }
   },
+  {
+  key: "freeze_sparse"
+  value: { string_value: "false" }
+  }
   {
   key: "gpucacheper"
   value: { string_value: "0.5" }
@@ -232,9 +236,9 @@ The model files (the path of the embedded table file) needs to be configured in 
             "gpucacheper":0.5,
             "gpucache":true,
             "maxnum_des_feature_per_sample": 13,
-			"maxnum_catfeature_query_per_table_per_sample" : [2,26],
-			"embedding_vecsize_per_table" : [1,15],
-			"slot_num":28
+            "maxnum_catfeature_query_per_table_per_sample" : [2,26],
+            "embedding_vecsize_per_table" : [1,15],
+            "slot_num":28
         }
     ]  
 }
