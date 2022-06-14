@@ -291,48 +291,6 @@ TritonJsonHelper::parse(
 
 TRITONSERVER_Error*
 TritonJsonHelper::parse(
-    HugeCTR::DatabaseHashMapAlgorithm_t& value,
-    const common::TritonJson::Value& json, const char* const key,
-    const bool required)
-{
-  std::string tmp;
-  RETURN_IF_ERROR(parse(tmp, json, key, required));
-  std::transform(tmp.begin(), tmp.end(), tmp.begin(), [](const char c) {
-    return (c == ' ') ? '_' : std::tolower(c);
-  });
-
-  if (tmp.empty() && !required) {
-    // Do nothing; keep existing value.
-    return nullptr;
-  }
-
-  HugeCTR::DatabaseHashMapAlgorithm_t enum_value;
-  std::unordered_set<const char*> names;
-
-  enum_value = HugeCTR::DatabaseHashMapAlgorithm_t::STL;
-  names = {hctr_enum_to_c_str(enum_value)};
-  for (const char* name : names)
-    if (tmp == name) {
-      value = enum_value;
-      return nullptr;
-    }
-
-  enum_value = HugeCTR::DatabaseHashMapAlgorithm_t::PHM;
-  names = {hctr_enum_to_c_str(enum_value)};
-  for (const char* name : names)
-    if (tmp == name) {
-      value = enum_value;
-      return nullptr;
-    }
-
-  // No match.
-  return HCTR_TRITON_ERROR(
-      INVALID_ARG, "Unable to map parameter '", key, "' = \"", tmp,
-      "\" to DatabaseHashMapAlgorithm_t!");
-}
-
-TRITONSERVER_Error*
-TritonJsonHelper::parse(
     HugeCTR::UpdateSourceType_t& value, const common::TritonJson::Value& json,
     const char* const key, const bool required)
 {
@@ -418,6 +376,32 @@ TritonJsonHelper::parse(
         v = std::stoll(s);
       }
       value.emplace_back(static_cast<int32_t>(v));
+    }
+  } else if (required) {
+    return HCTR_ARG_MANDATORY_ERROR(key);
+  }
+
+  // HCTR_TRITON_LOG(INFO, key, ": [", hctr_str_join(", ", value), " ]");
+  return nullptr;
+}
+
+TRITONSERVER_Error*
+TritonJsonHelper::parse(
+    std::vector<size_t>& value, common::TritonJson::Value& json,
+    const char* const key, const bool required)
+{
+  if (json.Find(key)) {
+    common::TritonJson::Value tmp;
+    RETURN_IF_ERROR(json.MemberAsArray(key, &tmp));
+
+    for (size_t i = 0; i < tmp.ArraySize(); i++) {
+      int64_t v = 0;
+      if (tmp.IndexAsInt(i, &v) != TRITONJSON_STATUSSUCCESS) {
+        std::string s;
+        RETURN_IF_ERROR(tmp.IndexAsString(i, &s));
+        v = std::stoll(s);
+      }
+      value.emplace_back(static_cast<size_t>(v));
     }
   } else if (required) {
     return HCTR_ARG_MANDATORY_ERROR(key);

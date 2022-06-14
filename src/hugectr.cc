@@ -41,6 +41,7 @@
 #include <map>
 #include <memory>
 #include <mutex>
+#include <numeric>
 #include <sstream>
 #include <thread>
 #include <timer.hpp>
@@ -391,16 +392,17 @@ HugeCTRBackend::ParseParameterServer(const std::string& path)
         INFO, log_prefix, "password = <",
         params.password.empty() ? "empty" : "specified", ">");
 
-    key = "algorithm";
-    RETURN_IF_ERROR(
-        TritonJsonHelper::parse(params.algorithm, json, key, false));
-    HCTR_TRITON_LOG(INFO, log_prefix, "algorithm = ", params.algorithm);
-
     key = "num_partitions";
     RETURN_IF_ERROR(
         TritonJsonHelper::parse(params.num_partitions, json, key, false));
     HCTR_TRITON_LOG(
         INFO, log_prefix, "number of partitions = ", params.num_partitions);
+
+    key = "allocation_rate";
+    RETURN_IF_ERROR(
+        TritonJsonHelper::parse(params.allocation_rate, json, key, false));
+    HCTR_TRITON_LOG(
+        INFO, log_prefix, "allocation rate = ", params.allocation_rate);
 
     key = "max_get_batch_size";
     RETURN_IF_ERROR(
@@ -535,18 +537,17 @@ HugeCTRBackend::ParseParameterServer(const std::string& path)
     RETURN_IF_ERROR(TritonJsonHelper::parse(params.brokers, json, key, false));
     HCTR_TRITON_LOG(INFO, log_prefix, "brokers = ", params.brokers);
 
+    key = "receive_buffer_size";
+    RETURN_IF_ERROR(
+        TritonJsonHelper::parse(params.receive_buffer_size, json, key, false));
+    HCTR_TRITON_LOG(
+        INFO, log_prefix, "receive buffer size = ", params.receive_buffer_size);
+
     key = "poll_timeout_ms";
     RETURN_IF_ERROR(
         TritonJsonHelper::parse(params.poll_timeout_ms, json, key, false));
     HCTR_TRITON_LOG(
         INFO, log_prefix, "poll timeout = ", params.poll_timeout_ms, " ms");
-
-    key = "max_receive_buffer_size";
-    RETURN_IF_ERROR(TritonJsonHelper::parse(
-        params.max_receive_buffer_size, json, key, false));
-    HCTR_TRITON_LOG(
-        INFO, log_prefix,
-        "max. receive buffer size = ", params.max_receive_buffer_size);
 
     key = "max_batch_size";
     RETURN_IF_ERROR(
@@ -560,6 +561,13 @@ HugeCTRBackend::ParseParameterServer(const std::string& path)
     HCTR_TRITON_LOG(
         INFO, log_prefix, "failure backoff = ", params.failure_backoff_ms,
         " ms");
+
+    key = "max_commit_interval";
+    RETURN_IF_ERROR(
+        TritonJsonHelper::parse(params.max_commit_interval, json, key, false));
+    HCTR_TRITON_LOG(
+        INFO, log_prefix,
+        "max. commit interval = ", params.max_commit_interval);
   }
 
   // Model configurations.
@@ -618,13 +626,13 @@ HugeCTRBackend::ParseParameterServer(const std::string& path)
     // [6] use_gpu_embedding_cache -> bool
     bool use_gpu_embedding_cache = true;
     RETURN_IF_ERROR(TritonJsonHelper::parse(
-        use_gpu_embedding_cache, json_obj, "gpucache", true));
+        use_gpu_embedding_cache, json_obj, "gpucache", false));
     HCTR_TRITON_LOG(
         INFO, log_prefix,
         "use GPU embedding cache = ", use_gpu_embedding_cache);
 
     // [2] hit_rate_threshold -> float
-    float hit_rate_threshold = 0.55;
+    float hit_rate_threshold = 0.9;
     RETURN_IF_ERROR(TritonJsonHelper::parse(
         hit_rate_threshold, json_obj, "hit_rate_threshold",
         use_gpu_embedding_cache));
@@ -632,7 +640,7 @@ HugeCTRBackend::ParseParameterServer(const std::string& path)
         INFO, log_prefix, "hit rate threshold = ", hit_rate_threshold);
 
     // [7] cache_size_percentage -> float
-    float cache_size_percentage = 0.55;
+    float cache_size_percentage = 0.2;
     RETURN_IF_ERROR(TritonJsonHelper::parse(
         cache_size_percentage, json_obj, "gpucacheper",
         use_gpu_embedding_cache));
@@ -649,23 +657,54 @@ HugeCTRBackend::ParseParameterServer(const std::string& path)
 
     const char* key;
 
-    key = "num_of_worker_buffer_in_pool";
+    key = "use_mixed_precision";
+    params.use_mixed_precision = false;
     RETURN_IF_ERROR(TritonJsonHelper::parse(
-        params.number_of_worker_buffers_in_pool, json_obj, key, true));
+        params.use_mixed_precision, json_obj, key, false));
+    HCTR_TRITON_LOG(
+        INFO, log_prefix, "use_mixed_precision = ", params.use_mixed_precision);
+
+    key = "scaler";
+    params.scaler = 1.0;
+    RETURN_IF_ERROR(
+        TritonJsonHelper::parse(params.scaler, json_obj, key, false));
+    HCTR_TRITON_LOG(INFO, log_prefix, "scaler = ", params.scaler);
+
+    key = "use_algorithm_search";
+    params.use_algorithm_search = true;
+    RETURN_IF_ERROR(TritonJsonHelper::parse(
+        params.use_algorithm_search, json_obj, key, false));
+    HCTR_TRITON_LOG(
+        INFO, log_prefix,
+        "use_algorithm_search = ", params.use_algorithm_search);
+
+    key = "use_cuda_graph";
+    params.use_cuda_graph = true;
+    RETURN_IF_ERROR(
+        TritonJsonHelper::parse(params.use_cuda_graph, json_obj, key, false));
+    HCTR_TRITON_LOG(
+        INFO, log_prefix, "use_cuda_graph = ", params.use_cuda_graph);
+
+    key = "num_of_worker_buffer_in_pool";
+    params.number_of_worker_buffers_in_pool = 1;
+    RETURN_IF_ERROR(TritonJsonHelper::parse(
+        params.number_of_worker_buffers_in_pool, json_obj, key, false));
     HCTR_TRITON_LOG(
         INFO, log_prefix,
         "num. pool worker buffers = ", params.number_of_worker_buffers_in_pool);
 
     key = "num_of_refresher_buffer_in_pool";
+    params.number_of_refresh_buffers_in_pool = 1;
     RETURN_IF_ERROR(TritonJsonHelper::parse(
-        params.number_of_refresh_buffers_in_pool, json_obj, key, true));
+        params.number_of_refresh_buffers_in_pool, json_obj, key, false));
     HCTR_TRITON_LOG(
         INFO, log_prefix, "num. pool refresh buffers = ",
         params.number_of_refresh_buffers_in_pool);
 
     key = "cache_refresh_percentage_per_iteration";
+    params.cache_refresh_percentage_per_iteration = 0;
     RETURN_IF_ERROR(TritonJsonHelper::parse(
-        params.cache_refresh_percentage_per_iteration, json_obj, key, true));
+        params.cache_refresh_percentage_per_iteration, json_obj, key, false));
     HCTR_TRITON_LOG(
         INFO, log_prefix, "cache refresh rate per iteration = ",
         params.cache_refresh_percentage_per_iteration);
@@ -687,10 +726,71 @@ HugeCTRBackend::ParseParameterServer(const std::string& path)
         INFO, log_prefix, "default value for each table = [",
         hctr_str_join(", ", params.default_value_for_each_table), "]");
 
+    key = "maxnum_des_feature_per_sample";
+    params.maxnum_des_feature_per_sample = 26;
+    RETURN_IF_ERROR(TritonJsonHelper::parse(
+        params.maxnum_des_feature_per_sample, json_obj, key, false));
+    HCTR_TRITON_LOG(
+        INFO, log_prefix, "maxnum_des_feature_per_sample = ",
+        params.maxnum_des_feature_per_sample);
+
+    key = "refresh_delay";
+    params.refresh_delay = 0.0;
+    RETURN_IF_ERROR(
+        TritonJsonHelper::parse(params.refresh_delay, json_obj, key, false));
+    HCTR_TRITON_LOG(INFO, log_prefix, "refresh_delay = ", params.refresh_delay);
+
+    key = "refresh_interval";
+    params.refresh_interval = 0.0;
+    RETURN_IF_ERROR(
+        TritonJsonHelper::parse(params.refresh_interval, json_obj, key, false));
+    HCTR_TRITON_LOG(
+        INFO, log_prefix, "refresh_interval = ", params.refresh_interval);
+
+    key = "maxnum_catfeature_query_per_table_per_sample";
+    params.maxnum_catfeature_query_per_table_per_sample.clear();
+    RETURN_IF_ERROR(TritonJsonHelper::parse(
+        params.maxnum_catfeature_query_per_table_per_sample, json_obj, key,
+        true));
+    HCTR_TRITON_LOG(
+        INFO, log_prefix,
+        "maxnum_catfeature_query_per_table_per_sample list = [",
+        hctr_str_join(
+            ", ", params.maxnum_catfeature_query_per_table_per_sample),
+        "]");
+
+    key = "embedding_vecsize_per_table";
+    params.embedding_vecsize_per_table.clear();
+    RETURN_IF_ERROR(TritonJsonHelper::parse(
+        params.embedding_vecsize_per_table, json_obj, key, true));
+    HCTR_TRITON_LOG(
+        INFO, log_prefix, "embedding_vecsize_per_table list = [",
+        hctr_str_join(", ", params.embedding_vecsize_per_table), "]");
+
+    key = "embedding_table_names";
+    RETURN_IF_ERROR(TritonJsonHelper::parse(
+        params.embedding_table_names, json_obj, key, false));
+    HCTR_TRITON_LOG(
+        INFO, log_prefix, "embedding model names = [",
+        hctr_str_join(", ", params.embedding_table_names), "]");
+
+    key = "label_dim";
+    RETURN_IF_ERROR(
+        TritonJsonHelper::parse(params.label_dim, json_obj, key, false));
+    HCTR_TRITON_LOG(INFO, log_prefix, "label_dim = ", params.label_dim);
+
+    key = "slot_num";
+    RETURN_IF_ERROR(
+        TritonJsonHelper::parse(params.slot_num, json_obj, key, false));
+    HCTR_TRITON_LOG(
+        INFO, log_prefix, "the number of slots = ", params.slot_num);
+
+
     // TODO: Move to paramter server common parameters?
     params.volatile_db = volatile_db_params;
     params.persistent_db = persistent_db_params;
     params.update_source = update_source_params;
+    params.network_file = network_file;
 
     // Done!
     inference_params_map.emplace(model_name, params);
@@ -856,7 +956,7 @@ class ModelState {
   int64_t max_nnz_ = 3;
   int64_t label_dim_ = 1;
   float cache_size_per = 0.5;
-  float hit_rate_threshold = 0.8;
+  float hit_rate_threshold = 0.9;
   float refresh_interval_ = 0.0f;
   float refresh_delay_ = 0.0f;
   std::string hugectr_config_;
@@ -870,6 +970,7 @@ class ModelState {
   bool support_int64_key_ = false;
   bool support_gpu_cache_ = true;
   bool use_mixed_precision_ = false;
+  bool freeze_embedding_ = false;
 
   std::shared_ptr<HugeCTR::HierParameterServerBase> EmbeddingTable;
   HugeCTR::InferenceParams Model_Inference_Para;
@@ -947,14 +1048,17 @@ ModelState::EmbeddingCacheRefresh(const std::string& model_name, int device_id)
       INFO, "The model ", model_name,
       " is refreshing the embedding cache asynchronously on device ", device_id,
       ".");
-  if (support_gpu_cache_) {
+  if (!freeze_embedding_) {
     EmbeddingTable->update_database_per_model(Model_Inference_Para);
+  }
+  if (support_gpu_cache_) {
     EmbeddingTable->refresh_embedding_cache(model_name, device_id);
   }
   HCTR_TRITON_LOG(
       INFO, "The model ", model_name,
-      " has refreshed the embedding cache asynchronously on device ", device_id,
-      ".");
+      " has completed the asynchronous refresh of the embedding cache on "
+      "device ",
+      device_id, ".");
 }
 
 TRITONSERVER_Error*
@@ -1101,62 +1205,85 @@ ModelState::ParseModelConfig()
 
     if (parameters.Find("slots", &value)) {
       RETURN_IF_ERROR(
-          TritonJsonHelper::parse(slot_num_, value, "string_value", true));
+          TritonJsonHelper::parse(slot_num_, value, "string_value", false));
       HCTR_TRITON_LOG(INFO, "slots set = ", slot_num_);
+    } else {
+      slot_num_ = Model_Inference_Para.slot_num;
     }
+    HCTR_TRITON_LOG(INFO, "slots set = ", slot_num_);
 
     if (parameters.Find("des_feature_num", &value)) {
       RETURN_IF_ERROR(
-          TritonJsonHelper::parse(dese_num_, value, "string_value", true));
-      HCTR_TRITON_LOG(INFO, "desene number = ", dese_num_);
+          TritonJsonHelper::parse(dese_num_, value, "string_value", false));
+    } else {
+      dese_num_ = Model_Inference_Para.maxnum_des_feature_per_sample;
     }
+    HCTR_TRITON_LOG(INFO, "desene number = ", dese_num_);
 
     if (parameters.Find("cat_feature_num", &value)) {
       RETURN_IF_ERROR(
-          TritonJsonHelper::parse(cat_num_, value, "string_value", true));
-      HCTR_TRITON_LOG(INFO, "cat_feature number = ", cat_num_);
-
+          TritonJsonHelper::parse(cat_num_, value, "string_value", false));
       if (cat_num_ <= 0) {
         return HCTR_TRITON_ERROR(
             INVALID_ARG, "expected at least one categorical feature, got ",
             cat_num_);
       }
+    } else {
+      cat_num_ = accumulate(
+          Model_Inference_Para.maxnum_catfeature_query_per_table_per_sample
+              .begin(),
+          Model_Inference_Para.maxnum_catfeature_query_per_table_per_sample
+              .end(),
+          0.0);
     }
+    HCTR_TRITON_LOG(INFO, "The max categorical feature number = ", cat_num_);
 
     if (parameters.Find("embedding_vector_size", &value)) {
       RETURN_IF_ERROR(TritonJsonHelper::parse(
-          embedding_size_, value, "string_value", true));
+          embedding_size_, value, "string_value", false));
       HCTR_TRITON_LOG(INFO, "embedding size = ", embedding_size_);
+    } else {
+      embedding_size_ = accumulate(
+          Model_Inference_Para.embedding_vecsize_per_table.begin(),
+          Model_Inference_Para.embedding_vecsize_per_table.end(), 0.0);
     }
+    HCTR_TRITON_LOG(INFO, "embedding size = ", embedding_size_);
+
 
     if (parameters.Find("max_nnz", &value)) {
       RETURN_IF_ERROR(
-          TritonJsonHelper::parse(max_nnz_, value, "string_value", true));
+          TritonJsonHelper::parse(max_nnz_, value, "string_value", false));
       HCTR_TRITON_LOG(INFO, "maxnnz = ", max_nnz_);
     }
 
     if (parameters.Find("refresh_interval", &value)) {
       RETURN_IF_ERROR(TritonJsonHelper::parse(
-          refresh_interval_, value, "string_value", true));
-      HCTR_TRITON_LOG(INFO, "refresh_interval = ", refresh_interval_);
+          refresh_interval_, value, "string_value", false));
+    } else {
+      refresh_interval_ = Model_Inference_Para.refresh_interval;
     }
+    HCTR_TRITON_LOG(INFO, "refresh_interval = ", refresh_interval_);
 
     if (parameters.Find("refresh_delay", &value)) {
-      RETURN_IF_ERROR(
-          TritonJsonHelper::parse(refresh_delay_, value, "string_value", true));
-      HCTR_TRITON_LOG(INFO, "refresh_delay = ", refresh_delay_);
+      RETURN_IF_ERROR(TritonJsonHelper::parse(
+          refresh_delay_, value, "string_value", false));
+    } else {
+      refresh_delay_ = Model_Inference_Para.refresh_delay;
     }
+    HCTR_TRITON_LOG(INFO, "refresh_delay = ", refresh_delay_);
 
     if (parameters.Find("config", &value)) {
       RETURN_IF_ERROR(TritonJsonHelper::parse(
-          hugectr_config_, value, "string_value", true));
-      HCTR_TRITON_LOG(INFO, "HugeCTR model config path = ", hugectr_config_);
+          hugectr_config_, value, "string_value", false));
+    } else {
+      hugectr_config_ = Model_Inference_Para.network_file;
     }
+    HCTR_TRITON_LOG(INFO, "HugeCTR model config path = ", hugectr_config_);
 
     if (parameters.Find("sparse_files", &value)) {
       std::string tmp;
       RETURN_IF_ERROR(
-          TritonJsonHelper::parse(tmp, value, "string_value", true));
+          TritonJsonHelper::parse(tmp, value, "string_value", false));
       HCTR_TRITON_LOG(INFO, "sparse_files = ", tmp);
 
       Model_Inference_Para.sparse_model_files.clear();
@@ -1165,15 +1292,14 @@ ModelState::ParseModelConfig()
 
     if (parameters.Find("dense_file", &value)) {
       RETURN_IF_ERROR(TritonJsonHelper::parse(
-          Model_Inference_Para.dense_model_file, value, "string_value", true));
+          Model_Inference_Para.dense_model_file, value, "string_value", false));
       HCTR_TRITON_LOG(
           INFO, "dense_file = ", Model_Inference_Para.dense_model_file);
     }
 
     if (parameters.Find("gpucache", &value)) {
       RETURN_IF_ERROR(TritonJsonHelper::parse(
-          support_gpu_cache_, value, "string_value", true));
-      HCTR_TRITON_LOG(INFO, "support gpu cache = ", support_gpu_cache_);
+          support_gpu_cache_, value, "string_value", false));
 
       if (support_gpu_cache_ != Model_Inference_Para.use_gpu_embedding_cache) {
         return HCTR_TRITON_ERROR(
@@ -1183,20 +1309,28 @@ ModelState::ParseModelConfig()
             "file.");
       }
       Model_Inference_Para.use_gpu_embedding_cache = support_gpu_cache_;
+    } else {
+      support_gpu_cache_ = Model_Inference_Para.use_gpu_embedding_cache;
+      HCTR_TRITON_LOG(INFO, "support gpu cache = ", support_gpu_cache_);
+    }
+
+    if (parameters.Find("freeze_sparse", &value)) {
+      RETURN_IF_ERROR(TritonJsonHelper::parse(
+          freeze_embedding_, value, "string_value", false));
     }
 
     if (parameters.Find("mixed_precision", &value)) {
       RETURN_IF_ERROR(TritonJsonHelper::parse(
-          use_mixed_precision_, value, "string_value", true));
-      HCTR_TRITON_LOG(INFO, "support mixed_precision = ", use_mixed_precision_);
-
+          use_mixed_precision_, value, "string_value", false));
       Model_Inference_Para.use_mixed_precision = use_mixed_precision_;
+    } else {
+      use_mixed_precision_ = Model_Inference_Para.use_mixed_precision;
     }
+    HCTR_TRITON_LOG(INFO, "support mixed_precision = ", use_mixed_precision_);
 
     if (support_gpu_cache_ && parameters.Find("gpucacheper", &value)) {
-      RETURN_IF_ERROR(
-          TritonJsonHelper::parse(cache_size_per, value, "string_value", true));
-      HCTR_TRITON_LOG(INFO, "gpu cache per = ", cache_size_per);
+      RETURN_IF_ERROR(TritonJsonHelper::parse(
+          cache_size_per, value, "string_value", false));
 
       if (cache_size_per > Model_Inference_Para.cache_size_percentage) {
         return HCTR_TRITON_ERROR(
@@ -1208,12 +1342,14 @@ ModelState::ParseModelConfig()
             "(=", Model_Inference_Para.cache_size_percentage, ").");
       }
       Model_Inference_Para.cache_size_percentage = cache_size_per;
+    } else {
+      cache_size_per = Model_Inference_Para.cache_size_percentage;
     }
+    HCTR_TRITON_LOG(INFO, "gpu cache per = ", cache_size_per);
 
     if (support_gpu_cache_ && parameters.Find("hit_rate_threshold", &value)) {
       RETURN_IF_ERROR(TritonJsonHelper::parse(
           hit_rate_threshold, value, "string_value", true));
-      HCTR_TRITON_LOG(INFO, "hit-rate threshold = ", hit_rate_threshold);
 
       if (hit_rate_threshold > Model_Inference_Para.hit_rate_threshold) {
         return HCTR_TRITON_ERROR(
@@ -1224,22 +1360,28 @@ ModelState::ParseModelConfig()
             "(=", Model_Inference_Para.hit_rate_threshold, ").");
       }
       Model_Inference_Para.hit_rate_threshold = hit_rate_threshold;
+    } else {
+      hit_rate_threshold = Model_Inference_Para.hit_rate_threshold;
     }
+    HCTR_TRITON_LOG(INFO, "hit-rate threshold = ", hit_rate_threshold);
 
     if (parameters.Find("label_dim", &value)) {
       RETURN_IF_ERROR(
           TritonJsonHelper::parse(label_dim_, value, "string_value", true));
-      HCTR_TRITON_LOG(INFO, "Label dim = ", label_dim_);
+    } else {
+      label_dim_ = Model_Inference_Para.label_dim;
     }
+    HCTR_TRITON_LOG(INFO, "Label dim = ", label_dim_);
 
     if (parameters.Find("embeddingkey_long_type", &value)) {
       RETURN_IF_ERROR(TritonJsonHelper::parse(
           support_int64_key_, value, "string_value", true));
-      HCTR_TRITON_LOG(
-          INFO, "support 64-bit embedding key = ", support_int64_key_);
-
       Model_Inference_Para.i64_input_key = support_int64_key_;
+    } else {
+      support_int64_key_ = Model_Inference_Para.i64_input_key;
     }
+    HCTR_TRITON_LOG(
+        INFO, "support 64-bit embedding key = ", support_int64_key_);
   }
 
   model_config_.MemberAsInt("max_batch_size", &max_batch_size_);
@@ -1740,12 +1882,16 @@ TRITONBACKEND_ModelInitialize(TRITONBACKEND_Model* model)
   uint64_t model_ps_version = backend_state->GetModelVersion(name);
   uint64_t model_current_version;
   RETURN_IF_ERROR(TRITONBACKEND_ModelVersion(model, &model_current_version));
-  if (backend_state->HugeCTRModelConfigurationMap().count(name) == 0) {
+  if (backend_state->HugeCTRModelConfigurationMap().count(name) == 0 ||
+      model_ps_version != model_current_version) {
     HCTR_TRITON_LOG(
         INFO,
         "Parsing the latest Parameter Server json config file for deploying "
         "model ",
         name, " online");
+    HCTR_TRITON_LOG(
+        INFO, "Hierarchical PS version is ", model_ps_version,
+        " and the current Model Version is ", model_current_version);
     backend_state->ParseParameterServer(
         backend_state->ParameterServerJsonFile());
   }
@@ -1909,7 +2055,7 @@ TRITONBACKEND_ModelInstanceExecute(
   // another call to TRITONBACKEND_ModelInstanceExecute.
 
   HCTR_TRITON_LOG(
-      INFO, "model ", model_state->Name(), ", instance ",
+      VERBOSE, "model ", model_state->Name(), ", instance ",
       instance_state->Name(), ", executing ", request_count, " requests");
 
   // 'responses' is initialized with the response objects below and
@@ -1977,7 +2123,7 @@ TRITONBACKEND_ModelInstanceExecute(
     }
 
     HCTR_TRITON_LOG(
-        INFO, "request ", r, ": id = \"", request_id, "\"",
+        VERBOSE, "request ", r, ": id = \"", request_id, "\"",
         ", correlation_id = ", correlation_id, ", input_count = ", input_count,
         ", requested_output_count = ", requested_output_count);
 
@@ -2078,7 +2224,7 @@ TRITONBACKEND_ModelInstanceExecute(
             catcol_input, nullptr /* input_name */, &cat_datatype, &input_shape,
             &cat_dims_count, &cat_byte_size, &cat_input_buffer_count));
     HCTR_TRITON_LOG(
-        INFO, "\tinput ", catcol_input_name,
+        VERBOSE, "\tinput ", catcol_input_name,
         ": datatype = ", TRITONSERVER_DataTypeString(cat_datatype),
         ", shape = ", backend::ShapeToString(input_shape, cat_dims_count),
         ", byte_size = ", cat_byte_size,
@@ -2090,7 +2236,7 @@ TRITONBACKEND_ModelInstanceExecute(
             row_input, nullptr /* input_name */, &row_datatype, &input_shape,
             &row_dims_count, &row_byte_size, &rowindex_input_buffer_count));
     HCTR_TRITON_LOG(
-        INFO, "\tinput ", row_input_name,
+        VERBOSE, "\tinput ", row_input_name,
         ": datatype = ", TRITONSERVER_DataTypeString(row_datatype),
         ", shape = ", backend::ShapeToString(input_shape, row_dims_count),
         ", byte_size = ", row_byte_size,
@@ -2102,7 +2248,7 @@ TRITONBACKEND_ModelInstanceExecute(
             des_input, nullptr /* input_name */, &des_datatype, &input_shape,
             &des_dims_count, &des_byte_size, &des_input_buffer_count));
     HCTR_TRITON_LOG(
-        INFO, "\tinput ", des_input_name,
+        VERBOSE, "\tinput ", des_input_name,
         ": datatype = ", TRITONSERVER_DataTypeString(des_datatype),
         ", shape = ", backend::ShapeToString(input_shape, des_dims_count),
         ", byte_size = ", des_byte_size,
@@ -2126,7 +2272,7 @@ TRITONBACKEND_ModelInstanceExecute(
       continue;
     }
 
-    HCTR_TRITON_LOG(INFO, "\trequested_output ", requested_output_name);
+    HCTR_TRITON_LOG(VERBOSE, "\trequested_output ", requested_output_name);
 
     // If the model doesn't support batching with two-dimension tensor then each
     // request is necessarily batch-size 1. So the first dimension of the shape
@@ -2293,7 +2439,7 @@ TRITONBACKEND_ModelInstanceExecute(
         // Step 4. Perform prediction in device and copy result to cpu output
         // buffer
         HCTR_TRITON_LOG(
-            INFO, "*****Processing request on device***** ",
+            VERBOSE, "*****Processing request on device***** ",
             instance_state->DeviceId(), " for model ", instance_state->Name());
         // Set Timestamp here to compute the prediction execution time for each
         // request
@@ -2301,7 +2447,7 @@ TRITONBACKEND_ModelInstanceExecute(
         min_exec_start_ns = std::min(min_exec_start_ns, exec_start_ns);
         // Model prediction
         RETURN_IF_ERROR(instance_state->ProcessRequest(num_of_samples));
-        HCTR_TRITON_LOG(INFO, "******Processing request completed!******");
+        HCTR_TRITON_LOG(VERBOSE, "******Processing request completed!******");
         output_buffer_offset += buffer_byte_size;
         CK_CUDA_THROW_(cudaMemcpy(
             output_buffer, instance_state->GetPredictBuffer()->get_raw_ptr(),
@@ -2312,7 +2458,8 @@ TRITONBACKEND_ModelInstanceExecute(
         max_exec_end_ns = std::max(max_exec_end_ns, exec_end_ns);
         // Get the prediction execution time (ms)
         int64_t exe_time = (max_exec_end_ns - min_exec_start_ns) / 1000000;
-        HCTR_TRITON_LOG(INFO, "Prediction execution time is ", exe_time, " ms");
+        HCTR_TRITON_LOG(
+            VERBOSE, "Prediction execution time is ", exe_time, " ms");
       }
 
       if (responses[r] == nullptr) {
