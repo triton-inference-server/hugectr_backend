@@ -155,19 +155,6 @@ class TritonJsonHelper {
       const char* key, bool required);
 
   /**
-   * Maps JSON string values that represent a \p DatabaseHashMapAlgorithm_t .
-   * @param value The place where the value should be stored.
-   * @param json JSON object.
-   * @param key Name of the member.
-   * @param required If true, will emit a \p TRITONSERVER_Error and return an
-   * error that can be caught with \p RETURN_IF_ERROR if the key does not exist.
-   * @return \p nullptr or error value if error occurred.
-   */
-  static TRITONSERVER_Error* parse(
-      HugeCTR::DatabaseHashMapAlgorithm_t& value,
-      const common::TritonJson::Value& json, const char* key, bool required);
-
-  /**
    * Maps JSON string values that represent a \p DatabaseOverflowPolicy_t .
    * @param value The place where the value should be stored.
    * @param json JSON object.
@@ -223,6 +210,22 @@ class TritonJsonHelper {
    */
   static TRITONSERVER_Error* parse(
       std::vector<int32_t>& value, common::TritonJson::Value& json,
+      const char* key, bool required);
+
+
+  /**
+   * Maps JSON array containing integer values or strings that represent integer
+   * values.
+   *
+   * @param json JSON object.
+   * @param key Name of the member.
+   * @param value The place where the value should be stored.
+   * @param required If true, will emit a \p TRITONSERVER_Error and return an
+   * error that can be caught with \p RETURN_IF_ERROR if the key does not exist.
+   * @return \p nullptr or error value if error occurred.
+   */
+  static TRITONSERVER_Error* parse(
+      std::vector<size_t>& value, common::TritonJson::Value& json,
       const char* key, bool required);
 
   /**

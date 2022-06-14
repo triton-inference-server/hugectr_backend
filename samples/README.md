@@ -45,12 +45,12 @@ You can pull the `Merlin-Training` container by running the following command:
 DLRM model traning:
 
 ```
-docker run --gpus=all -it --cap-add SYS_NICE -v ${PWD}:/dlrm_train/ --net=host nvcr.io/nvidia/merlin/merlin-training:22.05 /bin/bash
+docker run --gpus=all -it --cap-add SYS_NICE -v ${PWD}:/dlrm_train/ --net=host nvcr.io/nvidia/merlin/merlin-training:22.06 /bin/bash
 ```
 
 Wide&Deep model training:
 ```
-docker run --gpus=all -it --cap-add SYS_NICE -v ${PWD}:/wdl_train/ --net=host nvcr.io/nvidia/merlin/merlin-training:22.05 /bin/bash
+docker run --gpus=all -it --cap-add SYS_NICE -v ${PWD}:/wdl_train/ --net=host nvcr.io/nvidia/merlin/merlin-training:22.06 /bin/bash
 ```
 
 The container will open a shell when the run command execution is completed. You'll have to start the jupyter lab on the Docker container. It should look similar to this:
@@ -163,7 +163,7 @@ Once the models are successfully loaded, you can launch jupyter-lab again in the
 ## Reference
 ### HugeCTR Backend configuration
 Please refer to  [(Triton model configuration)](https://github.com/triton-inference-server/server/blob/master/docs/model_configuration.md) first and  clarify the required configuration of the model in the specific inference scenario.
-In order to deploy the HugeCTR model, some customized configuration items need to be added as follows：
+In order to deploy the HugeCTR model, some customized configuration items can be added as optional as follows：
 ```json.
  parameters [
   {
@@ -178,6 +178,10 @@ In order to deploy the HugeCTR model, some customized configuration items need t
   key: "gpucache"
   value: { string_value: "true" }
   },
+  {
+  key: "freeze_sparse"
+  value: { string_value: "false" }
+  }
   {
   key: "gpucacheper"
   value: { string_value: "0.5" }
@@ -223,13 +227,18 @@ The model files (the path of the embedded table file) needs to be configured in 
             "sparse_files":["/wdl_infer/model/wdl/1/wdl0_sparse_20000.model", "/wdl_infer/model/wdl/1/wdl1_sparse_20000.model"],
             "dense_file":"/wdl_infer/model/wdl/1/wdl_dense_20000.model",
             "network_file":"/wdl_infer/model/wdl/1/wdl.json",
-            "num_of_worker_buffer_in_pool": "4","num_of_refresher_buffer_in_pool": "1",
-            "deployed_device_list":["1"],
-            "max_batch_size":"1024",
-            "default_value_for_each_table":["0.0","0.0"],
-            "hit_rate_threshold":"0.9",
-            "gpucacheper":"0.5",
-            "gpucache":"true"
+            "num_of_worker_buffer_in_pool": 4,
+            "num_of_refresher_buffer_in_pool": 1,
+            "deployed_device_list":[1],
+            "max_batch_size":1024,
+            "default_value_for_each_table":[0.0,0.0],
+            "hit_rate_threshold":0.9,
+            "gpucacheper":0.5,
+            "gpucache":true,
+            "maxnum_des_feature_per_sample": 13,
+            "maxnum_catfeature_query_per_table_per_sample" : [2,26],
+            "embedding_vecsize_per_table" : [1,15],
+            "slot_num":28
         }
     ]  
 }

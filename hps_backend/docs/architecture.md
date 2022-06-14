@@ -100,7 +100,6 @@ When the GPU embedding cache mechanism is disabled (i.e., `"gpucache"` is set to
 * **maxnum_des_feature_per_sample**: Int, each sample may contain a varying number of numeric (dense) features. This item so the user needs to configure the value of Maximum(the number of dense feature in each sample) in this item, which determines the pre-allocated memory size on the host and device. The default value is `26`.
 
 * **embedding_table_names**: List[String], this configuration item needs to be filled with the name of each embedded table, which will be used to name the data partition and data table in the hierarchical database backend. The default value is `["sparse_embedding1", "sparse_embedding2", ...]`
-
     
 ## Distributed Deployment with Hierarchical HugeCTR Parameter Server ##
 The hierarchical HugeCTR parameter server (PS) allows deploying models that exceed the existing GPU memory space, while retaining a relatively low latency. To provide this functionality, our PS exhibits a hierarchical structure that can make use of the various memory resources of each cluster node. In other words, the hierachical parameter server utilizes Random Access Memory (RAM) and non-volatile memory resources in your cluster to extend the embedding cache and allow faster response times for ver large datasets.
