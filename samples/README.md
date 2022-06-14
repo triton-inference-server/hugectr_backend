@@ -122,12 +122,12 @@ mkdir -p wdl_infer
 
 DLRM model inference container:
 ```
-docker run -it --gpus=all --shm-size=1g --ulimit memlock=-1 --ulimit stack=67108864 --net=host -v dlrm_infer:/dlrm_infer/ -v dlrm_train:/dlrm_train/ nvcr.io/nvidia/merlin/merlin-inference:21.09
+docker run -it --gpus=all --shm-size=1g --ulimit memlock=-1 --ulimit stack=67108864 --net=host -v dlrm_infer:/dlrm_infer/ -v dlrm_train:/dlrm_train/ nvcr.io/nvidia/merlin/merlin-inference:22.05
 ```
 
 Wide&Deep model inference container:
 ```
-docker run -it --gpus=all --shm-size=1g --ulimit memlock=-1 --ulimit stack=67108864 --net=host -v wdl_infer:/wdl_infer/ -v wdl_train:/wdl_train/ nvcr.io/nvidia/merlin/merlin-inference:21.09
+docker run -it --gpus=all --shm-size=1g --ulimit memlock=-1 --ulimit stack=67108864 --net=host -v wdl_infer:/wdl_infer/ -v wdl_train:/wdl_train/ nvcr.io/nvidia/merlin/merlin-inference:22.05
 ```
 The container will open a shell when the run command execution is completed. It should look similar to this:
 ```
