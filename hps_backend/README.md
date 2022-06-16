@@ -87,12 +87,11 @@ Before you can build the HPS Backend from scratch, you must first compile HPS, g
    ```
    
    **NOTE**: Where <rxx.yy> is the "release version" of Triton that you want to deploy, like `r22.03`. You can use `tritonserver` command to confirm your current "server_version", and find the corresponding "release version" according to the "server_version" in [triton release note](https://github.com/triton-inference-server/server/releases). For example, `r22.03` corresponding to 2.20.0 Triton "server_version".
-
-    >| Option         | Value  |
-    >|----------------|--------|
-    >| server_id      | triton |
-    >| server_version | 2.20.0 |
-    >| release version| r22.03 |
+    | Option         | Value  |
+    |----------------|--------|
+    | server_id      | triton |
+    | server_version | 2.20.0 |
+    | release version| r22.03 |
 
 4. Copy the compiled shared library(libtriton_hps.so) to your specified HPS default path.
    Please remember to specify the absolute path of the local directory that installs the HPS Backend for the `--backend-directory` argument when launching the Triton server.
