@@ -66,26 +66,26 @@ Before you can build the HPS Backend from scratch, you must first compile HPS, g
 
 1. Before building HPS from scratch, you should download the HugeCTR repository and the third-party modules that it relies on by running the following commands:
     ```
-    git clone https://github.com/NVIDIA/HugeCTR.git
-    cd HugeCTR
-    git submodule update --init --recursive
+    $ git clone https://github.com/NVIDIA/HugeCTR.git
+    # cd HugeCTR
+    $ git submodule update --init --recursive
     ```
     For more information, see [Building HugeCTR from Scratch](https://nvidia-merlin.github.io/HugeCTR/master/hugectr_user_guide.html#building-hugectr-from-scratch).
 
 2. Download the HPS Backend repository by running the following commands:
    ```
-   git https://github.com/triton-inference-server/hugectr_backend.git
-   cd hugectr_backend/hps_backend
+   $ git https://github.com/triton-inference-server/hugectr_backend.git
+   $ cd hugectr_backend/hps_backend
    ```
 
-3. Use cmake to build and install the HPS Backend in a specified folder as follows:
+3. Use CMAKE to build and install the HPS Backend as follows:
    ```
    $ mkdir build
    $ cd build
    $ cmake -DCMAKE_INSTALL_PREFIX:PATH=`pwd`/install -DTRITON_COMMON_REPO_TAG=<rxx.yy>  -DTRITON_CORE_REPO_TAG=<rxx.yy> -DTRITON_BACKEND_REPO_TAG=<rxx.yy> ..
    $ make install
+   $ ls             # check your compiled shared library(libtriton_hps.so)
    ```
-   
    **NOTE**: Where <rxx.yy> is the "release version" of Triton that you want to deploy, like `r22.03`. You can use `tritonserver` command to confirm your current "server_version", and find the corresponding "release version" according to the "server_version" in [triton release note](https://github.com/triton-inference-server/server/releases). For example, `r22.03` corresponding to 2.20.0 Triton "server_version".
     | Option         | Value  |
     |----------------|--------|
