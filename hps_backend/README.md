@@ -97,7 +97,7 @@ Before you can build the HPS Backend from scratch, you must first compile HPS, g
    Please remember to specify the absolute path of the local directory that installs the HPS Backend for the `--backend-directory` argument when launching the Triton server.
    For example, copy to `/usr/local/hugectr/backends/hps` folder, and the sample command to start tritonserver would be
    ```
-   tritonserver --model-repository=/path/to/model_repo/ --load-model=model_name \
+   $ tritonserver --model-repository=/path/to/model_repo/ --load-model=model_name \
     --model-control-mode=explicit \
     --backend-directory=/usr/local/hugectr/backends \
     --backend-config=hps,ps=/path/to/model_repo/hps.json
