@@ -52,47 +52,59 @@ The following prerequisites must be met before installing or building the HugeCT
 * GCC version 7.4.0
 
 ### Install the HPS Backend Using NGC Containers
-All NVIDIA Merlin components are available as open-source projects. However, a more convenient way to make use of these components is by using Merlin NGC containers. These NGC containers allow you to package your software application, libraries, dependencies, and runtime compilers in a self-contained environment. When installing the HugeCTR Backend using NGC containers, the application environment remains both portable, consistent, reproducible, and agnostic to the underlying host system software configuration. The HugeCTR Backend container has the necessary libraries and header files pre-installed, and you can directly deploy the HugeCTR models to production.
+All NVIDIA Merlin components are available as open-source projects. However, a more convenient way to make use of these components is by using Merlin NGC containers. These NGC containers allow you to package your software application, libraries, dependencies, and runtime compilers in a self-contained environment. When installing the HPS Backend using NGC containers, the application environment remains both portable, consistent, reproducible, and agnostic to the underlying host system software configuration. The HPS Backend container has the necessary libraries and header files pre-installed, and you can directly deploy the HPS models to production.
 
-Docker images for the HugeCTR Backend are available in the NVIDIA container repository on https://ngc.nvidia.com/catalog/containers/nvidia:merlin:merlin-inference. You can pull and launch the container by running the following command:
+Docker images for the HPS Backend are available in the NVIDIA container repository on https://ngc.nvidia.com/catalog/containers/nvidia:merlin:merlin-inference. You can pull and launch the container by running the following command:
 ```
-docker run --gpus=1 --rm -it nvcr.io/nvidia/merlin/merlin-inference:22.06  # Start interaction mode  
+docker run --gpus=1 --rm -it nvcr.io/nvidia/merlin/merlin-inference:22.05  # Start interaction mode  
 ```
 
-**NOTE**: As of HugeCTR version 3.0, the HugeCTR container is no longer being released separately. If you're an advanced user, you should use the unified Merlin container to build the HugeCTR Training or Inference Docker image from scratch based on your own specific requirements. You can obtain the unified Merlin container by logging into NGC or by going [here](https://github.com/NVIDIA-Merlin/Merlin/blob/main/docker/inference/dockerfile.ctr). 
+**NOTE**: The HPS backend is derived from the HugeCTR backend. As of HugeCTR version 3.0, the HugeCTR container is no longer being released separately. If you're an advanced user, you should use the unified Merlin container to build the HugeCTR Training or Inference Docker image from scratch based on your own specific requirements. You can obtain the unified Merlin container by logging into NGC or by going [here](https://github.com/NVIDIA-Merlin/Merlin/blob/main/docker/inference/dockerfile.ctr). 
 
 ### Build the HPS Backend from Scratch
-Before you can build the HPS Backend from scratch, you must first compile HugeCTR, generate a shared library (libhuge_ctr_hps.so), and build HugeCTR Backend. The default path where all the HugeCTR and HugeCTR Backend libraries and header files are installed in is /usr/local/hugectr. Before building HugeCTR from scratch, you should download the HugeCTR repository and the third-party modules that it relies on by running the following commands:
-```
-git clone https://github.com/NVIDIA/HugeCTR.git
-cd HugeCTR
-git submodule update --init --recursive
-```
-For more information, see [Building HugeCTR from Scratch](https://nvidia-merlin.github.io/HugeCTR/master/hugectr_user_guide.html#building-hugectr-from-scratch).
+Before you can build the HPS Backend from scratch, you must first compile HPS, generate a shared library (libtriton_hps.so), and then copy to the HPS default path to complete the backend building. The default path where all the HugeCTR and HPS Backend libraries and header files are installed in is `/usr/local/hugectr`. 
 
-After you've built HugeCTR from scratch, do the following:
-1. Download the HugeCTR Backend repository by running the following commands:
+1. Before building HPS from scratch, you should download the HugeCTR repository and the third-party modules that it relies on by running the following commands:
+    ```
+    git clone https://github.com/NVIDIA/HugeCTR.git
+    cd HugeCTR
+    git submodule update --init --recursive
+    ```
+    For more information, see [Building HugeCTR from Scratch](https://nvidia-merlin.github.io/HugeCTR/master/hugectr_user_guide.html#building-hugectr-from-scratch).
+
+2. Download the HPS Backend repository by running the following commands:
    ```
    git https://github.com/triton-inference-server/hugectr_backend.git
-   cd hugectr_backend
+   cd hugectr_backend/hps_backend
    ```
 
-2. Use cmake to build and install the HPS Backend in a specified folder as follows:
+3. Use cmake to build and install the HPS Backend in a specified folder as follows:
    ```
-   $ cd hps_backend
    $ mkdir build
    $ cd build
    $ cmake -DCMAKE_INSTALL_PREFIX:PATH=`pwd`/install -DTRITON_COMMON_REPO_TAG=<rxx.yy>  -DTRITON_CORE_REPO_TAG=<rxx.yy> -DTRITON_BACKEND_REPO_TAG=<rxx.yy> ..
    $ make install
    ```
    
-   **NOTE**: Where <rxx.yy> is the version of Triton that you want to deploy, like `r21.12`. Please remember to specify the absolute path of the local directory that installs the HugeCTR Backend for the `--backend-directory` argument when launching the Triton server.
+   **NOTE**: Where <rxx.yy> is the "release version" of Triton that you want to deploy, like `r22.03`. You can use `tritonserver` command to confirm your current "server_version", and find the corresponding "release version" according to the "server_version" in [triton release note](https://github.com/triton-inference-server/server/releases). For example, `r22.03` corresponding to 2.20.0 Triton "server_version".
+
+    >| Option         | Value  |
+    >|----------------|--------|
+    >| server_id      | triton |
+    >| server_version | 2.20.0 |
+    >| release version| r22.03 |
+
+4. Copy the compiled shared library(libtriton_hps.so) to your specified HPS default path.
+   Please remember to specify the absolute path of the local directory that installs the HPS Backend for the `--backend-directory` argument when launching the Triton server.
+   For example, copy to `/usr/local/hugectr/backends/hps` folder.
    
    The following Triton repositories, which are required, will be pulled and used in the build. By default, the "main" branch/tag will be used for each repository. However, the 
    following cmake arguments can be used to override the "main" branch/tag:
    * triton-inference-server/backend: -DTRITON_BACKEND_REPO_TAG=[tag]
    * triton-inference-server/core: -DTRITON_CORE_REPO_TAG=[tag]
    * triton-inference-server/common: -DTRITON_COMMON_REPO_TAG=[tag]
+
+   For more reference, see [Triton example backends](https://github.com/triton-inference-server/backend/blob/main/examples/README.md) and [Triton backend shared library](https://github.com/triton-inference-server/backend#backend-shared-library).
   
 ## Independent Inference Hierarchical Parameter Server Configuration
 The HPS backend configuration file is basically the same as HugeCTR inference Parameter Server related configuration format, and some new configuration items are added for the HPS backend. Especially for the configuration of multiple embedded tables per model, avoid too many command parameters and reasonable memory pre-allocation when launching the Triton server.
