@@ -95,7 +95,13 @@ Before you can build the HPS Backend from scratch, you must first compile HPS, g
 
 4. Copy the compiled shared library(libtriton_hps.so) to your specified HPS default path.
    Please remember to specify the absolute path of the local directory that installs the HPS Backend for the `--backend-directory` argument when launching the Triton server.
-   For example, copy to `/usr/local/hugectr/backends/hps` folder.
+   For example, copy to `/usr/local/hugectr/backends/hps` folder, and the sample command to start tritonserver would be
+   ```
+   tritonserver --model-repository=/path/to/model_repo/ --load-model=model_name \
+    --model-control-mode=explicit \
+    --backend-directory=/usr/local/hugectr/backends \
+    --backend-config=hps,ps=/path/to/model_repo/hps.json
+   ```
    
    The following Triton repositories, which are required, will be pulled and used in the build. By default, the "main" branch/tag will be used for each repository. However, the 
    following cmake arguments can be used to override the "main" branch/tag:
