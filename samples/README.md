@@ -15,7 +15,7 @@ Requirements
 
 ## Getting Started 
 
-We provide two end-to-end model (DLRM nad Wide&Deep) training and deployment examples, including two training notebooks ( [HugeCTR_DLRM_Training.ipynb](https://github.com/triton-inference-server/hugectr_backend/blob/v3.1/samples/dlrm/HugeCTR_DLRM_Training.ipynb), [HugeCTR_WDL_Training.ipynb](https://github.com/triton-inference-server/hugectr_backend/blob/v3.1/samples/wdl/HugeCTR__WDL_Training.ipynb) ) and two inference notebooks ( [HugeCTR_DLRM_Inference.ipynb](https://github.com/triton-inference-server/hugectr_backend/blob/v3.1/samples/dlrm/HugeCTR_DLRM_Inference.ipynb),     [HugeCTR_WDL_Inference.ipynb](https://github.com/triton-inference-server/hugectr_backend/blob/v3.1/samples/wdl/HugeCTR__WDL_Inference.ipynb) ), which explain the steps to do train and inference with HugeCTR and NVTabular in Merlin framework.
+We provide two end-to-end model (DLRM nad Wide&Deep) training and deployment examples, including two training notebooks ( [HugeCTR_DLRM_Training.ipynb](./dlrm/HugeCTR_DLRM_Training.ipynb), [HugeCTR_WDL_Training.ipynb](./wdl/HugeCTR__WDL_Training.ipynb) ) and two inference notebooks ( [HugeCTR_DLRM_Inference.ipynb](./dlrm/HugeCTR_DLRM_Inference.ipynb),     [HugeCTR_WDL_Inference.ipynb](./wdl/HugeCTR__WDL_Inference.ipynb) ), which explain the steps to do train and inference with HugeCTR and NVTabular in Merlin framework.
 
 There are two containers that are needed in order to train and deploy the HugeCTR Model. The first one is for preprocessing with NVTabular and training a model with the HugeCTR framework. The other one is for serving/inference using Triton. 
 
@@ -88,14 +88,14 @@ Open any browser to access the jupyter-lab server using `https://<host IP-Addres
 
 ### 2. Run example notebooks:
 
-There are two example notebooks for each model that should be run in order. The first one is training notebook [HugeCTR_DLRM_Training.ipynb](https://github.com/triton-inference-server/hugectr_backend/blob/v3.1/samples/dlrm/HugeCTR_DLRM_Training.ipynb) ( [HugeCTR_WDL_Training.ipynb](https://github.com/triton-inference-server/hugectr_backend/blob/v3.1/samples/wdl/HugeCTR__WDL_Training.ipynb) )  shows how to
+There are two example notebooks for each model that should be run in order. The first one is training notebook [HugeCTR_DLRM_Training.ipynb](./dlrm/HugeCTR_DLRM_Training.ipynb) ( [HugeCTR_WDL_Training.ipynb](./wdl/HugeCTR__WDL_Training.ipynb) )  shows how to
 - Dataset Preprocessing with NVTabular
 - DLRM(Wide&Deep) Model Training
 - Save the Model Files in the `dlrm_train` ( `wdl_train` ) directory  
 
 **If jupyter-lab can be launched normally in the first part above, then you can run `HugeCTR_DLRM_Training` ( `HugeCTR_WDL_Training` ) successfully**  
 
-The following notebook [HugeCTR_DLRM_Inference.ipynb](https://github.com/triton-inference-server/hugectr_backend/blob/v3.1/samples/dlrm/HugeCTR_DLRM_Inference.ipynb) ([HugeCTR_WDL_Inference.ipynb](https://github.com/triton-inference-server/hugectr_backend/blob/v3.1/samples/wdl/HugeCTR__WDL_Inference.ipynb)) shows how to send request to Triton IS 
+The following notebook [HugeCTR_DLRM_Inference.ipynb](./dlrm/HugeCTR_DLRM_Inference.ipynb) ([HugeCTR_WDL_Inference.ipynb](./wdl/HugeCTR_WDL_Inference.ipynb)) shows how to send request to Triton IS 
 - Generate the DLRM (Wide&Deep) Deployment Configuration
 - Load Models on Triton Server
 - Prepare Inference Input Data 
