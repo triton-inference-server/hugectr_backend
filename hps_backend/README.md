@@ -70,16 +70,21 @@ Before building the HPS inference backend from scratch, you must first verify th
     # cd HugeCTR
     $ git submodule update --init --recursive
     ```
+    Build HugeCTR inference backend
+    ```
+    $ mkdir -p build && cd build
+    $ cmake -DCMAKE_BUILD_TYPE=Release -DSM="70;80" -DENABLE_INFERENCE=ON ..
+    $ make -j && make install
+    ```
     For more information, see [Build HugeCTR Inference from Source](https://nvidia-merlin.github.io/HugeCTR/master/hugectr_contributor_guide.html#build-hugectr-inference-container-from-source).
-    After compiling, you should find the `libhuge_ctr_inference.so` file in the path `/usr/local/hugectr/lib`.
+    After compiling, you can find the `libhuge_ctr_inference.so` file in the path `/usr/local/hugectr/lib`.
 
-2. Download the HPS Backend repository by running the following commands:
+2. Buidling HPS inference backend. Download the HPS Backend repository by running the following commands:
    ```
    $ git https://github.com/triton-inference-server/hugectr_backend.git
    $ cd hugectr_backend/hps_backend
    ```
-
-3. Use CMAKE to build and install the HPS Backend as follows:
+   Use CMAKE to build and install the HPS Backend as follows:
    ```
    $ mkdir -p build && cd build
    $ cmake -DCMAKE_INSTALL_PREFIX:PATH=`pwd`/install -DTRITON_COMMON_REPO_TAG=<rxx.yy>  -DTRITON_CORE_REPO_TAG=<rxx.yy> -DTRITON_BACKEND_REPO_TAG=<rxx.yy> ..
@@ -93,7 +98,7 @@ Before building the HPS inference backend from scratch, you must first verify th
     | server_version | 2.20.0 |
     | release version| r22.03 |
 
-4. Copy the compiled shared library(libtriton_hps.so) to your specified HPS default path.
+3. Copy the compiled shared library(libtriton_hps.so) to your specified HPS default path.
    Please remember to specify the absolute path of the local directory that installs the HPS Backend for the `--backend-directory` argument when launching the Triton server.
    For example, copy to `/usr/local/hugectr/backends/hps` folder, and the sample command to start tritonserver would be
    ```
