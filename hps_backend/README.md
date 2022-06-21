@@ -62,15 +62,16 @@ docker run --gpus=1 --rm -it nvcr.io/nvidia/merlin/merlin-inference:22.05  # Sta
 **NOTE**: The HPS backend is derived from the HugeCTR backend. As of HugeCTR version 3.0, the HugeCTR container is no longer being released separately. If you're an advanced user, you should use the unified Merlin container to build the HugeCTR Training or Inference Docker image from scratch based on your own specific requirements. You can obtain the unified Merlin container by logging into NGC or by going [here](https://github.com/NVIDIA-Merlin/Merlin/blob/main/docker/inference/dockerfile.ctr). 
 
 ### Build the HPS Backend from Scratch
-Before you can build the HPS Backend from scratch, you must first compile HPS, generate a shared library (libtriton_hps.so), and then copy to the HPS default path to complete the backend building. The default path where all the HugeCTR and HPS Backend libraries and header files are installed in is `/usr/local/hugectr`. 
+Before building the HPS inference backend from scratch, you must first verify that the HugeCTR inference shared library (libhuge_ctr_inference.so) has been compiled. Then you can generate a HPS shared library (libtriton_hps.so), and copy to the HugeCTR/HPS default path to complete the backend building. The default path where all the HugeCTR and HPS Backend libraries and header files are installed in is `/usr/local/hugectr`. 
 
-1. Before building HPS from scratch, you should download the HugeCTR repository and the third-party modules that it relies on by running the following commands:
+1. Building HugeCTR inference shared libarary from scratch, you should download the HugeCTR repository and the third-party modules that it relies on by running the following commands:
     ```
     $ git clone https://github.com/NVIDIA/HugeCTR.git
     # cd HugeCTR
     $ git submodule update --init --recursive
     ```
-    For more information, see [Building HugeCTR from Scratch](https://nvidia-merlin.github.io/HugeCTR/master/hugectr_user_guide.html#building-hugectr-from-scratch).
+    For more information, see [Build HugeCTR Inference from Source](https://nvidia-merlin.github.io/HugeCTR/master/hugectr_contributor_guide.html#build-hugectr-inference-container-from-source).
+    After compiling, you should find the `libhuge_ctr_inference.so` file in the path `/usr/local/hugectr/lib`.
 
 2. Download the HPS Backend repository by running the following commands:
    ```
@@ -80,8 +81,7 @@ Before you can build the HPS Backend from scratch, you must first compile HPS, g
 
 3. Use CMAKE to build and install the HPS Backend as follows:
    ```
-   $ mkdir build
-   $ cd build
+   $ mkdir -p build && cd build
    $ cmake -DCMAKE_INSTALL_PREFIX:PATH=`pwd`/install -DTRITON_COMMON_REPO_TAG=<rxx.yy>  -DTRITON_CORE_REPO_TAG=<rxx.yy> -DTRITON_BACKEND_REPO_TAG=<rxx.yy> ..
    $ make install
    $ ls             # check your compiled shared library(libtriton_hps.so)
