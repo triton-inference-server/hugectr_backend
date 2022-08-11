@@ -54,12 +54,12 @@ The following prerequisites must be met before installing or building the HugeCT
 ### Install the HPS Backend Using NGC Containers
 All NVIDIA Merlin components are available as open-source projects. However, a more convenient way to make use of these components is by using Merlin NGC containers. These NGC containers allow you to package your software application, libraries, dependencies, and runtime compilers in a self-contained environment. When installing the HPS Backend using NGC containers, the application environment remains both portable, consistent, reproducible, and agnostic to the underlying host system software configuration. The HPS Backend container has the necessary libraries and header files pre-installed, and you can directly deploy the HPS models to production.
 
-Docker images for the HPS Backend are available in the NVIDIA container repository on https://ngc.nvidia.com/catalog/containers/nvidia:merlin:merlin-inference. You can pull and launch the container by running the following command:
+Docker images for the HPS Backend are available in the NVIDIA container repository on https://catalog.ngc.nvidia.com/orgs/nvidia/teams/merlin/containers/merlin-hugectr. You can pull and launch the container by running the following command:
 ```
-docker run --gpus=1 --rm -it nvcr.io/nvidia/merlin/merlin-inference:22.05  # Start interaction mode  
+docker run --gpus=1 --rm -it nvcr.io/nvidia/merlin/merlin-hugectr:22.08 # Start interaction mode  
 ```
 
-**NOTE**: The HPS backend is derived from the HugeCTR backend. As of HugeCTR version 3.0, the HugeCTR container is no longer being released separately. If you're an advanced user, you should use the unified Merlin container to build the HugeCTR Training or Inference Docker image from scratch based on your own specific requirements. You can obtain the unified Merlin container by logging into NGC or by going [here](https://github.com/NVIDIA-Merlin/Merlin/blob/main/docker/inference/dockerfile.ctr). 
+**NOTE**: The HPS backend is derived from the HugeCTR backend. As of HugeCTR version 3.0, the HugeCTR container is no longer being released separately. If you're an advanced user, you should use the unified Merlin container to build the HugeCTR Training or Inference Docker image from scratch based on your own specific requirements. You can obtain the unified Merlin container by logging into NGC or by going [here](https://github.com/NVIDIA-Merlin/Merlin/blob/main/docker/dockerfile.ctr). 
 
 ### Build the HPS Backend from Scratch
 Before building the HPS inference backend from scratch, you must first verify that the HugeCTR inference shared library (libhuge_ctr_inference.so) has been compiled. Then you can generate a HPS shared library (libtriton_hps.so), and copy to the HugeCTR/HPS default path to complete the backend building. The default path where all the HugeCTR and HPS Backend libraries and header files are installed in is `/usr/local/hugectr`. 
