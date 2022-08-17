@@ -1,7 +1,10 @@
 # Training and Inference with HugeCTR Model
 
 ## Dataset and preprocess
-The data is provided by CriteoLabs (http://azuremlsampleexperiments.blob.core.windows.net/criteo/day_1.gz).
+
+The sample dataset is provided by CriteoLabs.
+You can read about the dataset from <https://ailab.criteo.com/download-criteo-1tb-click-logs-dataset/>.
+To access data for one of the 24 days, download <https://storage.googleapis.com/criteo-cail-datasets/day_1.gz>.
 Each example contains a label (1 if the ad was clicked, otherwise 0) and 39 features (13 integer features and 26 categorical features).
 The dataset also has the significant amounts of missing values across the feature columns, which should be preprocessed accordingly.
 The original test set doesn't contain labels, so it's not used.
@@ -11,13 +14,13 @@ Requirements
 - Python >= 3.6.9
 - Pandas 1.0.1
 - Sklearn 0.22.1
-- CPU MEMORY >= 10GB 
+- CPU MEMORY >= 10GB
 
-## Getting Started 
+## Getting Started
 
-We provide two end-to-end model (DLRM nad Wide&Deep) training and deployment examples, including two training notebooks ( [HugeCTR_DLRM_Training.ipynb](https://github.com/triton-inference-server/hugectr_backend/blob/v3.1/samples/dlrm/HugeCTR_DLRM_Training.ipynb), [HugeCTR_WDL_Training.ipynb](https://github.com/triton-inference-server/hugectr_backend/blob/v3.1/samples/wdl/HugeCTR__WDL_Training.ipynb) ) and two inference notebooks ( [HugeCTR_DLRM_Inference.ipynb](https://github.com/triton-inference-server/hugectr_backend/blob/v3.1/samples/dlrm/HugeCTR_DLRM_Inference.ipynb),     [HugeCTR_WDL_Inference.ipynb](https://github.com/triton-inference-server/hugectr_backend/blob/v3.1/samples/wdl/HugeCTR__WDL_Inference.ipynb) ), which explain the steps to do train and inference with HugeCTR and NVTabular in Merlin framework.
+We provide two end-to-end model (DLRM nad Wide&Deep) training and deployment examples, including two training notebooks ( [HugeCTR_DLRM_Training.ipynb](./dlrm/HugeCTR_DLRM_Training.ipynb), [HugeCTR_WDL_Training.ipynb](./wdl/HugeCTR__WDL_Training.ipynb) ) and two inference notebooks ( [HugeCTR_DLRM_Inference.ipynb](./dlrm/HugeCTR_DLRM_Inference.ipynb),     [HugeCTR_WDL_Inference.ipynb](./wdl/HugeCTR__WDL_Inference.ipynb) ), which explain the steps to do train and inference with HugeCTR and NVTabular in Merlin framework.
 
-There are two containers that are needed in order to train and deploy the HugeCTR Model. The first one is for preprocessing with NVTabular and training a model with the HugeCTR framework. The other one is for serving/inference using Triton. 
+There are two containers that are needed in order to train and deploy the HugeCTR Model. The first one is for preprocessing with NVTabular and training a model with the HugeCTR framework. The other one is for serving/inference using Triton.
 
 ### 1. Pull the Merlin Training Docker Container:
 
@@ -74,7 +77,7 @@ You might need to install `unzip`, `graphviz`, and `curl` packages if they are m
 apt-get update
 apt-get install unzip -y
 apt-get install curl -y
-pip install graphviz 
+pip install graphviz
 pip install pandas
 pip install pyarrow
 ```
@@ -88,20 +91,20 @@ Open any browser to access the jupyter-lab server using `https://<host IP-Addres
 
 ### 2. Run example notebooks:
 
-There are two example notebooks for each model that should be run in order. The first one is training notebook [HugeCTR_DLRM_Training.ipynb](https://github.com/triton-inference-server/hugectr_backend/blob/v3.1/samples/dlrm/HugeCTR_DLRM_Training.ipynb) ( [HugeCTR_WDL_Training.ipynb](https://github.com/triton-inference-server/hugectr_backend/blob/v3.1/samples/wdl/HugeCTR__WDL_Training.ipynb) )  shows how to
+There are two example notebooks for each model that should be run in order. The first one is training notebook [HugeCTR_DLRM_Training.ipynb](./dlrm/HugeCTR_DLRM_Training.ipynb) ( [HugeCTR_WDL_Training.ipynb](./wdl/HugeCTR__WDL_Training.ipynb) )  shows how to
 - Dataset Preprocessing with NVTabular
 - DLRM(Wide&Deep) Model Training
-- Save the Model Files in the `dlrm_train` ( `wdl_train` ) directory  
+- Save the Model Files in the `dlrm_train` ( `wdl_train` ) directory
 
-**If jupyter-lab can be launched normally in the first part above, then you can run `HugeCTR_DLRM_Training` ( `HugeCTR_WDL_Training` ) successfully**  
+**If jupyter-lab can be launched normally in the first part above, then you can run `HugeCTR_DLRM_Training` ( `HugeCTR_WDL_Training` ) successfully**
 
-The following notebook [HugeCTR_DLRM_Inference.ipynb](https://github.com/triton-inference-server/hugectr_backend/blob/v3.1/samples/dlrm/HugeCTR_DLRM_Inference.ipynb) ([HugeCTR_WDL_Inference.ipynb](https://github.com/triton-inference-server/hugectr_backend/blob/v3.1/samples/wdl/HugeCTR__WDL_Inference.ipynb)) shows how to send request to Triton IS 
+The following notebook [HugeCTR_DLRM_Inference.ipynb](./dlrm/HugeCTR_DLRM_Inference.ipynb) ([HugeCTR_WDL_Inference.ipynb](./wdl/HugeCTR_WDL_Inference.ipynb)) shows how to send request to Triton IS 
 - Generate the DLRM (Wide&Deep) Deployment Configuration
 - Load Models on Triton Server
-- Prepare Inference Input Data 
-- Inference Benchmark by Triton Performance Tool (Send Inference Request to Triton Server)   
+- Prepare Inference Input Data
+- Inference Benchmark by Triton Performance Tool (Send Inference Request to Triton Server)
 
-**After completing the Step 1 and step 3 correctly, you can successfully run the `HugeCTR_DLRM_Inference` (`HugeCTR_WDL_Inference`) notebook**  
+**After completing the Step 1 and step 3 correctly, you can successfully run the `HugeCTR_DLRM_Inference` (`HugeCTR_WDL_Inference`) notebook**
 
 
 Now you can start `HugeCTR_DLRM_Inference` (`HugeCTR_WDL_Inference`) notebooks. Note that you need to save your workflow and DLRM model in the `dlrm_infer/model` `wdl_infer/model` directory before launching the `tritonserver` as defined below, the details you could refer to `HugeCTR_DLRM_Inference` (`HugeCTR_WDL_Inference`) example notebook once the server is started.
@@ -118,25 +121,25 @@ or
 mkdir -p wdl_infer
 ```
 
-2) Launch Merlin Triton Inference Server container:  
+2) Launch Merlin Triton Inference Server container:
 
 DLRM model inference container:
 ```
-docker run -it --gpus=all --shm-size=1g --ulimit memlock=-1 --ulimit stack=67108864 --net=host -v dlrm_infer:/dlrm_infer/ -v dlrm_train:/dlrm_train/ nvcr.io/nvidia/merlin/merlin-inference:21.09
+docker run -it --gpus=all --shm-size=1g --ulimit memlock=-1 --ulimit stack=67108864 --net=host -v dlrm_infer:/dlrm_infer/ -v dlrm_train:/dlrm_train/ nvcr.io/nvidia/merlin/merlin-inference:22.05
 ```
 
 Wide&Deep model inference container:
 ```
-docker run -it --gpus=all --shm-size=1g --ulimit memlock=-1 --ulimit stack=67108864 --net=host -v wdl_infer:/wdl_infer/ -v wdl_train:/wdl_train/ nvcr.io/nvidia/merlin/merlin-inference:21.09
+docker run -it --gpus=all --shm-size=1g --ulimit memlock=-1 --ulimit stack=67108864 --net=host -v wdl_infer:/wdl_infer/ -v wdl_train:/wdl_train/ nvcr.io/nvidia/merlin/merlin-inference:22.05
 ```
 The container will open a shell when the run command execution is completed. It should look similar to this:
 ```
-root@02d56ff0738f:/opt/tritonserver# 
+root@02d56ff0738f:/opt/tritonserver#
 ```
 
-3) Your saved model should be in the `dlrm_infer/model` ( `wdl_infer/model` ) directory. 
+3) Your saved model should be in the `dlrm_infer/model` ( `wdl_infer/model` ) directory.
 
-4) Start the triton server and run Triton with the example model repository you just created. Note that you need to provide correct path for the models directory, and `dlrm.json` ( `wdl.json` ) file.  
+4) Start the triton server and run Triton with the example model repository you just created. Note that you need to provide correct path for the models directory, and `dlrm.json` ( `wdl.json` ) file.
 
 DLRM model deployment:
 ```
@@ -156,9 +159,9 @@ tritonserver --model-repository=/wdl_infer/model/ --load-model=wdl \
 
 Note: The model-repository path is /`model_name`_infer/model/. The path for the DLRM (Wide&Deep) model network json file is /`model_name`_infer/model/`model_name`/1/`model_name`.json. The path for the hierarchical inference parameter server configuration file is /`model_name`/model/ps.json.
 
-After you start Triton you will see output on the console showing the server starting up. At this stage you have loaded the `dlrm` model in the  `HugeCTR_DLRM_Inference` notebook to be able to send the request. All the models should load successfully. If a model fails to load the status will report the failure and a reason for the failure. 
+After you start Triton you will see output on the console showing the server starting up. At this stage you have loaded the `dlrm` model in the  `HugeCTR_DLRM_Inference` notebook to be able to send the request. All the models should load successfully. If a model fails to load the status will report the failure and a reason for the failure.
 
-Once the models are successfully loaded, you can launch jupyter-lab again in the same container and run the `HugeCTR_DLRM_Inference` notebook to test the benchmark of DLRM model inference on Triton. Note that, by default Triton will not start if models are not loaded successfully.  
+Once the models are successfully loaded, you can launch jupyter-lab again in the same container and run the `HugeCTR_DLRM_Inference` notebook to test the benchmark of DLRM model inference on Triton. Note that, by default Triton will not start if models are not loaded successfully.
 
 ## Reference
 ### HugeCTR Backend configuration
@@ -215,7 +218,7 @@ In order to deploy the HugeCTR model, some customized configuration items can be
   value: { string_value: "false" }
   }
 ]
-```  
+```
 The model files (the path of the embedded table file) needs to be configured in a separate "`modelname`_infer/model/ps.json", because the localized inference parameter server will pre-load the embedding tables independently. The minimum required PS configuration file is as follows:
 
 ```json.
@@ -240,6 +243,6 @@ The model files (the path of the embedded table file) needs to be configured in 
             "embedding_vecsize_per_table" : [1,15],
             "slot_num":28
         }
-    ]  
+    ]
 }
-```   
+```
