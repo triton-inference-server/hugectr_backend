@@ -406,4 +406,31 @@ TritonJsonHelper::parse(
   // HPS_TRITON_LOG(INFO, key, ": [", hctr_str_join(", ", value), " ]");
   return nullptr;
 }
+
+TRITONSERVER_Error*
+TritonJsonHelper::parse(
+    std::vector<size_t>& value, common::TritonJson::Value& json,
+    const char* const key, const bool required)
+{
+  if (json.Find(key)) {
+    common::TritonJson::Value tmp;
+    RETURN_IF_ERROR(json.MemberAsArray(key, &tmp));
+
+    for (size_t i = 0; i < tmp.ArraySize(); i++) {
+      int64_t v = 0;
+      if (tmp.IndexAsInt(i, &v) != TRITONJSON_STATUSSUCCESS) {
+        std::string s;
+        RETURN_IF_ERROR(tmp.IndexAsString(i, &s));
+        v = std::stoll(s);
+      }
+      value.emplace_back(static_cast<size_t>(v));
+    }
+  } else if (required) {
+    return HPS_ARG_MANDATORY_ERROR(key);
+  }
+
+  // HCTR_TRITON_LOG(INFO, key, ": [", hctr_str_join(", ", value), " ]");
+  return nullptr;
+}
+
 }}}  // namespace triton::backend::hps

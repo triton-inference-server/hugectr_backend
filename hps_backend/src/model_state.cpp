@@ -271,8 +271,8 @@ ModelState::ParseModelConfig()
 
   model_config_.MemberAsInt("max_batch_size", &max_batch_size_);
   HPS_RETURN_TRITON_ERROR_IF_FALSE(
-      max_batch_size_ > 0, INVALID_ARG,
-      "expected max_batch_size should greater than 0 ",
+      max_batch_size_ >= 0, INVALID_ARG,
+      "expected max_batch_size should greater than or equal to 0 ",
       "(the configuration should be consistent in Parameter Server json file "
       "and config.pbtxt file), got ",
       max_batch_size_);
