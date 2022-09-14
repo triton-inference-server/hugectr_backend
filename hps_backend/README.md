@@ -56,7 +56,7 @@ All NVIDIA Merlin components are available as open-source projects. However, a m
 
 Docker images for the HPS Backend are available in the NVIDIA container repository on https://catalog.ngc.nvidia.com/orgs/nvidia/teams/merlin/containers/merlin-hugectr. You can pull and launch the container by running the following command:
 ```
-docker run --gpus=1 --rm -it nvcr.io/nvidia/merlin/merlin-hugectr:22.08 # Start interaction mode  
+docker run --gpus=1 --rm -it nvcr.io/nvidia/merlin/merlin-hugectr:22.09 # Start interaction mode  
 ```
 
 **NOTE**: The HPS backend is derived from the HugeCTR backend. As of HugeCTR version 3.0, the HugeCTR container is no longer being released separately. If you're an advanced user, you should use the unified Merlin container to build the HugeCTR Training or Inference Docker image from scratch based on your own specific requirements. You can obtain the unified Merlin container by logging into NGC or by going [here](https://github.com/NVIDIA-Merlin/Merlin/blob/main/docker/dockerfile.ctr). 
@@ -91,12 +91,12 @@ Before building the HPS inference backend from scratch, you must first verify th
    $ make install
    $ ls             # check your compiled shared library(libtriton_hps.so)
    ```
-   **NOTE**: Where <rxx.yy> is the "release version" of Triton that you want to deploy, like `r22.03`. You can use `tritonserver` command to confirm your current "server_version", and find the corresponding "release version" according to the "server_version" in [triton release note](https://github.com/triton-inference-server/server/releases). For example, `r22.03` corresponding to 2.20.0 Triton "server_version".
+   **NOTE**: Where <rxx.yy> is the "release version" of Triton that you want to deploy, like `r22.06`. You can use `tritonserver` command to confirm your current "server_version", and find the corresponding "release version" according to the "server_version" in [triton release note](https://github.com/triton-inference-server/server/releases). For example, `r22.06` corresponding to 2.20.0 Triton "server_version".
     | Option         | Value  |
     |----------------|--------|
     | server_id      | triton |
     | server_version | 2.20.0 |
-    | release version| r22.03 |
+    | release version| r22.06 |
 
 3. Copy the compiled shared library(libtriton_hps.so) to your specified HPS default path.
    Please remember to specify the absolute path of the local directory that installs the HPS Backend for the `--backend-directory` argument when launching the Triton server.

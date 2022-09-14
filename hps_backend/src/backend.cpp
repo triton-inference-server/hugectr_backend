@@ -455,6 +455,50 @@ HPSBackend::ParseParameterServer(const std::string& path)
         INFO, log_prefix, "default value for each table = [",
         hps_str_join(", ", params.default_value_for_each_table), "]");
 
+    key = "maxnum_des_feature_per_sample";
+    params.maxnum_des_feature_per_sample = 26;
+    RETURN_IF_ERROR(TritonJsonHelper::parse(
+        params.maxnum_des_feature_per_sample, json_obj, key, false));
+    HPS_TRITON_LOG(
+        INFO, log_prefix, "maxnum_des_feature_per_sample = ",
+        params.maxnum_des_feature_per_sample);
+
+    key = "maxnum_catfeature_query_per_table_per_sample";
+    params.maxnum_catfeature_query_per_table_per_sample.clear();
+    RETURN_IF_ERROR(TritonJsonHelper::parse(
+        params.maxnum_catfeature_query_per_table_per_sample, json_obj, key,
+        true));
+    HPS_TRITON_LOG(
+        INFO, log_prefix,
+        "maxnum_catfeature_query_per_table_per_sample list = [",
+        hps_str_join(", ", params.maxnum_catfeature_query_per_table_per_sample),
+        "]");
+
+    key = "embedding_vecsize_per_table";
+    params.embedding_vecsize_per_table.clear();
+    RETURN_IF_ERROR(TritonJsonHelper::parse(
+        params.embedding_vecsize_per_table, json_obj, key, true));
+    HPS_TRITON_LOG(
+        INFO, log_prefix, "embedding_vecsize_per_table list = [",
+        hps_str_join(", ", params.embedding_vecsize_per_table), "]");
+
+    key = "embedding_table_names";
+    RETURN_IF_ERROR(TritonJsonHelper::parse(
+        params.embedding_table_names, json_obj, key, false));
+    HPS_TRITON_LOG(
+        INFO, log_prefix, "embedding model names = [",
+        hps_str_join(", ", params.embedding_table_names), "]");
+
+    key = "label_dim";
+    RETURN_IF_ERROR(
+        TritonJsonHelper::parse(params.label_dim, json_obj, key, false));
+    HPS_TRITON_LOG(INFO, log_prefix, "label_dim = ", params.label_dim);
+
+    key = "slot_num";
+    RETURN_IF_ERROR(
+        TritonJsonHelper::parse(params.slot_num, json_obj, key, false));
+    HPS_TRITON_LOG(INFO, log_prefix, "the number of slots = ", params.slot_num);
+
     // TODO: Move to paramter server common parameters?
     params.volatile_db = volatile_db_params;
     params.persistent_db = persistent_db_params;
