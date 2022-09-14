@@ -116,6 +116,19 @@ The following should be noted when using Model Repository Extension functions:
  
  - Update the deployed model online: [The load API](https://github.com/triton-inference-server/server/blob/master/docs/protocol/extension_model_repository.md#load) will load the network dense weight as part of the HugeCTR model and updating the embedding tables of the latest model file to Inference Hierarchical Parameter Server and refreshing the embedding cache, which means the Parameter server will independently provide an updated mechanism for existing embedding tables.
 
+**Note:** If using the [HPS Inference Online Update](#hugectr-inference-hierarchical-parameter-server-online-update), in order to avoid the embedding table from being updated repeatedly by adding the *freeze_sparse*(false is default ) update option in the Triton configuration file (config.pbtxt).
+
+ ```
+ parameters:[
+    ...
+  {
+  key: "freeze_sparse"
+  value: { string_value: "true" }
+  }
+    ...
+]
+ ```
+
  - Recycle old models: [The unload API](https://github.com/triton-inference-server/server/blob/master/docs/protocol/extension_model_repository.md#unload) will request that the HugeCTR model network's weights be unloaded from Triton and release the corresponding embedded cache from devices, which means the embedding tables corresponding to the model will still remain in the Inference Hierarchical Parameter Server Database.
 
  For specific samples, please refer to the [Triton Update Model](samples/hierarchical_deployment/hps_e2e_demo/Triton_Update_Model.ipynb). 
