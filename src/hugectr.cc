@@ -1463,8 +1463,7 @@ ModelState::Create_EmbeddingCache()
         "Please confirm that device ", gpu_shape[i],
         " is added to 'deployed_device_list' in the ps configuration file");
 
-    if (embedding_cache_map.find(gpu_shape[i]) == embedding_cache_map.end() &&
-        support_gpu_cache_) {
+    if (embedding_cache_map.find(gpu_shape[i]) == embedding_cache_map.end()) {
       HCTR_TRITON_LOG(
           INFO, "******Creating Embedding Cache for model ", name_,
           " in device ", gpu_shape[i]);
