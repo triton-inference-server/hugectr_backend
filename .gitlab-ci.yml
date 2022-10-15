@@ -60,6 +60,7 @@ dlrm_test:
     - export IMAGE_LATEST_CORRECTE=$(echo $IMAGE_VERSIONED | sed 's/https:\/\///g')
     - bash -cx "
       echo $(pwd);
+      nvidia-smi;
       cd ./test;
       docker login -u ${CI_PRIVATE_USER} -p "${CI_PRIVATE_KEY}" "${CI_REGISTRY}";
       bash ./triton_server.sh ${IMAGE_LATEST_CORRECTE} /home/scratch.svc_compute_arch/hugectr-ci/inference_ci/model_repository dlrm;
@@ -74,6 +75,7 @@ wdl_test:
     - export IMAGE_LATEST_CORRECTE=$(echo $IMAGE_VERSIONED | sed 's/https:\/\///g')
     - bash -cx "
       echo $(pwd);
+      nvidia-smi;
       cd ./test;
       docker login -u ${CI_PRIVATE_USER} -p "${CI_PRIVATE_KEY}" "${CI_REGISTRY}";
       bash ./triton_server.sh ${IMAGE_LATEST_CORRECTE} /home/scratch.svc_compute_arch/hugectr-ci/inference_ci/model_repository wdl;
