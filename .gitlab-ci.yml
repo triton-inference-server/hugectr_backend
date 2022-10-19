@@ -71,6 +71,8 @@ dlrm_test:
 
 wdl_test:
   extends: .cluster_test_job
+  variables:
+    CI_SLURM_PARTITION: "tesla-v100-sxm2-16gb-product,tesla-v100-sxm3-32gb-product"
   script:
     - export IMAGE_LATEST_CORRECTE=$(echo $IMAGE_VERSIONED | sed 's/https:\/\///g')
     - bash -cx "
