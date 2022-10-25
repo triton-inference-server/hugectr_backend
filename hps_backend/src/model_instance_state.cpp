@@ -157,13 +157,13 @@ ModelInstanceState::ProcessRequest(std::vector<size_t> num_keys_per_table)
       lookup_result_buf->get_ptr()};
 
   for (size_t index = 0; index < num_keys_per_table.size() - 1; ++index) {
+    const void* current_key_ptr = keys_per_table.back();
     keys_per_table.push_back(reinterpret_cast<const void*>(
-        (long long*)cat_column_index_buf_int64->get_raw_ptr() +
-        num_keys_per_table[index]));
+        (long long*)current_key_ptr + num_keys_per_table[index]));
+    float* current_out_ptr = lookup_buffer_offset_per_table.back();
     lookup_buffer_offset_per_table.push_back(
-        lookup_result_buf->get_ptr() +
-        instance_params_.embedding_vecsize_per_table[index] *
-            num_keys_per_table[index]);
+        current_out_ptr + instance_params_.embedding_vecsize_per_table[index] *
+                              num_keys_per_table[index]);
   }
   lookupsession_->lookup(
       keys_per_table, lookup_buffer_offset_per_table, num_keys_per_table);
