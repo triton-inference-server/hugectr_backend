@@ -36,7 +36,7 @@ function StopContainer(){
 function StartContainer(){
 if [ $model_name == 'dlrm' ]
 then
-nohup docker run --gpus=4 --rm  -p 8000:8000 -p 8001:8001 -p 8002:8002  \
+nohup docker run --gpus=all --rm  -p 8000:8000 -p 8001:8001 -p 8002:8002  \
 -v $mode_repo:/model $dockername \
 tritonserver --model-repository=/model/ --load-model=dlrm --load-model=dlrm_test --model-control-mode=explicit \
 --backend-directory=/usr/local/hugectr/backends/ \
@@ -44,7 +44,7 @@ tritonserver --model-repository=/model/ --load-model=dlrm --load-model=dlrm_test
 fi
 if [ $model_name == 'wdl' ]
 then
-nohup docker run --gpus=4 --rm  -p 8000:8000 -p 8001:8001 -p 8002:8002  \
+nohup docker run --gpus=all --rm  -p 8000:8000 -p 8001:8001 -p 8002:8002  \
 -v $mode_repo:/model $dockername \
 tritonserver --model-repository=/model/ --load-model=wdl --model-control-mode=explicit \
 --backend-directory=/usr/local/hugectr/backends/ \
