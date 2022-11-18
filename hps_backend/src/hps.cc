@@ -28,6 +28,7 @@
 #include <dlfcn.h>
 #include <math.h>
 #include <triton/backend/backend_common.h>
+#include <triton/common/nvtx.h>
 #include <unistd.h>
 
 #include <algorithm>
@@ -371,6 +372,8 @@ TRITONBACKEND_ModelInstanceExecute(
       INFO, "model ", model_state->Name(), ", instance ",
       instance_state->Name(), ", executing ", request_count, " requests");
 
+  NVTX_RANGE(nvtx_, "ModelInstanceExecute " + instance_state->Name());
+
   // 'responses' is initialized with the response objects below and
   // if/when an error response is sent the corresponding entry in
   // 'responses' is set to nullptr to indicate that that response has
@@ -678,6 +681,7 @@ TRITONBACKEND_ModelInstanceExecute(
         HPS_TRITON_LOG(INFO, "Prediction execution time is ", exe_time, " ms");
       }
 
+      NVTX_RANGE(nvtx_, "HandlResponse " + instance_state->Name());
       if (responses[r] == nullptr) {
         HPS_TRITON_LOG(
             ERROR, "request ", r,

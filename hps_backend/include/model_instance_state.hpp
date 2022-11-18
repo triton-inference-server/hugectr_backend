@@ -25,6 +25,8 @@
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 
+#include <triton/common/nvtx.h>
+
 #include <algorithm>
 #include <cstdlib>
 #include <fstream>
