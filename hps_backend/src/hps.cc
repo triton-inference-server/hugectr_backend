@@ -668,10 +668,17 @@ TRITONBACKEND_ModelInstanceExecute(
         // Model prediction
         RETURN_IF_ERROR(instance_state->ProcessRequest(num_keys_per_table));
         HPS_TRITON_LOG(INFO, "******Processing request completed!******");
-        CK_CUDA_THROW_(cudaMemcpy(
-            output_buffer,
-            instance_state->GetLookupResultBuffer()->get_raw_ptr(),
-            output_buffer_size * sizeof(float), cudaMemcpyDeviceToHost));
+        if (output_memory_type != TRITONSERVER_MEMORY_GPU) {
+          CK_CUDA_THROW_(cudaMemcpy(
+              output_buffer,
+              instance_state->GetLookupResultBuffer()->get_raw_ptr(),
+              output_buffer_size * sizeof(float), cudaMemcpyDeviceToHost));
+        } else {
+          CK_CUDA_THROW_(cudaMemcpy(
+              output_buffer,
+              instance_state->GetLookupResultBuffer()->get_raw_ptr(),
+              output_buffer_size * sizeof(float), cudaMemcpyDeviceToDevice));
+        }
 
         uint64_t exec_end_ns = 0;
         SET_TIMESTAMP(exec_end_ns);
