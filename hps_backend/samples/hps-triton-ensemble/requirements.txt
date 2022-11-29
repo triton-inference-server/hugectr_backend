@@ -1,0 +1,4 @@
+tensorflow
+tf2onnx
+onnx
+jupyter
