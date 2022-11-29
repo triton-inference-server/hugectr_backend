@@ -28,6 +28,7 @@
 #include <dlfcn.h>
 #include <math.h>
 #include <triton/backend/backend_common.h>
+#include <triton/common/nvtx.h>
 #include <unistd.h>
 
 #include <algorithm>
@@ -371,6 +372,8 @@ TRITONBACKEND_ModelInstanceExecute(
       INFO, "model ", model_state->Name(), ", instance ",
       instance_state->Name(), ", executing ", request_count, " requests");
 
+  NVTX_RANGE(nvtx_, "ModelInstanceExecute " + instance_state->Name());
+
   // 'responses' is initialized with the response objects below and
   // if/when an error response is sent the corresponding entry in
   // 'responses' is set to nullptr to indicate that that response has
@@ -665,10 +668,17 @@ TRITONBACKEND_ModelInstanceExecute(
         // Model prediction
         RETURN_IF_ERROR(instance_state->ProcessRequest(num_keys_per_table));
         HPS_TRITON_LOG(INFO, "******Processing request completed!******");
-        CK_CUDA_THROW_(cudaMemcpy(
-            output_buffer,
-            instance_state->GetLookupResultBuffer()->get_raw_ptr(),
-            output_buffer_size * sizeof(float), cudaMemcpyDeviceToHost));
+        if (output_memory_type != TRITONSERVER_MEMORY_GPU) {
+          CK_CUDA_THROW_(cudaMemcpy(
+              output_buffer,
+              instance_state->GetLookupResultBuffer()->get_raw_ptr(),
+              output_buffer_size * sizeof(float), cudaMemcpyDeviceToHost));
+        } else {
+          CK_CUDA_THROW_(cudaMemcpy(
+              output_buffer,
+              instance_state->GetLookupResultBuffer()->get_raw_ptr(),
+              output_buffer_size * sizeof(float), cudaMemcpyDeviceToDevice));
+        }
 
         uint64_t exec_end_ns = 0;
         SET_TIMESTAMP(exec_end_ns);
@@ -678,6 +688,7 @@ TRITONBACKEND_ModelInstanceExecute(
         HPS_TRITON_LOG(INFO, "Prediction execution time is ", exe_time, " ms");
       }
 
+      NVTX_RANGE(nvtx_, "HandlResponse " + instance_state->Name());
       if (responses[r] == nullptr) {
         HPS_TRITON_LOG(
             ERROR, "request ", r,

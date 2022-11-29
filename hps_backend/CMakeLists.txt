@@ -42,6 +42,7 @@ list(APPEND CMAKE_MODULE_PATH ${PROJECT_SOURCE_DIR}/cmake/Modules)
 #
 option(TRITON_ENABLE_GPU "Enable GPU support in backend" ON)
 option(TRITON_ENABLE_STATS "Include statistics collections in backend" ON)
+option(TRITON_ENABLE_NVTX "Include nvtx markers collection in backend." OFF)
 
 set(TRITON_COMMON_REPO_TAG "main" CACHE STRING "Tag for triton-inference-server/common repo")
 set(TRITON_CORE_REPO_TAG "main" CACHE STRING "Tag for triton-inference-server/core repo")
@@ -97,6 +98,10 @@ FetchContent_Declare(
   GIT_SHALLOW ON
 )
 FetchContent_MakeAvailable(repo-common repo-core repo-backend)
+
+if(${TRITON_ENABLE_NVTX})
+  add_definitions(-DTRITON_ENABLE_NVTX=1)
+endif() # TRITON_ENABLE_NVTX
 
 #
 # Shared library implementing the Triton Backend API

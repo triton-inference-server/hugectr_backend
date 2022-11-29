@@ -151,6 +151,7 @@ ModelInstanceState::LoadHPSInstance()
 TRITONSERVER_Error*
 ModelInstanceState::ProcessRequest(std::vector<size_t> num_keys_per_table)
 {
+  NVTX_RANGE(nvtx_, "ProcessRequest " + Name());
   std::vector<const void*> keys_per_table{
       cat_column_index_buf_int64->get_raw_ptr()};
   std::vector<float*> lookup_buffer_offset_per_table{
