@@ -87,5 +87,16 @@ git clone https://github.com/triton-inference-server/hugectr_backend.git
    cd /hugectr_backend/hps_backend/samples/hps-triton-ensemble
    trtexec --onnx=naive_dnn_dense.onnx --saveEngine=naive_dnn_dense.trt
    ```
+   6.1 If you need to deploy the pytorch-related models, such as [HPS_Pytorch_ensemble_deployment.ipynb](HPS_Pytorch_ensemble_deployment.ipynb), then you need to first build the library of the  [Triton python backend](https://github.com/triton-inference-server/python_backend), and you can also copy it directly through the following command:
+  
+   ```
+   docker run -v $(pwd):/hugectr_backend  nvcr.io/nvidia/tritonserver:22.08-py3 bash -cx "cp -r /opt/tritonserver/backends/pytorch /hugectr_backend/ "
+   ```
+
+   Next, you can directly copy the pytorch folder under ```/hugectr_backend/``` in the launched merlin container (step 1) to ```/opt/tritonserver/backends/```:
+   ```
+   cp -r /hugectr_backend/pytorch /opt/tritonserver/backends/
+   ```
+
 
 7. Continue running [02_model_inference_hps_tf_ensemble.ipynb](02_model_inference_hps_tf_ensemble.ipynb) and [03_model_inference_hps_trt_ensemble.ipynb](03_model_inference_hps_trt_ensemble.ipynb) in the previously launched `nvcr.io/nvidia/merlin/merlin-hugectr:22.11` container
