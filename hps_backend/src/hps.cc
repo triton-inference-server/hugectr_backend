@@ -369,7 +369,7 @@ TRITONBACKEND_ModelInstanceExecute(
   // another call to TRITONBACKEND_ModelInstanceExecute.
 
   HPS_TRITON_LOG(
-      INFO, "model ", model_state->Name(), ", instance ",
+      VERBOSE, "model ", model_state->Name(), ", instance ",
       instance_state->Name(), ", executing ", request_count, " requests");
 
   NVTX_RANGE(nvtx_, "ModelInstanceExecute " + instance_state->Name());
@@ -439,7 +439,7 @@ TRITONBACKEND_ModelInstanceExecute(
     }
 
     HPS_TRITON_LOG(
-        INFO, "request ", r, ": id = \"", request_id, "\"",
+        VERBOSE, "request ", r, ": id = \"", request_id, "\"",
         ", correlation_id = ", correlation_id, ", input_count = ", input_count,
         ", requested_output_count = ", requested_output_count);
 
@@ -521,7 +521,7 @@ TRITONBACKEND_ModelInstanceExecute(
             &cat_input_shape, &cat_dims_count, &cat_byte_size,
             &cat_input_buffer_count));
     HPS_TRITON_LOG(
-        INFO, "\tinput ", catcol_input_name,
+        VERBOSE, "\tinput ", catcol_input_name,
         ": datatype = ", TRITONSERVER_DataTypeString(cat_datatype),
         ", shape = ", backend::ShapeToString(cat_input_shape, cat_dims_count),
         ", byte_size = ", cat_byte_size,
@@ -534,7 +534,7 @@ TRITONBACKEND_ModelInstanceExecute(
             &num_keys_shape, &numkeys_dims_count, &numkeys_byte_size,
             &numkeys_input_buffer_count));
     HPS_TRITON_LOG(
-        INFO, "\tinput ", numkeys_input_name,
+        VERBOSE, "\tinput ", numkeys_input_name,
         ": datatype = ", TRITONSERVER_DataTypeString(numkeys_datatype),
         ", shape = ",
         backend::ShapeToString(num_keys_shape, numkeys_dims_count),
@@ -549,7 +549,7 @@ TRITONBACKEND_ModelInstanceExecute(
       continue;
     }
 
-    HPS_TRITON_LOG(INFO, "\trequested_output ", requested_output_name);
+    HPS_TRITON_LOG(VERBOSE, "\trequested_output ", requested_output_name);
 
     // We only need to produce an output if it was requested.
     if (requested_output_count > 0) {
@@ -659,15 +659,18 @@ TRITONBACKEND_ModelInstanceExecute(
         // Step 4. Perform prediction in device and copy result to cpu output
         // buffer
         HPS_TRITON_LOG(
-            INFO, "*****Processing request on device***** ",
+            VERBOSE, "*****Processing request on device***** ",
             instance_state->DeviceId(), " for model ", instance_state->Name());
         // Set Timestamp here to compute the prediction execution time for each
         // request
         SET_TIMESTAMP(exec_start_ns);
         min_exec_start_ns = std::min(min_exec_start_ns, exec_start_ns);
         // Model prediction
+        NVTX_RANGE(nvtx_, "ProcessRequest " + instance_state->Name());
         RETURN_IF_ERROR(instance_state->ProcessRequest(num_keys_per_table));
-        HPS_TRITON_LOG(INFO, "******Processing request completed!******");
+        HPS_TRITON_LOG(VERBOSE, "******Processing request completed!******");
+        NVTX_RANGE(
+            nvtx_, "CopyResultFromDeviceBuffer " + instance_state->Name());
         if (output_memory_type != TRITONSERVER_MEMORY_GPU) {
           CK_CUDA_THROW_(cudaMemcpy(
               output_buffer,
@@ -685,7 +688,8 @@ TRITONBACKEND_ModelInstanceExecute(
         max_exec_end_ns = std::max(max_exec_end_ns, exec_end_ns);
         // Get the prediction execution time (ms)
         int64_t exe_time = (max_exec_end_ns - min_exec_start_ns) / 1000000;
-        HPS_TRITON_LOG(INFO, "Prediction execution time is ", exe_time, " ms");
+        HPS_TRITON_LOG(
+            VERBOSE, "Prediction execution time is ", exe_time, " ms");
       }
 
       NVTX_RANGE(nvtx_, "HandlResponse " + instance_state->Name());
