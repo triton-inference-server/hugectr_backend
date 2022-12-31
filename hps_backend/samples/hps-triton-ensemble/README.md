@@ -25,13 +25,22 @@ The example notebooks cover the following tasks:
   * Separate the trained DNN model graph into two, embedding lookup and dense model graph
   * Reconstruct the dense model graph
   * Construct HPS lookup model, get DNN model weights and transfer to HPS
+<<<<<<< HEAD
   * Convert the dense TF SavedModel to ONNX
 * Model inference with HPS and TensorFlow ensemble ([02_model_inference_hps_tf_ensemble.ipynb](02_model_inference_hps_tf_ensemble.ipynb))
 * Model inference with HPS and TensorRT ensemble ([03_model_inference_hps_trt_ensemble.ipynb](03_model_inference_hps_trt_ensemble.ipynb))
+=======
+* Model inference ([02_model_inference.ipynb](02_model_inference.ipynb))
+  * Configure three backends in Triton format
+  * Deploy to inference with Triton ensemble mode
+  * Validate deployed ensemble model with dummy dataset
+
+>>>>>>> 8fe3b4a23384c268bd4cd7ba738cb7062b91ed77
 
 ## Getting Started
 The easiest way to test our code is through docker container. You can download latest docker image from NVIDIA GPU Cloud ([NGC](https://catalog.ngc.nvidia.com/containers?filters=&orderBy=dateModifiedDESC&query=merlin)). If you prefer to build your own HPS backend, refer to [Set Up the Development Environment With Merlin Containers](https://nvidia-merlin.github.io/HugeCTR/master/hugectr_contributor_guide.html#set-up-the-development-environment-with-merlin-containers) and [Build the HPS Backend from Scratch](../../README.md#hierarchical-parameter-server-backend).
 
+<<<<<<< HEAD
 
 ### Pull the NGC Docker
 
@@ -100,3 +109,6 @@ git clone https://github.com/triton-inference-server/hugectr_backend.git
 
 
 7. Continue running [02_model_inference_hps_tf_ensemble.ipynb](02_model_inference_hps_tf_ensemble.ipynb) and [03_model_inference_hps_trt_ensemble.ipynb](03_model_inference_hps_trt_ensemble.ipynb) in the previously launched `nvcr.io/nvidia/merlin/merlin-hugectr:22.11` container
+=======
+This tutorial is derived from the following notebooks, for more references, please check [Hierarchical Parameter Server Notebooks](https://github.com/NVIDIA-Merlin/HugeCTR/tree/master/hierarchical_parameter_server/notebooks).
+>>>>>>> 8fe3b4a23384c268bd4cd7ba738cb7062b91ed77
