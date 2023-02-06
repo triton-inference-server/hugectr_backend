@@ -131,9 +131,8 @@ The configuration file of HPS Backend should be formatted using the JSON format.
         "type": "hash_map",
         "user_name": "default",
         "num_partitions": 8,
-        "max_get_batch_size": 100000,
-        "max_set_batch_size": 100000,
-        "overflow_policy": "evict_oldest",
+        "max_batch_size": 100000,
+        "overflow_policy": "evict_random",
         "overflow_margin": 10000000,
         "overflow_resolution_target": 0.8,
         "initial_cache_rate": 1.0
