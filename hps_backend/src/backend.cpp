@@ -164,28 +164,14 @@ HPSBackend::ParseParameterServer(const std::string& path)
     HPS_TRITON_LOG(
         INFO, log_prefix, "allocation rate = ", params.allocation_rate);
 
-    key = "max_get_batch_size";
+    key = "max_batch_size";
     RETURN_IF_ERROR(
-        TritonJsonHelper::parse(params.max_get_batch_size, json, key, false));
+        TritonJsonHelper::parse(params.max_batch_size, json, key, false));
     HPS_TRITON_LOG(
         INFO, log_prefix,
-        "max. batch size (GET) = ", params.max_get_batch_size);
-
-    key = "max_set_batch_size";
-    RETURN_IF_ERROR(
-        TritonJsonHelper::parse(params.max_set_batch_size, json, key, false));
-    HPS_TRITON_LOG(
-        INFO, log_prefix,
-        "max. batch size (SET) = ", params.max_set_batch_size);
+        "max. batch size = ", params.max_batch_size);
 
     // Overflow handling related.
-    key = "refresh_time_after_fetch";
-    RETURN_IF_ERROR(TritonJsonHelper::parse(
-        params.refresh_time_after_fetch, json, key, false));
-    HPS_TRITON_LOG(
-        INFO, log_prefix,
-        "refresh time after fetch = ", params.refresh_time_after_fetch);
-
     key = "overflow_margin";
     RETURN_IF_ERROR(
         TritonJsonHelper::parse(params.overflow_margin, json, key, false));
@@ -257,19 +243,12 @@ HPSBackend::ParseParameterServer(const std::string& path)
         TritonJsonHelper::parse(params.read_only, json, key, false));
     HPS_TRITON_LOG(INFO, log_prefix, "read-only = ", params.read_only);
 
-    key = "max_get_batch_size";
+    key = "max_batch_size";
     RETURN_IF_ERROR(
-        TritonJsonHelper::parse(params.max_get_batch_size, json, key, false));
+        TritonJsonHelper::parse(params.max_batch_size, json, key, false));
     HPS_TRITON_LOG(
         INFO, log_prefix,
-        "max. batch size (GET) = ", params.max_get_batch_size);
-
-    key = "max_set_batch_size";
-    RETURN_IF_ERROR(
-        TritonJsonHelper::parse(params.max_set_batch_size, json, key, false));
-    HPS_TRITON_LOG(
-        INFO, log_prefix,
-        "max. batch size (SET) = ", params.max_set_batch_size);
+        "max. batch size = ", params.max_batch_size);
 
     // Real-time update mechanism related.
     key = "update_filters";
