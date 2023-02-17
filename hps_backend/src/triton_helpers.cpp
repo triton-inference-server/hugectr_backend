@@ -267,24 +267,16 @@ TritonJsonHelper::parse(
   HugeCTR::DatabaseOverflowPolicy_t enum_value;
   std::unordered_set<const char*> names;
 
-  enum_value = HugeCTR::DatabaseOverflowPolicy_t::EvictRandom;
-  names = {hctr_enum_to_c_str(enum_value), "random"};
-  for (const char* name : names)
-    if (tmp == name) {
-      value = enum_value;
-      return nullptr;
-    }
-
-  enum_value = HugeCTR::DatabaseOverflowPolicy_t::EvictLeastUsed;
-  names = {hctr_enum_to_c_str(enum_value), "least_used"};
-  for (const char* name : names)
-    if (tmp == name) {
-      value = enum_value;
-      return nullptr;
-    }
-
   enum_value = HugeCTR::DatabaseOverflowPolicy_t::EvictOldest;
   names = {hctr_enum_to_c_str(enum_value), "oldest"};
+  for (const char* name : names)
+    if (tmp == name) {
+      value = enum_value;
+      return nullptr;
+    }
+
+  enum_value = HugeCTR::DatabaseOverflowPolicy_t::EvictRandom;
+  names = {hctr_enum_to_c_str(enum_value), "random"};
   for (const char* name : names)
     if (tmp == name) {
       value = enum_value;

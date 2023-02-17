@@ -275,22 +275,6 @@ TritonJsonHelper::parse(
       return nullptr;
     }
 
-  enum_value = HugeCTR::DatabaseOverflowPolicy_t::EvictLeastUsed;
-  names = {hctr_enum_to_c_str(enum_value), "least_used"};
-  for (const char* name : names)
-    if (tmp == name) {
-      value = enum_value;
-      return nullptr;
-    }
-
-  enum_value = HugeCTR::DatabaseOverflowPolicy_t::EvictOldest;
-  names = {hctr_enum_to_c_str(enum_value), "oldest"};
-  for (const char* name : names)
-    if (tmp == name) {
-      value = enum_value;
-      return nullptr;
-    }
-
   // No match.
   return HCTR_TRITON_ERROR(
       INVALID_ARG, "Unable to map parameter '", key, "' = \"", tmp,

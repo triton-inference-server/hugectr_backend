@@ -404,6 +404,12 @@ HugeCTRBackend::ParseParameterServer(const std::string& path)
     HCTR_TRITON_LOG(
         INFO, log_prefix, "allocation rate = ", params.allocation_rate);
 
+    key = "max_get_batch_size";
+    RETURN_IF_ERROR(
+        TritonJsonHelper::parse(params.allocation_rate, json, key, false));
+    HCTR_TRITON_LOG(
+        INFO, log_prefix, "allocation rate = ", params.allocation_rate);
+
     key = "max_batch_size";
     RETURN_IF_ERROR(
         TritonJsonHelper::parse(params.max_batch_size, json, key, false));

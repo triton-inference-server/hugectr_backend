@@ -28,6 +28,10 @@ The example notebooks cover the following tasks:
   * Convert the dense TF SavedModel to ONNX
 * Model inference with HPS and TensorFlow ensemble ([02_model_inference_hps_tf_ensemble.ipynb](02_model_inference_hps_tf_ensemble.ipynb))
 * Model inference with HPS and TensorRT ensemble ([03_model_inference_hps_trt_ensemble.ipynb](03_model_inference_hps_trt_ensemble.ipynb))
+* Model inference ([02_model_inference.ipynb](02_model_inference.ipynb))
+  * Configure three backends in Triton format
+  * Deploy to inference with Triton ensemble mode
+  * Validate deployed ensemble model with dummy dataset
 
 ## Getting Started
 The easiest way to test our code is through docker container. You can download latest docker image from NVIDIA GPU Cloud ([NGC](https://catalog.ngc.nvidia.com/containers?filters=&orderBy=dateModifiedDESC&query=merlin)). If you prefer to build your own HPS backend, refer to [Set Up the Development Environment With Merlin Containers](https://nvidia-merlin.github.io/HugeCTR/master/hugectr_contributor_guide.html#set-up-the-development-environment-with-merlin-containers) and [Build the HPS Backend from Scratch](../../README.md#hierarchical-parameter-server-backend).
@@ -99,4 +103,6 @@ git clone https://github.com/triton-inference-server/hugectr_backend.git
    ```
 
 
-7. Continue running [02_model_inference_hps_tf_ensemble.ipynb](02_model_inference_hps_tf_ensemble.ipynb) and [03_model_inference_hps_trt_ensemble.ipynb](03_model_inference_hps_trt_ensemble.ipynb) in the previously launched `nvcr.io/nvidia/merlin/merlin-hugectr:22.11` container
+7. Continue running [02_model_inference_hps_tf_ensemble.ipynb](02_model_inference_hps_tf_ensemble.ipynb) and [03_model_inference_hps_trt_ensemble.ipynb](03_model_inference_hps_trt_ensemble.ipynb) in the previously launched `nvcr.io/nvidia/merlin/merlin-hugectr:23.02` container
+This tutorial is derived from the following notebooks, for more references, please check [HPS TF-plugin Notebooks](https://github.com/NVIDIA-Merlin/HugeCTR/tree/main/hps_tf/notebooks) and [HPS TRT-plugin Notebooks](https://github.com/NVIDIA-Merlin/HugeCTR/tree/main/hps_trt/notebooks).
+
