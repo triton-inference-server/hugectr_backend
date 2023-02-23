@@ -790,14 +790,14 @@ HugeCTRBackend::HugeCTREmbedding_backend()
   if (support_int64_key_) {
     HCTR_TRITON_LOG(INFO, "***** Parameter Server(Int64) is creating... *****");
     EmbeddingTable =
-        HugeCTR::HierParameterServerBase::create(ps_config, model_vet);
+        HugeCTR::HierParameterServerBase::create(ps_config);
   } else {
     HCTR_TRITON_LOG(
         INFO,
         "***** The HugeCTR Backend Backend Parameter Server(Int32) is "
         "creating... *****");
     EmbeddingTable =
-        HugeCTR::HierParameterServerBase::create(ps_config, model_vet);
+        HugeCTR::HierParameterServerBase::create(ps_config);
   }
   HCTR_TRITON_LOG(
       INFO,
