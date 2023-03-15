@@ -32,6 +32,7 @@
 #include <unistd.h>
 
 #include <algorithm>
+#include <cctype>
 #include <cstdlib>
 #include <fstream>
 #include <hps/embedding_cache_base.hpp>
@@ -762,6 +763,19 @@ HugeCTRBackend::ParseParameterServer(const std::string& path)
     HCTR_TRITON_LOG(
         INFO, log_prefix, "the number of slots = ", params.slot_num);
 
+    key = "embedding_cache_type";
+    std::string cache_type;
+    RETURN_IF_ERROR(TritonJsonHelper::parse(cache_type, json_obj, key, false));
+    boost::algorithm::to_lower(cache_type);
+    if (cache_type == "static") {
+      params.embedding_cache_type = HugeCTR::EmbeddingCacheType_t::Static;
+    } else if (cache_type == "uvm") {
+      params.embedding_cache_type = HugeCTR::EmbeddingCacheType_t::UVM;
+    } else {
+      params.embedding_cache_type = HugeCTR::EmbeddingCacheType_t::Dynamic;
+    }
+    HCTR_TRITON_LOG(
+        INFO, log_prefix, "the embedding cache type = ", cache_type);
 
     // TODO: Move to paramter server common parameters?
     params.volatile_db = volatile_db_params;
