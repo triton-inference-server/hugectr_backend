@@ -168,8 +168,7 @@ HPSBackend::ParseParameterServer(const std::string& path)
     RETURN_IF_ERROR(
         TritonJsonHelper::parse(params.max_batch_size, json, key, false));
     HPS_TRITON_LOG(
-        INFO, log_prefix,
-        "max. batch size = ", params.max_batch_size);
+        INFO, log_prefix, "max. batch size = ", params.max_batch_size);
 
     // Overflow handling related.
     key = "overflow_margin";
@@ -247,8 +246,7 @@ HPSBackend::ParseParameterServer(const std::string& path)
     RETURN_IF_ERROR(
         TritonJsonHelper::parse(params.max_batch_size, json, key, false));
     HPS_TRITON_LOG(
-        INFO, log_prefix,
-        "max. batch size = ", params.max_batch_size);
+        INFO, log_prefix, "max. batch size = ", params.max_batch_size);
 
     // Real-time update mechanism related.
     key = "update_filters";
@@ -477,6 +475,19 @@ HPSBackend::ParseParameterServer(const std::string& path)
     RETURN_IF_ERROR(
         TritonJsonHelper::parse(params.slot_num, json_obj, key, false));
     HPS_TRITON_LOG(INFO, log_prefix, "the number of slots = ", params.slot_num);
+
+    key = "embedding_cache_type";
+    std::string cache_type;
+    RETURN_IF_ERROR(TritonJsonHelper::parse(cache_type, json_obj, key, false));
+    boost::algorithm::to_lower(cache_type);
+    if (cache_type == "static") {
+      params.embedding_cache_type = HugeCTR::EmbeddingCacheType_t::Static;
+    } else if (cache_type == "uvm") {
+      params.embedding_cache_type = HugeCTR::EmbeddingCacheType_t::UVM;
+    } else {
+      params.embedding_cache_type = HugeCTR::EmbeddingCacheType_t::Dynamic;
+    }
+    HPS_TRITON_LOG(INFO, log_prefix, "the embedding cache type = ", cache_type);
 
     // TODO: Move to paramter server common parameters?
     params.volatile_db = volatile_db_params;
