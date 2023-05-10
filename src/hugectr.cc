@@ -777,12 +777,6 @@ HugeCTRBackend::ParseParameterServer(const std::string& path)
     HCTR_TRITON_LOG(
         INFO, log_prefix, "the embedding cache type = ", cache_type);
 
-    key = "init_ec";
-    params.init_ec = true;
-    RETURN_IF_ERROR(
-        TritonJsonHelper::parse(params.init_ec, json_obj, key, true));
-    HCTR_TRITON_LOG(INFO, log_prefix, "init_ec = ", params.init_ec);
-
     // TODO: Move to paramter server common parameters?
     params.volatile_db = volatile_db_params;
     params.persistent_db = persistent_db_params;
@@ -809,13 +803,15 @@ HugeCTRBackend::HugeCTREmbedding_backend()
   HugeCTR::parameter_server_config ps_config{model_network_files, model_vet};
   if (support_int64_key_) {
     HCTR_TRITON_LOG(INFO, "***** Parameter Server(Int64) is creating... *****");
-    EmbeddingTable = HugeCTR::HierParameterServerBase::create(ps_config);
+    EmbeddingTable =
+        HugeCTR::HierParameterServerBase::create(ps_config);
   } else {
     HCTR_TRITON_LOG(
         INFO,
         "***** The HugeCTR Backend Backend Parameter Server(Int32) is "
         "creating... *****");
-    EmbeddingTable = HugeCTR::HierParameterServerBase::create(ps_config);
+    EmbeddingTable =
+        HugeCTR::HierParameterServerBase::create(ps_config);
   }
   HCTR_TRITON_LOG(
       INFO,
