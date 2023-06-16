@@ -771,6 +771,8 @@ HugeCTRBackend::ParseParameterServer(const std::string& path)
       params.embedding_cache_type = HugeCTR::EmbeddingCacheType_t::Static;
     } else if (cache_type == "uvm") {
       params.embedding_cache_type = HugeCTR::EmbeddingCacheType_t::UVM;
+    } else if (cache_type == "Stochastic") {
+      params.embedding_cache_type = HugeCTR::EmbeddingCacheType_t::Stochastic
     } else {
       params.embedding_cache_type = HugeCTR::EmbeddingCacheType_t::Dynamic;
     }
