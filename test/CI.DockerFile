@@ -1,6 +1,6 @@
 FROM  gitlab-master.nvidia.com:5005/dl/hugectr/hugectr:devel_all
 # for testing
-ARG HUGECTR_BRANCH=integration
+ARG HUGECTR_BRANCH=main
 ARG INFERENCE_BRANCH=main
 ARG TRITON_BRANCH=r22.10
 ARG INFERENCE_MODE=ON
