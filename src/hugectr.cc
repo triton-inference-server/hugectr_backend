@@ -772,7 +772,7 @@ HugeCTRBackend::ParseParameterServer(const std::string& path)
     } else if (cache_type == "uvm") {
       params.embedding_cache_type = HugeCTR::EmbeddingCacheType_t::UVM;
     } else if (cache_type == "Stochastic") {
-      params.embedding_cache_type = HugeCTR::EmbeddingCacheType_t::Stochastic
+      params.embedding_cache_type = HugeCTR::EmbeddingCacheType_t::Stochastic;
     } else {
       params.embedding_cache_type = HugeCTR::EmbeddingCacheType_t::Dynamic;
     }
@@ -805,15 +805,13 @@ HugeCTRBackend::HugeCTREmbedding_backend()
   HugeCTR::parameter_server_config ps_config{model_network_files, model_vet};
   if (support_int64_key_) {
     HCTR_TRITON_LOG(INFO, "***** Parameter Server(Int64) is creating... *****");
-    EmbeddingTable =
-        HugeCTR::HierParameterServerBase::create(ps_config);
+    EmbeddingTable = HugeCTR::HierParameterServerBase::create(ps_config);
   } else {
     HCTR_TRITON_LOG(
         INFO,
         "***** The HugeCTR Backend Backend Parameter Server(Int32) is "
         "creating... *****");
-    EmbeddingTable =
-        HugeCTR::HierParameterServerBase::create(ps_config);
+    EmbeddingTable = HugeCTR::HierParameterServerBase::create(ps_config);
   }
   HCTR_TRITON_LOG(
       INFO,
