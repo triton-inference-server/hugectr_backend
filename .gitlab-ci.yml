@@ -40,7 +40,6 @@ build:
     - cat ./test/CI.DockerFile > ${JOB_DOCKERFILE}
     - sed -i "s/https\:\/\/github.com\/NVIDIA\/HugeCTR.git/https:\/\/gitlab-ci-token:${CI_JOB_TOKEN}@gitlab-master.nvidia.com\/dl\/hugectr\/hugectr.git/g" ${JOB_DOCKERFILE}
     - sed -i "s/https:\/\/gitlab-master.nvidia.com\/dl\/hugectr\/hugectr_inference_backend.git/https:\/\/gitlab-ci-token:${CI_JOB_TOKEN}@gitlab-master.nvidia.com\/dl\/hugectr\/hugectr_inference_backend.git/g" ${JOB_DOCKERFILE}
-    - sed -i "s/HUGECTR_BRANCH=main/HUGECTR_BRANCH=master/g" ${JOB_DOCKERFILE}
     - sed -i "s/INFERENCE_BRANCH=main/INFERENCE_BRANCH=${CI_COMMIT_BRANCH}/g" ${JOB_DOCKERFILE}
     - cat ${JOB_DOCKERFILE}
     - docker build --pull
