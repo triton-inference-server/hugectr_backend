@@ -494,7 +494,7 @@ HPSBackend::ParseParameterServer(const std::string& path)
     key = "init_ec";
     params.init_ec = true;
     RETURN_IF_ERROR(
-        TritonJsonHelper::parse(params.init_ec, json_obj, key, true));
+        TritonJsonHelper::parse(params.init_ec, json_obj, key, false));
     HPS_TRITON_LOG(INFO, log_prefix, "init_ec = ", params.init_ec);
 
     // TODO: Move to paramter server common parameters?
