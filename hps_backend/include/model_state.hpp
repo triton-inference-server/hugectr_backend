@@ -35,6 +35,7 @@
 #include <mutex>
 #include <sstream>
 #include <thread>
+#include <timer.hpp>
 #include <triton_helpers.hpp>
 #include <vector>
 
@@ -159,6 +160,7 @@ class ModelState {
   // Multi-thread for embedding cache refresh when reload model
   std::vector<std::thread> cache_refresh_threads;
 
+  bool freeze_embedding_ = false;
   bool support_int64_key_ = true;
   bool support_gpu_cache_ = true;
   bool use_mixed_precision_ = false;
@@ -170,6 +172,8 @@ class ModelState {
       embedding_cache_map;
 
   std::map<std::string, size_t> input_map_{{"KEYS", 0}, {"NUMKEYS", 1}};
+
+  Timer timer;
 };
 
 

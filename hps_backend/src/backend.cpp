@@ -497,6 +497,19 @@ HPSBackend::ParseParameterServer(const std::string& path)
         TritonJsonHelper::parse(params.init_ec, json_obj, key, false));
     HPS_TRITON_LOG(INFO, log_prefix, "init_ec = ", params.init_ec);
 
+    key = "fp8_quant";
+    params.fp8_quant = false;
+    RETURN_IF_ERROR(
+        TritonJsonHelper::parse(params.fp8_quant, json_obj, key, false));
+    HPS_TRITON_LOG(INFO, log_prefix, "fp8_quant = ", params.fp8_quant);
+
+    key = "enable_pagelock";
+    params.enable_pagelock = false;
+    RETURN_IF_ERROR(
+        TritonJsonHelper::parse(params.enable_pagelock, json_obj, key, false));
+    HPS_TRITON_LOG(
+        INFO, log_prefix, "enable_pagelock = ", params.enable_pagelock);
+
     // TODO: Move to paramter server common parameters?
     params.volatile_db = volatile_db_params;
     params.persistent_db = persistent_db_params;
