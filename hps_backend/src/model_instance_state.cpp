@@ -80,34 +80,59 @@ ModelInstanceState::ModelInstanceState(
 {
   HPS_TRITON_LOG(
       INFO, "Triton Model Instance Initialization on device ", device_id);
-  cudaError_t cuerr = cudaSetDevice(device_id);
-  if (cuerr != cudaSuccess) {
-    std::cerr << "failed to set CUDA device to " << device_id << ": "
-              << cudaGetErrorString(cuerr);
+  if (instance_params_.use_gpu_embedding_cache) {
+    cudaError_t cuerr = cudaSetDevice(device_id);
+    if (cuerr != cudaSuccess) {
+      std::cerr << "failed to set CUDA device to " << device_id << ": "
+                << cudaGetErrorString(cuerr);
+    }
   }
+
   // Set current model instance device id as triton provided
   instance_params_.device_id = device_id;
-  // Alloc the cuda memory
+  // Alloc the input memory
   HPS_TRITON_LOG(INFO, "Categorical Feature buffer allocation: ");
-  cat_column_index_buf_int64 =
-      HugeCTRBuffer<long long>::create(MemoryType_t::PIN);
-  std::vector<size_t> cat_column_index_dims = {
-      static_cast<size_t>(model_state_->BatchSize() * model_state_->CatNum())};
-  cat_column_index_buf_int64->reserve(cat_column_index_dims);
-  cat_column_index_buf_int64->allocate();
+  if (instance_params_.use_gpu_embedding_cache) {
+    cat_column_index_buf_int64 =
+        HugeCTRBuffer<long long>::create(MemoryType_t::PIN);
+    std::vector<size_t> cat_column_index_dims = {static_cast<size_t>(
+        model_state_->BatchSize() * model_state_->CatNum())};
+    cat_column_index_buf_int64->reserve(cat_column_index_dims);
+    cat_column_index_buf_int64->allocate();
 
-  HPS_TRITON_LOG(
-      INFO, "Number of Categorical Feature per Table buffer allocation: ");
-  row_ptr_buf = HugeCTRBuffer<int>::create();
-  std::vector<size_t> row_ptrs_dims = {
-      static_cast<size_t>(model_state_->GetEmbeddingCache(device_id_)
-                              ->get_cache_config()
-                              .num_emb_table_)};
-  row_ptr_buf->reserve(row_ptrs_dims);
-  row_ptr_buf->allocate();
+    HPS_TRITON_LOG(
+        INFO, "Number of Categorical Feature per Table buffer allocation: ");
+    row_ptr_buf = HugeCTRBuffer<int>::create();
+    std::vector<size_t> row_ptrs_dims = {
+        static_cast<size_t>(model_state_->GetEmbeddingCache(device_id_)
+                                ->get_cache_config()
+                                .num_emb_table_)};
+    row_ptr_buf->reserve(row_ptrs_dims);
+    row_ptr_buf->allocate();
+    HPS_TRITON_LOG(INFO, "Look_up result buffer allocation: ");
+    lookup_result_buf = HugeCTRBuffer<float>::create();
+  } else {
+    cat_column_index_buf_int64 =
+        HugeCTRBuffer<long long>::create(MemoryType_t::CPU);
+    std::vector<size_t> cat_column_index_dims = {static_cast<size_t>(
+        model_state_->BatchSize() * model_state_->CatNum())};
+    cat_column_index_buf_int64->reserve(cat_column_index_dims);
+    cat_column_index_buf_int64->allocate();
 
-  HPS_TRITON_LOG(INFO, "Look_up result buffer allocation: ");
-  lookup_result_buf = HugeCTRBuffer<float>::create();
+    HPS_TRITON_LOG(
+        INFO, "Number of Categorical Feature per Table buffer allocation: ");
+    row_ptr_buf = HugeCTRBuffer<int>::create(MemoryType_t::CPU);
+    std::vector<size_t> row_ptrs_dims = {
+        static_cast<size_t>(model_state_->GetEmbeddingCache(device_id_)
+                                ->get_cache_config()
+                                .num_emb_table_)};
+    row_ptr_buf->reserve(row_ptrs_dims);
+    row_ptr_buf->allocate();
+    HPS_TRITON_LOG(INFO, "Look_up result buffer allocation: ");
+    lookup_result_buf = HugeCTRBuffer<float>::create(MemoryType_t::CPU);
+  }
+
+
   size_t lookup_buffer_length = model_state_->BatchSize() *
                                 model_state_->CatNum() *
                                 model_state_->EmbeddingSize();

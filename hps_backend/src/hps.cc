@@ -592,9 +592,9 @@ TRITONBACKEND_ModelInstanceExecute(
             TRITONBACKEND_InputBuffer(
                 catcol_input, b, &cat_buffer, &cat_byte_size,
                 &input_memory_type, &input_memory_type_id));
-        CK_CUDA_THROW_(cudaMemcpy(
+        memcpy(
             instance_state->GetCatColBuffer_int64()->get_raw_ptr(), cat_buffer,
-            cat_byte_size, cudaMemcpyHostToHost));
+            cat_byte_size);
 
         const void* numkeys_buffer = nullptr;
         GUARDED_RESPOND_IF_ERROR(
@@ -637,6 +637,9 @@ TRITONBACKEND_ModelInstanceExecute(
 
         void* output_buffer;
         TRITONSERVER_MemoryType output_memory_type = TRITONSERVER_MEMORY_GPU;
+        if (!model_state->GPUCache()) {
+          output_memory_type = TRITONSERVER_MEMORY_CPU;
+        }
         int64_t output_memory_type_id = 0;
         GUARDED_RESPOND_IF_ERROR(
             responses, r,
@@ -677,10 +680,10 @@ TRITONBACKEND_ModelInstanceExecute(
               instance_state->GetLookupResultBuffer()->get_raw_ptr(),
               output_buffer_size * sizeof(float), cudaMemcpyDeviceToHost));
         } else {
-          CK_CUDA_THROW_(cudaMemcpy(
+          memcpy(
               output_buffer,
               instance_state->GetLookupResultBuffer()->get_raw_ptr(),
-              output_buffer_size * sizeof(float), cudaMemcpyDeviceToDevice));
+              output_buffer_size * sizeof(float));
         }
 
         uint64_t exec_end_ns = 0;
