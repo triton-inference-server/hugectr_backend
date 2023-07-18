@@ -217,16 +217,27 @@ ModelState::ParseModelConfig()
       instance_group.ArraySize() > 0, INVALID_ARG,
       "expect at least one instance in instance group , got ",
       instance_group.ArraySize());
-
+  support_gpu_cache_ = Model_Inference_Para.use_gpu_embedding_cache;
+  use_mixed_precision_ = Model_Inference_Para.use_mixed_precision;
+  support_int64_key_ = Model_Inference_Para.i64_input_key;
   for (size_t i = 0; i < instance_group.ArraySize(); i++) {
     common::TritonJson::Value instance;
     RETURN_IF_ERROR(instance_group.IndexAsObject(i, &instance));
 
     std::string kind;
     RETURN_IF_ERROR(instance.MemberAsString("kind", &kind));
-    HPS_RETURN_TRITON_ERROR_IF_FALSE(
-        kind == "KIND_GPU", INVALID_ARG,
-        "expect GPU kind instance in instance group , got ", kind);
+    if (Model_Inference_Para.use_gpu_embedding_cache) {
+      HPS_RETURN_TRITON_ERROR_IF_FALSE(
+          kind == "KIND_GPU", INVALID_ARG,
+          "expect GPU kind instance in instance group , got ", kind);
+      std::vector<int64_t> gpu_list;
+      RETURN_IF_ERROR(backend::ParseShape(instance, "gpus", &gpu_list));
+      for (auto id : gpu_list) {
+        gpu_shape.push_back(id);
+      }
+    } else {
+      gpu_shape.push_back(0);
+    }
 
     int64_t count;
     RETURN_IF_ERROR(instance.MemberAsInt("count", &count));
@@ -237,16 +248,10 @@ ModelState::ParseModelConfig()
                     "than number_of_worker_buffers_in_pool that confifured in "
                     "Parameter Server json file , got ") +
             std::to_string(count));
-    std::vector<int64_t> gpu_list;
-    RETURN_IF_ERROR(backend::ParseShape(instance, "gpus", &gpu_list));
-    for (auto id : gpu_list) {
-      gpu_shape.push_back(id);
-    }
   }
 
+
   // Parse HugeCTR model customized configuration.
-
-
   if (Model_Inference_Para.maxnum_catfeature_query_per_table_per_sample.size() >
       0) {
     cat_num_ = accumulate(
@@ -314,8 +319,7 @@ ModelState::Create_EmbeddingCache()
         "Please confirm that device ", gpu_shape[i],
         " is added to 'deployed_device_list' in the ps configuration file");
 
-    if (embedding_cache_map.find(gpu_shape[i]) == embedding_cache_map.end() &&
-        support_gpu_cache_) {
+    if (embedding_cache_map.find(gpu_shape[i]) == embedding_cache_map.end()) {
       HPS_TRITON_LOG(
           INFO, "******Creating Embedding Cache for model ", name_,
           " in device ", gpu_shape[i]);

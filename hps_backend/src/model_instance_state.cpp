@@ -64,7 +64,7 @@ ModelInstanceState::Create(
 
   *state = new ModelInstanceState(
       model_state, triton_model_instance, instance_name, instance_kind,
-      device_id, instance_params);
+      instance_params.device_id, instance_params);
 
   return nullptr;  // success
 }

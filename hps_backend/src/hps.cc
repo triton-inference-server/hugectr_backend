@@ -133,7 +133,6 @@ TRITONBACKEND_Initialize(TRITONBACKEND_Backend* backend)
       backend, reinterpret_cast<void*>(hps_backend)));
 
   RETURN_IF_ERROR(hps_backend->HPS_backend());
-
   return nullptr;  // success
 }
 
@@ -241,6 +240,7 @@ TRITONBACKEND_ModelInitialize(TRITONBACKEND_Model* model)
   // embedding cache to ensure that it is embedding vector that current model
   // look_up. If not, returning an error from this function will prevent the
   // model from loading.
+
   RETURN_IF_ERROR(model_state->Create_EmbeddingCache());
 
   return nullptr;  // success
@@ -658,7 +658,6 @@ TRITONBACKEND_ModelInstanceExecute(
               "sent");
           continue;
         }
-
         // Step 4. Perform prediction in device and copy result to cpu output
         // buffer
         HPS_TRITON_LOG(
@@ -674,7 +673,12 @@ TRITONBACKEND_ModelInstanceExecute(
         HPS_TRITON_LOG(VERBOSE, "******Processing request completed!******");
         NVTX_RANGE(
             nvtx_, "CopyResultFromDeviceBuffer " + instance_state->Name());
-        if (output_memory_type != TRITONSERVER_MEMORY_GPU) {
+        if (output_memory_type == TRITONSERVER_MEMORY_GPU) {
+          CK_CUDA_THROW_(cudaMemcpy(
+              output_buffer,
+              instance_state->GetLookupResultBuffer()->get_raw_ptr(),
+              output_buffer_size * sizeof(float), cudaMemcpyDeviceToDevice));
+        } else if (model_state->GPUCache()) {
           CK_CUDA_THROW_(cudaMemcpy(
               output_buffer,
               instance_state->GetLookupResultBuffer()->get_raw_ptr(),
@@ -685,7 +689,6 @@ TRITONBACKEND_ModelInstanceExecute(
               instance_state->GetLookupResultBuffer()->get_raw_ptr(),
               output_buffer_size * sizeof(float));
         }
-
         uint64_t exec_end_ns = 0;
         SET_TIMESTAMP(exec_end_ns);
         max_exec_end_ns = std::max(max_exec_end_ns, exec_end_ns);
@@ -703,7 +706,6 @@ TRITONBACKEND_ModelInstanceExecute(
         continue;
       }
     }
-
     // Response parameters we attach some here. mak
     // NumSample-> Number of samples in current request
     // DeviceID-> Current model initialized  on device ID
