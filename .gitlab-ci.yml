@@ -44,6 +44,7 @@ build:
     - cat ${JOB_DOCKERFILE}
     - docker build --pull
         -t "${IMAGE_VERSIONED}"
+        --build-arg FROM_BASE_IMAGE=${HUGECTR_DEVEL}
         -f ${JOB_DOCKERFILE}
         ${PWD}
     - docker push "${IMAGE_VERSIONED}"
