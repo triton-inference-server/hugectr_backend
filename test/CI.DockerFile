@@ -1,4 +1,5 @@
-FROM  gitlab-master.nvidia.com:5005/dl/hugectr/hugectr:devel_all
+ARG FROM_BASE_IMAGE=gitlab-master.nvidia.com:5005/dl/hugectr/hugectr:devel_all
+FROM ${FROM_BASE_IMAGE}
 # for testing
 ARG HUGECTR_BRANCH=main
 ARG INFERENCE_BRANCH=main
