@@ -208,7 +208,8 @@ TRITONBACKEND_ModelInitialize(TRITONBACKEND_Model* model)
   uint64_t model_ps_version = backend_state->GetModelVersion(name);
   uint64_t model_current_version;
   RETURN_IF_ERROR(TRITONBACKEND_ModelVersion(model, &model_current_version));
-  if (backend_state->HierarchicalPSConfigurationMap().count(name) == 0) {
+  if (backend_state->HierarchicalPSConfigurationMap().count(name) == 0 ||
+      model_current_version != model_ps_version) {
     HPS_TRITON_LOG(
         INFO,
         "Parsing the latest Parameter Server json config file for deploying "

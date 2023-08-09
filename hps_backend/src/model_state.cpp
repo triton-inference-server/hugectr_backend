@@ -119,6 +119,63 @@ ModelState::~ModelState()
   }
 }
 
+void
+ModelState::EmbeddingCacheRefresh(const std::string& model_name, int device_id)
+{
+  HPS_TRITON_LOG(
+      INFO, "The model ", model_name,
+      " is refreshing the embedding cache asynchronously on device ", device_id,
+      ".");
+  if (!freeze_embedding_) {
+    EmbeddingTable_int64->update_database_per_model(Model_Inference_Para);
+  }
+  if (support_gpu_cache_) {
+    EmbeddingTable_int64->refresh_embedding_cache(model_name, device_id);
+  }
+  HPS_TRITON_LOG(
+      INFO, "The model ", model_name,
+      " has completed the asynchronous refresh of the embedding cache on "
+      "device ",
+      device_id, ".");
+}
+
+void
+ModelState::Refresh_Embedding_Cache()
+{
+  // refresh embedding cache once after delay time
+  int64_t count = gpu_shape.size();
+  uint64_t exec_start_ns = 0;
+  SET_TIMESTAMP(exec_start_ns);
+  for (int i = 0; i < count; i++) {
+    if (support_gpu_cache_) {
+      LOG_MESSAGE(
+          TRITONSERVER_LOG_INFO,
+          (std::string("The model ") + name_ +
+           std::string(" is periodically refreshing the embedding cache "
+                       "asynchronously on device ") +
+           std::to_string(gpu_shape[i]))
+              .c_str());
+      EmbeddingTable_int64->refresh_embedding_cache(name_, gpu_shape[i]);
+      LOG_MESSAGE(
+          TRITONSERVER_LOG_INFO,
+          (std::string("The model ") + name_ +
+           std::string(
+               " has refreshed the embedding cache asynchronously on device ") +
+           std::to_string(gpu_shape[i]))
+              .c_str());
+    }
+  }
+  uint64_t exec_end_ns = 0;
+  SET_TIMESTAMP(exec_end_ns);
+  int64_t exe_time = (exec_end_ns - exec_start_ns) / 1000000;
+  LOG_MESSAGE(
+      TRITONSERVER_LOG_INFO,
+      (std::string("Refresh embedding table execution time is ") +
+       std::to_string(exe_time) + " ms")
+          .c_str());
+}
+
+
 TRITONSERVER_Error*
 ModelState::ValidateModelConfig()
 {
@@ -245,6 +302,14 @@ ModelState::ParseModelConfig()
   }
 
   // Parse HugeCTR model customized configuration.
+  common::TritonJson::Value parameters;
+  if (model_config_.Find("parameters", &parameters)) {
+    common::TritonJson::Value value;
+    if (parameters.Find("freeze_sparse", &value)) {
+      RETURN_IF_ERROR(TritonJsonHelper::parse(
+          freeze_embedding_, value, "string_value", false));
+    }
+  }
 
 
   if (Model_Inference_Para.maxnum_catfeature_query_per_table_per_sample.size() >
@@ -288,15 +353,15 @@ ModelState::Create_EmbeddingCache()
 {
   int64_t count = gpu_shape.size();
   if (count > 0 && support_gpu_cache_) {
-    if (support_int64_key_ && EmbeddingTable_int64->get_embedding_cache(
-                                  name_, gpu_shape[0]) == nullptr) {
+    if (support_int64_key_ &&
+        EmbeddingTable_int64->get_embedding_cache(name_, gpu_shape[0]) ==
+            nullptr &&
+        embedding_cache_map.find(gpu_shape[0]) == embedding_cache_map.end()) {
       HPS_TRITON_LOG(
           INFO, "Parsing network file of ", name_,
           ", which will be used for online deployment. The network file path "
           "is ",
           hugectr_config_);
-      // EmbeddingTable_int64->parse_networks_per_model(hugectr_config_,
-      // Model_Inference_Para);
       HPS_TRITON_LOG(
           INFO, "Update Database of Parameter Server for model ", name_);
       EmbeddingTable_int64->update_database_per_model(Model_Inference_Para);
@@ -323,6 +388,9 @@ ModelState::Create_EmbeddingCache()
         Model_Inference_Para.device_id = gpu_shape[i];
         embedding_cache_map[gpu_shape[i]] =
             EmbeddingTable_int64->get_embedding_cache(name_, gpu_shape[i]);
+      }
+      if (version_ps_ > 0 && version_ps_ != version_) {
+        EmbeddingCacheRefresh(name_, gpu_shape[i]);
       }
     }
   }

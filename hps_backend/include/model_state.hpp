@@ -162,6 +162,7 @@ class ModelState {
   bool support_int64_key_ = true;
   bool support_gpu_cache_ = true;
   bool use_mixed_precision_ = false;
+  bool freeze_embedding_ = false;
 
   std::shared_ptr<HugeCTR::HierParameterServerBase> EmbeddingTable_int64;
   HugeCTR::InferenceParams Model_Inference_Para;

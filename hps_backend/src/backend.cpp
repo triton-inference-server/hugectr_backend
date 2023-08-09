@@ -333,7 +333,7 @@ HPSBackend::ParseParameterServer(const std::string& path)
     // [?] network_file -> std::string
     std::string network_file;
     RETURN_IF_ERROR(
-        TritonJsonHelper::parse(network_file, json_obj, "network_file", true));
+        TritonJsonHelper::parse(network_file, json_obj, "network_file", false));
     HPS_TRITON_LOG(INFO, log_prefix, "network file = ", network_file);
     model_network_files.emplace_back(network_file);
 
@@ -346,7 +346,7 @@ HPSBackend::ParseParameterServer(const std::string& path)
     // [3] dense_model_file -> std::string
     std::string dense_file;
     RETURN_IF_ERROR(
-        TritonJsonHelper::parse(dense_file, json_obj, "dense_file", true));
+        TritonJsonHelper::parse(dense_file, json_obj, "dense_file", false));
     HPS_TRITON_LOG(INFO, log_prefix, "dense model file = ", dense_file);
 
     // [4] sparse_model_files -> std::vector<std::string>
@@ -403,14 +403,14 @@ HPSBackend::ParseParameterServer(const std::string& path)
 
     key = "num_of_refresher_buffer_in_pool";
     RETURN_IF_ERROR(TritonJsonHelper::parse(
-        params.number_of_refresh_buffers_in_pool, json_obj, key, true));
+        params.number_of_refresh_buffers_in_pool, json_obj, key, false));
     HPS_TRITON_LOG(
         INFO, log_prefix, "num. pool refresh buffers = ",
         params.number_of_refresh_buffers_in_pool);
 
     key = "cache_refresh_percentage_per_iteration";
     RETURN_IF_ERROR(TritonJsonHelper::parse(
-        params.cache_refresh_percentage_per_iteration, json_obj, key, true));
+        params.cache_refresh_percentage_per_iteration, json_obj, key, false));
     HPS_TRITON_LOG(
         INFO, log_prefix, "cache refresh rate per iteration = ",
         params.cache_refresh_percentage_per_iteration);
@@ -503,6 +503,9 @@ HPSBackend::ParseParameterServer(const std::string& path)
     params.update_source = update_source_params;
 
     // Done!
+    if (inference_params_map.find(model_name) != inference_params_map.end()) {
+      inference_params_map.erase(model_name);
+    }
     inference_params_map.emplace(model_name, params);
   }
 
