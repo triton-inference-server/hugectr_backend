@@ -118,6 +118,7 @@ ModelState::~ModelState()
   for (auto& ec_refresh_thread : cache_refresh_threads) {
     ec_refresh_thread.join();
   }
+  timer.stop();
 }
 
 void
@@ -307,6 +308,31 @@ ModelState::ParseModelConfig()
             std::to_string(count));
   }
 
+  // Parse HugeCTR model customized configuration.
+  common::TritonJson::Value parameters;
+  if (model_config_.Find("parameters", &parameters)) {
+    common::TritonJson::Value value;
+    if (parameters.Find("refresh_interval", &value)) {
+      RETURN_IF_ERROR(TritonJsonHelper::parse(
+          refresh_interval_, value, "string_value", false));
+    } else {
+      refresh_interval_ = Model_Inference_Para.refresh_interval;
+    }
+    HPS_TRITON_LOG(INFO, "refresh_interval = ", refresh_interval_);
+
+    if (parameters.Find("refresh_delay", &value)) {
+      RETURN_IF_ERROR(TritonJsonHelper::parse(
+          refresh_delay_, value, "string_value", false));
+    } else {
+      refresh_delay_ = Model_Inference_Para.refresh_delay;
+    }
+    HPS_TRITON_LOG(INFO, "refresh_delay = ", refresh_delay_);
+
+    if (parameters.Find("freeze_sparse", &value)) {
+      RETURN_IF_ERROR(TritonJsonHelper::parse(
+          freeze_embedding_, value, "string_value", false));
+    }
+  }
 
   // Parse HugeCTR model customized configuration.
 
@@ -396,14 +422,80 @@ ModelState::Create_EmbeddingCache()
             EmbeddingTable_int64->get_embedding_cache(name_, gpu_shape[i]);
       }
       if (version_ps_ > 0 && version_ps_ != version_) {
-        EmbeddingCacheRefresh(name_, gpu_shape[i]);
+        timer.startonce(
+            0,
+            std::bind(
+                &ModelState::EmbeddingCacheRefresh, this, name_, gpu_shape[i]));
       }
     }
+  }
+
+  if (refresh_interval_ > 1e-6) {
+    // refresh embedding cache once based on period time
+    timer.start(
+        refresh_interval_,
+        std::bind(&ModelState::Refresh_Embedding_Cache, this));
   }
   HPS_TRITON_LOG(
       INFO, "******Creating Embedding Cache for model ", name_,
       " successfully");
   return nullptr;
+}
+
+void
+ModelState::EmbeddingCacheRefresh(const std::string& model_name, int device_id)
+{
+  HPS_TRITON_LOG(
+      INFO, "The model ", model_name,
+      " is refreshing the embedding cache asynchronously on device ", device_id,
+      ".");
+  if (!freeze_embedding_) {
+    EmbeddingTable_int64->update_database_per_model(Model_Inference_Para);
+  }
+  if (support_gpu_cache_) {
+    EmbeddingTable_int64->refresh_embedding_cache(model_name, device_id);
+  }
+  HPS_TRITON_LOG(
+      INFO, "The model ", model_name,
+      " has completed the asynchronous refresh of the embedding cache on "
+      "device ",
+      device_id, ".");
+}
+
+void
+ModelState::Refresh_Embedding_Cache()
+{
+  // refresh embedding cache once after delay time
+  int64_t count = gpu_shape.size();
+  uint64_t exec_start_ns = 0;
+  SET_TIMESTAMP(exec_start_ns);
+  for (int i = 0; i < count; i++) {
+    if (support_gpu_cache_) {
+      LOG_MESSAGE(
+          TRITONSERVER_LOG_INFO,
+          (std::string("The model ") + name_ +
+           std::string(" is periodically refreshing the embedding cache "
+                       "asynchronously on device ") +
+           std::to_string(gpu_shape[i]))
+              .c_str());
+      EmbeddingTable_int64->refresh_embedding_cache(name_, gpu_shape[i]);
+      LOG_MESSAGE(
+          TRITONSERVER_LOG_INFO,
+          (std::string("The model ") + name_ +
+           std::string(
+               " has refreshed the embedding cache asynchronously on device ") +
+           std::to_string(gpu_shape[i]))
+              .c_str());
+    }
+  }
+  uint64_t exec_end_ns = 0;
+  SET_TIMESTAMP(exec_end_ns);
+  int64_t exe_time = (exec_end_ns - exec_start_ns) / 1000000;
+  LOG_MESSAGE(
+      TRITONSERVER_LOG_INFO,
+      (std::string("Refresh embedding table execution time is ") +
+       std::to_string(exe_time) + " ms")
+          .c_str());
 }
 
 }}}  // namespace triton::backend::hps
