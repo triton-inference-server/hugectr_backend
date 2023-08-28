@@ -119,4 +119,4 @@ class Timer {
 };
 #endif
 
-}}}  // namespace triton::backend::hugectr
+}}}  // namespace triton::backend::hps

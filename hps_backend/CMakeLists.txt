@@ -40,7 +40,7 @@ list(APPEND CMAKE_MODULE_PATH ${PROJECT_SOURCE_DIR}/cmake/Modules)
 # GPU support is enbaled by default because hierarchical parameter server backend does
 # support GPUs.
 #
-option(TRITON_ENABLE_GPU "Enable GPU support in backend" OFF)
+option(TRITON_ENABLE_GPU "Enable GPU support in backend" ON)
 option(TRITON_ENABLE_STATS "Include statistics collections in backend" ON)
 option(TRITON_ENABLE_NVTX "Include nvtx markers collection in backend." OFF)
 
@@ -103,10 +103,6 @@ if(${TRITON_ENABLE_NVTX})
   add_definitions(-DTRITON_ENABLE_NVTX=1)
 endif() # TRITON_ENABLE_NVTX
 
-find_package(CUDAToolkit REQUIRED)
-find_package(CUDA REQUIRED)
-find_package(CUDA  REQUIRED)
-include_directories("${CUDA_INCLUDE_DIRS}")
 #
 # Shared library implementing the Triton Backend API
 #
@@ -120,6 +116,7 @@ add_library(
   src/model_state.cpp
   src/model_instance_state.cpp
   src/triton_helpers.cpp
+  src/thread_pool.cpp
 )
 
 add_library(
