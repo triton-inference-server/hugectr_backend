@@ -113,10 +113,12 @@ ModelState::~ModelState()
         INFO, "******Destorying Embedding Cache for model ", name_,
         " successfully");
   }
+  std::cout << "finilize the model state!" << std::endl;
   embedding_cache_map.clear();
   for (auto& ec_refresh_thread : cache_refresh_threads) {
     ec_refresh_thread.join();
   }
+  timer.stop();
 }
 
 void
@@ -174,7 +176,6 @@ ModelState::Refresh_Embedding_Cache()
        std::to_string(exe_time) + " ms")
           .c_str());
 }
-
 
 TRITONSERVER_Error*
 ModelState::ValidateModelConfig()
@@ -274,16 +275,27 @@ ModelState::ParseModelConfig()
       instance_group.ArraySize() > 0, INVALID_ARG,
       "expect at least one instance in instance group , got ",
       instance_group.ArraySize());
-
+  support_gpu_cache_ = Model_Inference_Para.use_gpu_embedding_cache;
+  use_mixed_precision_ = Model_Inference_Para.use_mixed_precision;
+  support_int64_key_ = Model_Inference_Para.i64_input_key;
   for (size_t i = 0; i < instance_group.ArraySize(); i++) {
     common::TritonJson::Value instance;
     RETURN_IF_ERROR(instance_group.IndexAsObject(i, &instance));
 
     std::string kind;
     RETURN_IF_ERROR(instance.MemberAsString("kind", &kind));
-    HPS_RETURN_TRITON_ERROR_IF_FALSE(
-        kind == "KIND_GPU", INVALID_ARG,
-        "expect GPU kind instance in instance group , got ", kind);
+    if (Model_Inference_Para.use_gpu_embedding_cache) {
+      HPS_RETURN_TRITON_ERROR_IF_FALSE(
+          kind == "KIND_GPU", INVALID_ARG,
+          "expect GPU kind instance in instance group , got ", kind);
+      std::vector<int64_t> gpu_list;
+      RETURN_IF_ERROR(backend::ParseShape(instance, "gpus", &gpu_list));
+      for (auto id : gpu_list) {
+        gpu_shape.push_back(id);
+      }
+    } else {
+      gpu_shape.push_back(0);
+    }
 
     int64_t count;
     RETURN_IF_ERROR(instance.MemberAsInt("count", &count));
@@ -294,23 +306,33 @@ ModelState::ParseModelConfig()
                     "than number_of_worker_buffers_in_pool that confifured in "
                     "Parameter Server json file , got ") +
             std::to_string(count));
-    std::vector<int64_t> gpu_list;
-    RETURN_IF_ERROR(backend::ParseShape(instance, "gpus", &gpu_list));
-    for (auto id : gpu_list) {
-      gpu_shape.push_back(id);
-    }
   }
 
   // Parse HugeCTR model customized configuration.
   common::TritonJson::Value parameters;
   if (model_config_.Find("parameters", &parameters)) {
     common::TritonJson::Value value;
+    if (parameters.Find("refresh_interval", &value)) {
+      RETURN_IF_ERROR(TritonJsonHelper::parse(
+          refresh_interval_, value, "string_value", false));
+    } else {
+      refresh_interval_ = Model_Inference_Para.refresh_interval;
+    }
+    HPS_TRITON_LOG(INFO, "refresh_interval = ", refresh_interval_);
+
+    if (parameters.Find("refresh_delay", &value)) {
+      RETURN_IF_ERROR(TritonJsonHelper::parse(
+          refresh_delay_, value, "string_value", false));
+    } else {
+      refresh_delay_ = Model_Inference_Para.refresh_delay;
+    }
+    HPS_TRITON_LOG(INFO, "refresh_delay = ", refresh_delay_);
+
     if (parameters.Find("freeze_sparse", &value)) {
       RETURN_IF_ERROR(TritonJsonHelper::parse(
           freeze_embedding_, value, "string_value", false));
     }
   }
-
 
   if (Model_Inference_Para.maxnum_catfeature_query_per_table_per_sample.size() >
       0) {
@@ -379,8 +401,7 @@ ModelState::Create_EmbeddingCache()
         "Please confirm that device ", gpu_shape[i],
         " is added to 'deployed_device_list' in the ps configuration file");
 
-    if (embedding_cache_map.find(gpu_shape[i]) == embedding_cache_map.end() &&
-        support_gpu_cache_) {
+    if (embedding_cache_map.find(gpu_shape[i]) == embedding_cache_map.end()) {
       HPS_TRITON_LOG(
           INFO, "******Creating Embedding Cache for model ", name_,
           " in device ", gpu_shape[i]);
@@ -390,9 +411,19 @@ ModelState::Create_EmbeddingCache()
             EmbeddingTable_int64->get_embedding_cache(name_, gpu_shape[i]);
       }
       if (version_ps_ > 0 && version_ps_ != version_) {
-        EmbeddingCacheRefresh(name_, gpu_shape[i]);
+        timer.startonce(
+            0,
+            std::bind(
+                &ModelState::EmbeddingCacheRefresh, this, name_, gpu_shape[i]));
       }
     }
+  }
+
+  if (refresh_interval_ > 1e-6) {
+    // refresh embedding cache once based on period time
+    timer.start(
+        refresh_interval_,
+        std::bind(&ModelState::Refresh_Embedding_Cache, this));
   }
   HPS_TRITON_LOG(
       INFO, "******Creating Embedding Cache for model ", name_,

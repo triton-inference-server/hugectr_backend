@@ -133,7 +133,6 @@ TRITONBACKEND_Initialize(TRITONBACKEND_Backend* backend)
       backend, reinterpret_cast<void*>(hps_backend)));
 
   RETURN_IF_ERROR(hps_backend->HPS_backend());
-
   return nullptr;  // success
 }
 
@@ -593,9 +592,9 @@ TRITONBACKEND_ModelInstanceExecute(
             TRITONBACKEND_InputBuffer(
                 catcol_input, b, &cat_buffer, &cat_byte_size,
                 &input_memory_type, &input_memory_type_id));
-        CK_CUDA_THROW_(cudaMemcpy(
+        memcpy(
             instance_state->GetCatColBuffer_int64()->get_raw_ptr(), cat_buffer,
-            cat_byte_size, cudaMemcpyHostToHost));
+            cat_byte_size);
 
         const void* numkeys_buffer = nullptr;
         GUARDED_RESPOND_IF_ERROR(
@@ -638,6 +637,9 @@ TRITONBACKEND_ModelInstanceExecute(
 
         void* output_buffer;
         TRITONSERVER_MemoryType output_memory_type = TRITONSERVER_MEMORY_GPU;
+        if (!model_state->GPUCache()) {
+          output_memory_type = TRITONSERVER_MEMORY_CPU;
+        }
         int64_t output_memory_type_id = 0;
         GUARDED_RESPOND_IF_ERROR(
             responses, r,
@@ -656,7 +658,6 @@ TRITONBACKEND_ModelInstanceExecute(
               "sent");
           continue;
         }
-
         // Step 4. Perform prediction in device and copy result to cpu output
         // buffer
         HPS_TRITON_LOG(
@@ -672,18 +673,22 @@ TRITONBACKEND_ModelInstanceExecute(
         HPS_TRITON_LOG(VERBOSE, "******Processing request completed!******");
         NVTX_RANGE(
             nvtx_, "CopyResultFromDeviceBuffer " + instance_state->Name());
-        if (output_memory_type != TRITONSERVER_MEMORY_GPU) {
+        if (output_memory_type == TRITONSERVER_MEMORY_GPU) {
+          CK_CUDA_THROW_(cudaMemcpy(
+              output_buffer,
+              instance_state->GetLookupResultBuffer()->get_raw_ptr(),
+              output_buffer_size * sizeof(float), cudaMemcpyDeviceToDevice));
+        } else if (model_state->GPUCache()) {
           CK_CUDA_THROW_(cudaMemcpy(
               output_buffer,
               instance_state->GetLookupResultBuffer()->get_raw_ptr(),
               output_buffer_size * sizeof(float), cudaMemcpyDeviceToHost));
         } else {
-          CK_CUDA_THROW_(cudaMemcpy(
+          memcpy(
               output_buffer,
               instance_state->GetLookupResultBuffer()->get_raw_ptr(),
-              output_buffer_size * sizeof(float), cudaMemcpyDeviceToDevice));
+              output_buffer_size * sizeof(float));
         }
-
         uint64_t exec_end_ns = 0;
         SET_TIMESTAMP(exec_end_ns);
         max_exec_end_ns = std::max(max_exec_end_ns, exec_end_ns);
@@ -701,7 +706,6 @@ TRITONBACKEND_ModelInstanceExecute(
         continue;
       }
     }
-
     // Response parameters we attach some here. mak
     // NumSample-> Number of samples in current request
     // DeviceID-> Current model initialized  on device ID

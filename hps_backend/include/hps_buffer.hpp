@@ -117,7 +117,7 @@ class CudaAllocator {
     if (type_ == MemoryType_t::GPU) {
       CK_CUDA_THROW_(cudaMalloc(&ptr, size));
     } else {
-      CK_CUDA_THROW_(cudaMallocHost(&ptr, size));
+      ptr = (void*)malloc(size);
     }
     return ptr;
   }
@@ -127,7 +127,7 @@ class CudaAllocator {
     if (type_ == MemoryType_t::GPU) {
       CK_CUDA_THROW_(cudaFree(ptr));
     } else {
-      CK_CUDA_THROW_(cudaFreeHost(ptr));
+      free(ptr);
     }
   }
 
