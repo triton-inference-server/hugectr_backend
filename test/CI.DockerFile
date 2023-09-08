@@ -1,7 +1,7 @@
 ARG FROM_BASE_IMAGE=gitlab-master.nvidia.com:5005/dl/hugectr/hugectr:devel_all
 FROM ${FROM_BASE_IMAGE}
 # for testing
-ARG HUGECTR_BRANCH=main
+ARG HUGECTR_BRANCH=refactor-rm-offline-inference-yingcan
 ARG INFERENCE_BRANCH=main
 ARG TRITON_BRANCH=r23.02
 ARG INFERENCE_MODE=ON
@@ -27,9 +27,10 @@ ENV PYTHONPATH /usr/local/hugectr/lib:$PYTHONPATH
 
 # HugeCTR_backend
 RUN git clone -b $INFERENCE_BRANCH https://gitlab-master.nvidia.com/dl/hugectr/hugectr_inference_backend.git hugectr_inference_backend &&\
-    cd hugectr_inference_backend && \
+    cd hugectr_inference_backend/hps_backend && \
     mkdir build && cd build &&\
     cmake -DCMAKE_INSTALL_PREFIX:PATH=/usr/local/hugectr -DTRITON_COMMON_REPO_TAG=$TRITON_BRANCH  -DTRITON_CORE_REPO_TAG=$TRITON_BRANCH     -DTRITON_BACKEND_REPO_TAG=$TRITON_BRANCH  .. && \
     make  &&\
     make install &&\ 
+    cd ../../.. &&\
     rm -rf hugectr_inference_backend

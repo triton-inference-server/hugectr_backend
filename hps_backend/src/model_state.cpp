@@ -302,7 +302,7 @@ ModelState::ParseModelConfig()
     RETURN_ERROR_IF_TRUE(
         count > Model_Inference_Para.number_of_worker_buffers_in_pool,
         TRITONSERVER_ERROR_INVALID_ARG,
-        std::string("expect the number of instance(in instance_group) less "
+        std::string("expect the number of instance(in instance_group) larger "
                     "than number_of_worker_buffers_in_pool that confifured in "
                     "Parameter Server json file , got ") +
             std::to_string(count));
