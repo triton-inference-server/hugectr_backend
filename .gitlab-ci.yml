@@ -57,6 +57,8 @@ build:
 
 dlrm_test:
   extends: .cluster_test_job
+  variables:
+    CI_SLURM_PARTITION: "tesla-v100-sxm2-16gb-product,tesla-v100-sxm3-32gb-product,tesla-v100-pcie-32gb-product,tesla-v100-pcie-16gb-product,a100-pcie-40gb-product,a100-pcie-80gb-product,a100-sxm4-40gb-product,a100-sxm4-80gb-product"
   script:
     - export IMAGE_LATEST_CORRECTE=$(echo $IMAGE_VERSIONED | sed 's/https:\/\///g')
     - bash -cx "
