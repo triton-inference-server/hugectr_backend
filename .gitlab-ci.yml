@@ -57,6 +57,8 @@ build:
 
 dlrm_test:
   extends: .cluster_test_job
+  variables:
+    CI_SLURM_PARTITION: "tesla-v100-sxm2-16gb-product,tesla-v100-sxm3-32gb-product,tesla-v100-pcie-32gb-product,tesla-v100-pcie-16gb-product,a100-pcie-40gb-product,a100-pcie-80gb-product,a100-sxm4-40gb-product,a100-sxm4-80gb-product"
   script:
     - export IMAGE_LATEST_CORRECTE=$(echo $IMAGE_VERSIONED | sed 's/https:\/\///g')
     - bash -cx "
@@ -64,10 +66,10 @@ dlrm_test:
       nvidia-smi;
       cd ./test;
       docker login -u ${CI_PRIVATE_USER} -p "${CI_PRIVATE_KEY}" "${CI_REGISTRY}";
-      bash ./triton_server.sh ${IMAGE_LATEST_CORRECTE} /home/scratch.svc_compute_arch/hugectr-ci/inference_ci/model_repository dlrm;
-      docker run --rm --net=host -v /home/scratch.svc_compute_arch/hugectr-ci/inference_ci/inference_demo:/demo gitlab-master.nvidia.com:5005/dl/hugectr/hugectr:devel_all perf_analyzer -m dlrm -u localhost:8000 --input-data /demo/1.json --shape CATCOLUMN:26 --shape DES:13 --shape ROWINDEX:27;
-      docker run --rm --net=host -v /home/scratch.svc_compute_arch/hugectr-ci/inference_ci/inference_demo:/demo gitlab-master.nvidia.com:5005/dl/hugectr/hugectr:devel_all python3 /demo/dlrm.py;
-      docker run --rm --net=host -v /home/scratch.svc_compute_arch/hugectr-ci/inference_ci/inference_demo:/demo gitlab-master.nvidia.com:5005/dl/hugectr/hugectr:devel_all python3 /demo/dlrm_test.py;
+      bash ./triton_server.sh ${IMAGE_LATEST_CORRECTE} /home/scratch.svc_compute_arch/hugectr/data/inference_ci/model_repository dlrm;
+      docker run --rm --net=host -v /home/scratch.svc_compute_arch/hugectr/data/inference_ci/inference_demo:/demo gitlab-master.nvidia.com:5005/dl/hugectr/hugectr:devel_all perf_analyzer -m dlrm -u localhost:8000 --input-data /demo/1.json --shape KEYS:26 --shape NUMKEYS:1;
+      docker run --rm --net=host -v /home/scratch.svc_compute_arch/hugectr/data/inference_ci/inference_demo:/demo gitlab-master.nvidia.com:5005/dl/hugectr/hugectr:devel_all python3 /demo/dlrm.py;
+      docker run --rm --net=host -v /home/scratch.svc_compute_arch/hugectr/data/inference_ci/inference_demo:/demo gitlab-master.nvidia.com:5005/dl/hugectr/hugectr:devel_all python3 /demo/dlrm_test.py;
       "
 
 wdl_test:
@@ -81,6 +83,6 @@ wdl_test:
       nvidia-smi;
       cd ./test;
       docker login -u ${CI_PRIVATE_USER} -p "${CI_PRIVATE_KEY}" "${CI_REGISTRY}";
-      bash ./triton_server.sh ${IMAGE_LATEST_CORRECTE} /home/scratch.svc_compute_arch/hugectr-ci/inference_ci/model_repository wdl;
-      docker run --rm --net=host -v /home/scratch.svc_compute_arch/hugectr-ci/inference_ci/inference_demo:/demo gitlab-master.nvidia.com:5005/dl/hugectr/hugectr:devel_all python3 /demo/wdl2predict.py;
+      bash ./triton_server.sh ${IMAGE_LATEST_CORRECTE} /home/scratch.svc_compute_arch/hugectr/data/inference_ci/model_repository wdl;
+      docker run --rm --net=host -v /home/scratch.svc_compute_arch/hugectr/data/inference_ci/inference_demo:/demo gitlab-master.nvidia.com:5005/dl/hugectr/hugectr:devel_all python3 /demo/wdl2predict.py;
       "

@@ -40,7 +40,7 @@ nohup docker run --gpus=all --rm  -p 8000:8000 -p 8001:8001 -p 8002:8002  \
 -v $mode_repo:/model $dockername \
 tritonserver --model-repository=/model/ --load-model=dlrm --load-model=dlrm_test --model-control-mode=explicit \
 --backend-directory=/usr/local/hugectr/backends/ \
---backend-config=hugectr,ps=/model/ps.json  &
+--backend-config=hps,ps=/model/ps.json  &
 fi
 if [ $model_name == 'wdl' ]
 then
@@ -48,7 +48,7 @@ nohup docker run --gpus=all --rm  -p 8000:8000 -p 8001:8001 -p 8002:8002  \
 -v $mode_repo:/model $dockername \
 tritonserver --model-repository=/model/ --load-model=wdl --model-control-mode=explicit \
 --backend-directory=/usr/local/hugectr/backends/ \
---backend-config=hugectr,ps=/model/ps_cpu.json  &
+--backend-config=hps,ps=/model/ps_cpu.json  &
 fi
 
  echo "starting triton....."
