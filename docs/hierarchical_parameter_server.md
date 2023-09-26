@@ -10,7 +10,7 @@ backlinks: none
 
 ## Introduction to the HPS Database Backend
 
-The Hierarchical Parameter Server database backend (HPS database backend) allows HugeCTR to use models with huge embedding tables by extending HugeCTRs storage space beyond the constraints of GPU memory through utilizing various memory resources across you cluster. Further, it grants the ability to permanently store embedding tables in a structured manner. For an end-to-end demo on how to use the HPS database backend, please refer to [samples](https://github.com/triton-inference-server/hugectr_backend/tree/main/samples/hierarchical_deployment).
+The Hierarchical Parameter Server database backend (HPS database backend) allows HugeCTR to use models with huge embedding tables by extending HugeCTRs storage space beyond the constraints of GPU memory through utilizing various memory resources across you cluster. Further, it grants the ability to permanently store embedding tables in a structured manner. For an end-to-end demo on how to use the HPS database backend, please refer to [samples](https://github.com/triton-inference-server/hugectr_backend/tree/main/hps_backend/samples).
 
 ## Background
 
@@ -91,7 +91,7 @@ If the volatile memory resources&mdash;the CPU memory database and distributed d
 The HugeCTR HPS database backend and iterative update can be configured using three separate configuration objects.
 The `VolatileDatabaseParams` and `PersistentDatabaseParams` objects are used to configure the database backends of each HPS database backend instance.
 If you want iterative or online model updating, you must also provide the `UpdateSourceParams` object to link the HPS database backend instance with your Kafka deployment.
-These objects are part of the [hugectr.inference](./api/python_interface.md#inference-api) Python package.
+These objects are part of the [hugectr.inference](https://nvidia-merlin.github.io/HugeCTR/main/api/python_interface.html#inference-api) Python package.
 
 If you deploy HugeCTR as a backend for NVIDIA [Triton Inference Server](https://developer.nvidia.com/nvidia-triton-inference-server), you can also provide these configuration options by extending your Triton deployment's JSON configuration:
 
