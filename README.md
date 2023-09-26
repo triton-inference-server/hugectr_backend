@@ -28,11 +28,11 @@
 
 [![License](https://img.shields.io/badge/License-BSD3-lightgrey.svg)](https://opensource.org/licenses/BSD-3-Clause)
 
-# HugeCTR Backend
-The HugeCTR Backend is a recommender model deployment framework that was designed to effectively use GPU memory to accelerate the Inference by decoupling the embdding tabls, embedding cache, and model weight. The HugeCTR Backend supports concurrent model inference execution across multiple GPUs by embedding cache that is shared between multiple model instances. For more information, see [HugeCTR Inference Architecture](docs/architecture.md#hugectr-inference-framework).  
+# Hierarchical Parameter Server Backend
+The Hierarchical Parameter Server(HPS) Backend is a framework for embedding vectors looking up on large-scale embedding tables that was designed to effectively use GPU memory to accelerate the looking up by decoupling the embedding tables and embedding cache from the end-to-end inference pipeline of the deep recommendation model. The HPS Backend supports  executing multiple embedding vector looking-up services concurrently across multiple GPUs by embedding cache that is shared between multiple look_up sessions. For more information, see [Hierarchical Parameter Server Architecture](docs/architecture.md#hps-backend-framework).  
 
 ## Quick Start
-You can either install the HugeCTR Backend using Docker images in NGC, or build the HugeCTR Backend from scratch based on your own specific requirements using the same NGC HugeCTR Backend Docker images if you're an advanced user.
+You can build the HPS Backend from scratch and install to the specify path based on your own specific requirements using the NGC Merlin inference Docker images.
 
 We support the following compute capabilities for inference deployment:
 
@@ -51,41 +51,62 @@ The following prerequisites must be met before installing or building the HugeCT
 * RMM version 0.16
 * GCC version 7.4.0
 
-### Install the HugeCTR Backend Using NGC Containers
-All NVIDIA Merlin components are available as open-source projects. However, a more convenient way to make use of these components is by using Merlin NGC containers. These NGC containers allow you to package your software application, libraries, dependencies, and runtime compilers in a self-contained environment. When installing the HugeCTR Backend using NGC containers, the application environment remains both portable, consistent, reproducible, and agnostic to the underlying host system software configuration. The HugeCTR Backend container has the necessary libraries and header files pre-installed, and you can directly deploy the HugeCTR models to production.
+### Install the HPS Backend Using NGC Containers
+All NVIDIA Merlin components are available as open-source projects. However, a more convenient way to make use of these components is by using Merlin NGC containers. These NGC containers allow you to package your software application, libraries, dependencies, and runtime compilers in a self-contained environment. When installing the HPS Backend using NGC containers, the application environment remains both portable, consistent, reproducible, and agnostic to the underlying host system software configuration. The HPS Backend container has the necessary libraries and header files pre-installed, and you can directly deploy the HPS models to production.
 
-Docker images for the HugeCTR Backend are available in the NVIDIA container repository on https://catalog.ngc.nvidia.com/orgs/nvidia/teams/merlin/containers/merlin-hugectr. You can pull and launch the container by running the following command:
+Docker images for the HPS Backend are available in the NVIDIA container repository on https://catalog.ngc.nvidia.com/orgs/nvidia/teams/merlin/containers/merlin-hugectr. You can pull and launch the container by running the following command:
 ```
-docker run --gpus=1 --rm -it nvcr.io/nvidia/merlin/merlin-hugectr:22.10  # Start interaction mode  
+docker run --gpus=1 --rm -it nvcr.io/nvidia/merlin/merlin-hugectr:23.09 # Start interaction mode  
 ```
 
-**NOTE**: As of HugeCTR version 3.0, the HugeCTR container is no longer being released separately. If you're an advanced user, you should use the unified Merlin container to build the HugeCTR Training or Inference Docker image from scratch based on your own specific requirements. You can obtain the unified Merlin container by logging into NGC or by going [here](https://github.com/NVIDIA-Merlin/Merlin/blob/main/docker/dockerfile.ctr). 
+**NOTE**: The HPS backend is derived from the HugeCTR backend. As of HugeCTR version 3.0, the HugeCTR container is no longer being released separately. If you're an advanced user, you should use the unified Merlin container to build the HugeCTR Training or Inference Docker image from scratch based on your own specific requirements. You can obtain the unified Merlin container by logging into NGC or by going [here](https://github.com/NVIDIA-Merlin/Merlin/blob/main/docker/dockerfile.ctr). 
 
-### Build the HugeCTR Backend from Scratch
-Before you can build the HugeCTR Backend from scratch, you must first compile HugeCTR, generate a shared library (libhuge_ctr_inference.so), and build HugeCTR. The default path where all the HugeCTR libraries and header files are installed in is /usr/local/hugectr. Before building HugeCTR from scratch, you should download the HugeCTR repository and the third-party modules that it relies on by running the following commands:
-```
-git clone https://github.com/NVIDIA/HugeCTR.git
-cd HugeCTR
-git submodule update --init --recursive
-```
-For more information, see [Building HugeCTR from Scratch](https://nvidia-merlin.github.io/HugeCTR/master/hugectr_user_guide.html#building-hugectr-from-scratch).
+### Build the HPS Backend from Scratch
+Before building the HPS inference backend from scratch, you must first verify that the HugeCTR inference shared library (libhuge_ctr_inference.so) has been compiled. Then you can generate a HPS shared library (libtriton_hps.so), and copy to the HugeCTR/HPS default path to complete the backend building. The default path where all the HugeCTR and HPS Backend libraries and header files are installed in is `/usr/local/hugectr`. 
 
-After you've built HugeCTR from scratch, do the following:
-1. Download the HugeCTR Backend repository by running the following commands:
+1. Building HugeCTR inference shared libarary from scratch, you should download the HugeCTR repository and the third-party modules that it relies on by running the following commands:
+    ```
+    $ git clone https://github.com/NVIDIA/HugeCTR.git
+    # cd HugeCTR
+    $ git submodule update --init --recursive
+    ```
+    Build HugeCTR inference backend
+    ```
+    $ mkdir -p build && cd build
+    $ cmake -DCMAKE_BUILD_TYPE=Release -DSM="70;80" -DENABLE_INFERENCE=ON ..
+    $ make -j && make install
+    ```
+    For more information, see [Build HPS from Source](https://nvidia-merlin.github.io/HugeCTR/main/hugectr_contributor_guide.html#build-hugectr-inference-container-from-source).
+    After compiling, you can find the `libhuge_ctr_hps.so` file in the path `/usr/local/hugectr/lib`.
+
+2. Buidling HPS inference backend. Download the HPS Backend repository by running the following commands:
    ```
-   git https://github.com/triton-inference-server/hugectr_backend.git
-   cd hugectr_backend
+   $ git https://github.com/triton-inference-server/hugectr_backend.git
+   $ cd hugectr_backend/hps_backend
    ```
-
-2. Use cmake to build and install the HugeCTR Backend in a specified folder as follows:
+   Use CMAKE to build and install the HPS Backend as follows:
    ```
-   $ mkdir build
-   $ cd build
+   $ mkdir -p build && cd build
    $ cmake -DCMAKE_INSTALL_PREFIX:PATH=`pwd`/install -DTRITON_COMMON_REPO_TAG=<rxx.yy>  -DTRITON_CORE_REPO_TAG=<rxx.yy> -DTRITON_BACKEND_REPO_TAG=<rxx.yy> ..
    $ make install
+   $ ls             # check your compiled shared library(libtriton_hps.so)
    ```
-   
-   **NOTE**: Where <rxx.yy> is the version of Triton that you want to deploy, like `r22.06`. Please remember to specify the absolute path of the local directory that installs the HugeCTR Backend for the `--backend-directory` argument when launching the Triton server.
+   **NOTE**: Where <rxx.yy> is the "release version" of Triton that you want to deploy, like `r23.06`. You can use `tritonserver` command to confirm your current "server_version", and find the corresponding "release version" according to the "server_version" in [triton release note](https://github.com/triton-inference-server/server/releases). For example, `r23.06` corresponding to 2.20.0 Triton "server_version".
+    | Option         | Value  |
+    |----------------|--------|
+    | server_id      | triton |
+    | server_version | 2.35.0 |
+    | release version| r23.06 |
+
+3. Copy the compiled shared library(libtriton_hps.so) to your specified HPS default path.
+   Please remember to specify the absolute path of the local directory that installs the HPS Backend for the `--backend-directory` argument when launching the Triton server.
+   For example, copy to `/usr/local/hugectr/backends/hps` folder, and the sample command to start tritonserver would be
+   ```
+   $ tritonserver --model-repository=/path/to/model_repo/ --load-model=model_name \
+    --model-control-mode=explicit \
+    --backend-directory=/usr/local/hugectr/backends \
+    --backend-config=hps,ps=/path/to/model_repo/hps.json
+   ```
    
    The following Triton repositories, which are required, will be pulled and used in the build. By default, the "main" branch/tag will be used for each repository. However, the 
    following cmake arguments can be used to override the "main" branch/tag:
@@ -93,103 +114,77 @@ After you've built HugeCTR from scratch, do the following:
    * triton-inference-server/core: -DTRITON_CORE_REPO_TAG=[tag]
    * triton-inference-server/common: -DTRITON_COMMON_REPO_TAG=[tag]
 
-## Model Repository Extension
-Since the HugeCTR Backend is a customizable Triton component, it is capable of supporting the Model Repository Extension. Triton's Model Repository Extension allows you to query and control model repositories that are being served by Triton. The “model_repository” is reported in the Extensions field of its server metadata. For more information, see [Model Repository Extension](https://github.com/triton-inference-server/server/blob/master/docs/protocol/extension_model_repository.md).  
-
-From V3.3.1, HugeCTR Backend is fully compatible with the [Model Control EXPLICIT Mode](https://github.com/triton-inference-server/server/blob/main/docs/user_guide/model_management.md#model-control-mode-explicit) of Triton. Adding the configuration of a new model to the HPS configuration file. The HugeCTR Backend has supported online deployment of new models by [the load API](https://github.com/triton-inference-server/server/blob/master/docs/protocol/extension_model_repository.md#load) of Triton. The old models can also be recycled online by [the unload API](https://github.com/triton-inference-server/server/blob/master/docs/protocol/extension_model_repository.md#unload).
-
-The following should be noted when using Model Repository Extension functions:  
- - Depoly new models online: [The load API](https://github.com/triton-inference-server/server/blob/master/docs/protocol/extension_model_repository.md#load) will load not only the network dense weight as part of the HugeCTR model, but inserting the embedding table of new models to Hierarchical Inference Parameter Server and creating the embedding cache based on model definition in [Independent Parameter Server Configuration](https://gitlab-master.nvidia.com/dl/hugectr/hugectr_inference_backend/-/tree/main/hps_backend#independent-inference-hierarchical-parameter-server-configuration), which means the Parameter server will independently provide an initialization mechanism for the new embedding table and embedding cache of new models.  
- 
-**Note:** If using the [HPS Inference Online Update](#hugectr-inference-hierarchical-parameter-server-online-update), in order to avoid the embedding table from being updated repeatedly by adding the *freeze_sparse*(false is default ) update option in the Triton configuration file (config.pbtxt).
-
- ```
- parameters:[
-    ...
-  {
-  key: "freeze_sparse"
-  value: { string_value: "true" }
-  }
-    ...
-]
- ```
- 
- - Update the deployed model online: [The load API](https://github.com/triton-inference-server/server/blob/master/docs/protocol/extension_model_repository.md#load) will load the network dense weight as part of the HugeCTR model and updating the embedding tables of the latest model file to Inference Hierarchical Parameter Server and refreshing the embedding cache, which means the Parameter server will independently provide an updated mechanism for existing embedding tables.
-
-**Note:** If using the [HPS Inference Online Update](#hugectr-inference-hierarchical-parameter-server-online-update), in order to avoid the embedding table from being updated repeatedly by adding the *freeze_sparse*(false is default ) update option in the Triton configuration file (config.pbtxt).
-
- ```
- parameters:[
-    ...
-  {
-  key: "freeze_sparse"
-  value: { string_value: "true" }
-  }
-    ...
-]
- ```
-
- - Recycle old models: [The unload API](https://github.com/triton-inference-server/server/blob/master/docs/protocol/extension_model_repository.md#unload) will request that the HugeCTR model network's weights be unloaded from Triton and release the corresponding embedded cache from devices, which means the embedding tables corresponding to the model will still remain in the Inference Hierarchical Parameter Server Database.
-
- For specific samples, please refer to the [Triton Update Model](samples/hierarchical_deployment/hps_e2e_demo/Triton_Update_Model.ipynb). 
-
-**NOTE:** Depending on the [Triton model's version policy](https://github.com/triton-inference-server/server/blob/main/docs/user_guide/model_configuration.md#version-policy), changes to the available versions may change which model version is served by default.
-
- ## Metrix
- Triton provides Prometheus metrics indicating GPU and request statistics. Use Prometheus to gather metrics into usable, actionable entries, giving you the data you need to manage alerts and performance information in your environment. Prometheus is usually used along side Grafana. Grafana is a visualization tool that pulls Prometheus metrics and makes it easier to monitor. You can build your own metrix system based on our example, see [HugeCTR Backend Metrics](docs/metrics.md).  
-
-
+   For more reference, see [Triton example backends](https://github.com/triton-inference-server/backend/blob/main/examples/README.md) and [Triton backend shared library](https://github.com/triton-inference-server/backend#backend-shared-library).
+  
 ## Independent Inference Hierarchical Parameter Server Configuration
-In the latest version, Hugectr backend has decoupled the inference Parameter Server-related configuration from the Triton configuration file(config.pbtxt), making it easier to configure the embedding table-related parameters per model. Especially for the configuration of multiple embedded tables per model, avoid too many command parameters when launching the Triton server.
+The HPS backend configuration file is basically the same as HugeCTR inference Parameter Server related configuration format, and some new configuration items are added for the HPS backend. Especially for the configuration of multiple embedded tables per model, avoid too many command parameters and reasonable memory pre-allocation when launching the Triton server.
 
-In order to deploy the HugeCTR model, some customized configuration items need to be added as follows.
-The configuration file of inference Parameter Server should be formatted using the JSON format.  
+In order to deploy the embedding table on HPS Backend, some customized configuration items need to be added as follows.
+The configuration file of HPS Backend should be formatted using the JSON format.  
 
-**NOTE**: The Models clause needs to be included as a list, the specific configuration of each model as an item. **sparse_file** can be filled with multiple embedding table paths to support multiple embedding tables per model. Please refer to [VCSR Example](docs/architecture.md#variant-compressed-sparse-row-input) for modifying the input data format to support multiple embedding tables per model.   
+**NOTE**: The Models clause needs to be included as a list, the specific configuration of each model as an item. **sparse_file** can be filled with multiple embedding table paths to support multiple embedding tables per model.    
 
 ```json.
 {
-    "models":[
-        {
-            "model":"dcn",
-            "sparse_files":["/model/dcn/1/0_sparse_file.model"],
-            "dense_file":"/model/dcn/1/_dense_file.model",
-            "network_file":"/model/dcn/1/dcn.json",
-            "num_of_worker_buffer_in_pool": 4
-            "deployed_device_list":[0],
-            "max_batch_size":1024,
-            "default_value_for_each_table":[0.0],
-            "hit_rate_threshold":0.9,
-            "gpucacheper":0.5,
-            "gpucache":true,
-            "maxnum_des_feature_per_sample": 13,
-            "maxnum_catfeature_query_per_table_per_sample":[26],
-            "embedding_vecsize_per_table":[128],
-            "slot_num":26
-        },
-        {
-            "model":"wdl",
-            "sparse_files":["/model/wdl/1/0_sparse_2000.model","/model/wdl/1/1_sparse_2000.model"],
-            "dense_file":"/model/wdl/1/_dense_2000.model",
-            "network_file":"/model/wdl/1/wdl_infer.json",
-            "num_of_worker_buffer_in_pool": 4,
-            "deployed_device_list":[1],
-            "max_batch_size":1024,
-            "default_value_for_each_table":[0.0,0.0],
-            "hit_rate_threshold":0.9,
-            "gpucacheper":0.5,
-            "gpucache":true,
-            "maxnum_des_feature_per_sample": 13,
-            "maxnum_catfeature_query_per_table_per_sample" : [2,26],
-            "embedding_vecsize_per_table" : [1,15],
-            "slot_num":28
+    "supportlonglong": true,
+    "volatile_db": {
+        "type": "hash_map",
+        "user_name": "default",
+        "num_partitions": 8,
+        "max_batch_size": 100000,
+        "overflow_policy": "evict_random",
+        "overflow_margin": 10000000,
+        "overflow_resolution_target": 0.8,
+        "initial_cache_rate": 1.0
+    },
+    "persistent_db": {
+        "type": "disabled"
+    },
+    "models": [{
+        "model": "hps_wdl",
+        "sparse_files": ["/hps_infer/embedding/hps_wdl/1/wdl0_sparse_2000.model", "/hps_infer/embedding/hps_wdl/1/wdl1_sparse_2000.model"],
+        "num_of_worker_buffer_in_pool": 3,
+        "embedding_table_names":["embedding_table1","embedding_table2"],
+        "embedding_vecsize_per_table":[1,16],
+        "maxnum_catfeature_query_per_table_per_sample":[2,26],
+        "default_value_for_each_table":[0.0,0.0],
+        "deployed_device_list":[0],
+        "max_batch_size":1024,
+        "hit_rate_threshold":0.9,
+        "gpucacheper":0.5,
+        "gpucache":true
         }
-    ]  
+    ]
 }
 ```
 
-## HugeCTR Inference Hierarchical Parameter Server 
-HugeCTR Inference Hierarchical Parameter Server implemented a hierarchical storage mechanism between local SSDs and CPU memory, which breaks the convention that the embedding table must be stored in local CPU memory. `volatile_db Database` layer allows utilizing Redis cluster deployments, to store and retrieve embeddings in/from the RAM memory available in your cluster. The `Persistent Database` layer links HugeCTR with a persistent database. Each node that has such a persistent storage layer configured retains a separate copy of all embeddings in its locally available non-volatile memory. see [Distributed Deployment](docs/architecture.md#distributed-deployment-with-hierarchical-hugectr-parameter-server) and [HugeCTR Inference Hierarchical Parameter Server](hps_backend/docs/hierarchical_parameter_server.md) for more details.
+## Model Repository Extension
+Since the HPS Backend is a customizable Triton component, it is capable of supporting the Model Repository Extension. Triton's Model Repository Extension allows you to query and control model repositories that are being served by Triton. The “model_repository” is reported in the Extensions field of its server metadata. For more information, see [Model Repository Extension](https://github.com/triton-inference-server/server/blob/master/docs/protocol/extension_model_repository.md).  
+
+The HPS Backend is fully compatible with the [Model Control EXPLICIT Mode](https://github.com/triton-inference-server/server/blob/main/docs/user_guide/model_management.md#model-control-mode-explicit) of Triton. Adding the configuration of a new model to the HPS configuration file. The HPS Backend has supported online deployment of new models by [the load API](https://github.com/triton-inference-server/server/blob/master/docs/protocol/extension_model_repository.md#load) of Triton. The old models can also be recycled online by [the unload API](https://github.com/triton-inference-server/server/blob/master/docs/protocol/extension_model_repository.md#unload).
+
+The following should be noted when using Model Repository Extension functions:  
+ - Depoly new models online: [The load API](https://github.com/triton-inference-server/server/blob/master/docs/protocol/extension_model_repository.md#load) will load not only the network dense weight as part of the HugeCTR model, but inserting the embedding table of new models to Hierarchical Inference Parameter Server and creating the embedding cache based on model definition in [Independent Parameter Server Configuration](#independent-inference-hierarchical-parameter-server-configuration), which means the Parameter server will independently provide an initialization mechanism for the new embedding table and embedding cache of new models.  
+ 
+**Note:** If using the [HPS Inference Online Update](#hierarchical-parameter-server-online-update), in order to avoid the embedding table from being updated repeatedly by adding the *freeze_sparse*(false is default ) update option in the Triton configuration file (config.pbtxt).
+
+ ```
+ parameters:[
+    ...
+  {
+  key: "freeze_sparse"
+  value: { string_value: "true" }
+  }
+    ...
+]
+ ```
+
+## Metrix
+ Triton provides Prometheus metrics indicating GPU and request statistics. Use Prometheus to gather metrics into usable, actionable entries, giving you the data you need to manage alerts and performance information in your environment. Prometheus is usually used along side Grafana. Grafana is a visualization tool that pulls Prometheus metrics and makes it easier to monitor. You can build your own metrix system based on our example, see [HPS Backend Metrics](docs/metrics.md).  
+
+ 
+## HPS Inference Hierarchical Parameter Server 
+HPS Inference Hierarchical Parameter Server implemented a hierarchical storage mechanism between local SSDs and CPU memory, which breaks the convention that the embedding table must be stored in local CPU memory. `volatile_db Database` layer allows utilizing Redis cluster deployments, to store and retrieve embeddings in/from the RAM memory available in your cluster. The `Persistent Database` layer links HPS with a persistent database. Each node that has such a persistent storage layer configured retains a separate copy of all embeddings in its locally available non-volatile memory. see [Distributed Deployment](docs/architecture.md#distributed-deployment-with-hierarchical-hugectr-parameter-server) and [ Hierarchical Parameter Server](docs/hierarchical_parameter_server.md) for more details.
 
 In the following table, we provide an overview of the typical properties different parameter database layers (and the embedding cache). We emphasize that this table is just intended to provide a rough orientation. Properties of actual deployments may deviate.
 
@@ -215,10 +210,9 @@ Further, we revised support for “distributed” storage of embeddings in a Red
 Further, we performance-optimized support for the “persistent” storage and retrieval of embeddings via RocksDB through the structured use of column families.
 Creating a hierarchical storage (i.e. using Redis as distributed cache, and RocksDB as fallback), is supported as well. These advantages are free to end-users, as there is no need to adjust the PS configuration.  
 
-## HugeCTR Inference Hierarchical Parameter Server Online Update
+## Hierarchical Parameter Server Online Update
 
-If an incremental update has been applied to some embedding table entries, either during online training (=frequent/incremental updates), or after completing an offline training, the latest versions of the respectively updated embeddings have to be propagated to all inference nodes. Our HPS achieves this functionality using a dedicated online updating mechanism. The blue data-flow graph in below figure illustrates this process. First, the training nodes dump their updates to an [Apache Kafka-based message buffer](https://link.springer.com/referenceworkentry/10.1007/978-3-319-63962-8_196-1). This is done via our **Message Producer API**, which handles serialization, batching, and the organization of updates into distinct message queues for each embedding table. Inference nodes that have loaded the affected model can use the corresponding **Message Source API** to discover and subscribe to these message queues. Received updates are then subsequently applied to the respective local VDB shards and the PDB. The GPU embedding cache polls its associated VDB/PDB for updates and replaces embeddings if necessary. This refresh cycle is configurable to best fit the training schedule. When using online training, the GPU embedding cache periodically (e.g., every $n$ minutes, hours, etc.) scans for updates and refresh its contents. During offline training, poll-cycles are instigated by the [Triton model management API](https://github.com/triton-inference-server/server/blob/main/docs/user_guide/model_management.md#model-control-mode-explicit). For specific samples, please refer to [Continuous Training](samples/hierarchical_deployment/hps_e2e_demo/Continuous_Training.ipynb) 
+If an incremental update has been applied to some embedding table entries, either during online training (=frequent/incremental updates), or after completing an offline training, the latest versions of the respectively updated embeddings have to be propagated to all inference nodes. Our HPS achieves this functionality using a dedicated online updating mechanism. The blue data-flow graph in below figure illustrates this process. First, the training nodes dump their updates to an [Apache Kafka-based message buffer](https://link.springer.com/referenceworkentry/10.1007/978-3-319-63962-8_196-1). This is done via our **Message Producer API**, which handles serialization, batching, and the organization of updates into distinct message queues for each embedding table. Inference nodes that have loaded the affected model can use the corresponding **Message Source API** to discover and subscribe to these message queues. Received updates are then subsequently applied to the respective local VDB shards and the PDB. The GPU embedding cache polls its associated VDB/PDB for updates and replaces embeddings if necessary. This refresh cycle is configurable to best fit the training schedule. When using online training, the GPU embedding cache periodically (e.g., every $n$ minutes, hours, etc.) scans for updates and refresh its contents. During offline training, poll-cycles are instigated by the [Triton model management API](https://github.com/triton-inference-server/server/blob/main/docs/user_guide/model_management.md#model-control-mode-explicit). 
 
 <div align=center><img img width="80%" height="80%" src ="docs/user_guide_src/HugeCTR_Online_Update.png"/></div>
-<div align=center>Fig. 1. HugeCTR Inference Online Update</div>
-
+<div align=center>Fig. 1. HPS Inference Online Update</div>

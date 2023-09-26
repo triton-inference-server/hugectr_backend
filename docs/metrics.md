@@ -28,10 +28,10 @@
  
 [![License](https://img.shields.io/badge/License-BSD3-lightgrey.svg)](https://opensource.org/licenses/BSD-3-Clause)
  
-HugeCTR Backend Metrics
+HPS Backend Metrics
 ==============================
  
-Prometheus is an open monitoring solution. Users can easily install and use Prometheus and can easily expand it. In order to have a more intuitive understanding of the performance of hugectr backend in inference,we will deploy and run a Prometheus Server instance locally, and collect all kinds of indicators for runtime inference by Triton metrics API. And create a simple visual dashboard through Grafana.
+Prometheus is an open monitoring solution. Users can easily install and use Prometheus and can easily expand it. In order to have a more intuitive understanding of the performance of HPS Backend in inference,we will deploy and run a Prometheus Server instance locally, and collect all kinds of indicators for runtime inference by Triton metrics API. And create a simple visual dashboard through Grafana.
   
 ## Install the Prometheus Server
  
@@ -103,7 +103,7 @@ level=info ts=2021-05-20T15:32:45.660Z caller=main.go:771 msg="Completed loading
 level=info ts=2021-05-20T15:32:45.660Z caller=main.go:626 msg="Server is ready to receive web requests."
 ```
  
-## Initial HugeCTR Backend Monitoring Indicators
+## Initial HPS Backend Monitoring Indicators
  
 Triton provides Prometheus metrics indicating GPU and request statistics. By default, these metrics are available at http://localhost:8002/metrics. The metrics are only available by accessing the endpoint, and are not pushed or published to any remote server. The metric format is plain text so you can view them directly, for example:
 ```
@@ -130,14 +130,14 @@ Among them, **HELP** is used to explain the meaning of the current indicator, an
  
  
 ## Collect Monitoring Data from Triton Metrics
-In order to enable Prometheus Server to obtain monitoring data from the current HugeCTR Backend, the Prometheus configuration file needs to be modified as follows. Edit prometheus.yml and add the following content under the scrape_configs node:
+In order to enable Prometheus Server to obtain monitoring data from the current HPS Backend, the Prometheus configuration file needs to be modified as follows. Edit prometheus.yml and add the following content under the scrape_configs node:
  ```
  scrape_configs:
   - job_name: 'prometheus'
     static_configs:
       - targets: ['localhost:9090']
-  # Collect HugeCTR Backend performance indicators
-  - job_name: 'hugectr_backend'
+  # Collect HPS Backend performance indicators
+  - job_name: 'hps_backend'
     static_configs:
       - targets: ['inference_node:8002']
 ```
@@ -147,13 +147,13 @@ Restart Prometheus Server
 Visit http://localhost:9090 to enter Prometheus Server. If you enter "up" and click the execute button, you can see the following results:
  
 <div align=center><img src ="user_guide_src/Prometheus Console.png"/></div>
-<div align=center>Fig. 1. Prometheus Console for HugeCTR Backend</div>  
+<div align=center>Fig. 1. Prometheus Console for HPS Backend</div>  
 
  
 If Prometheus can get data from the node exporter normally, you will see the following results:
 ```
 up{instance="localhost:9090",job="prometheus"} 1
-up{instance="10.23.137.25:8002",job="hugectr_backend"} 1
+up{instance="10.23.137.25:8002",job="hps_backend"} 1
 ```
 Among them, "1" means normal, otherwise, "0" means abnormal.
  
@@ -163,7 +163,7 @@ Prometheus UI is a built-in visual management interface of Prometheus. Through P
 Switch to the Graph panel, and users can use PromQL expressions to query the monitoring data of specific monitoring indicators. As shown below, to query the utilization of GPU change, you can use the keyword **nv_gpu_utilization** to query the utilization of the GPU load collected by Prometheus. These sample data are displayed in chronological order, forming a trend chart of the nv_gpu_utilization over time:
  
 <div align=center><img src ="user_guide_src/Prometheus Graph.png"/></div>
-<div align=center>Fig. 2. Prometheus Graph for HugeCTR Backend</div>
+<div align=center>Fig. 2. Prometheus Graph for HPS Backend</div>
  
 ## Use Grafana to Create a Visual Dashboard
 Prometheus UI provides the ability to quickly verify PromQL and temporary visualization support. In most scenarios, the introduction of a monitoring system usually requires the construction of a long-term monitoring data visualization panel (Dashboard). Therefore, users can consider using third-party visualization tools such as Grafana. Grafana is an open source visualization platform and provides complete support for Prometheus.  
@@ -181,4 +181,4 @@ Here, Prometheus will be added as the default data source. As shown in the figur
 After adding the data source, we can create our visualization Dashboard in Grafana. Grafana provides complete support for PromQL. As shown below, add a Dashboard through Grafana and add a "Graph" panel to the Dashboard. And under the "Metrics" option of this panel, query the data that needs to be visualized through PromQL:
  
 <div align=center><img src ="user_guide_src/Grafana_Dashboard.png"/></div>
-<div align=center>Fig. 4. Grafana Dashboard for HugeCTR Backend</div>
+<div align=center>Fig. 4. Grafana Dashboard for HPS Backend</div>

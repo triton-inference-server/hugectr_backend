@@ -1,32 +1,32 @@
-HugeCTR Inference Architecture
+Hierarchical Parameter Server Architecture
 ==============================
 
-The HugeCTR Backend is a GPU-accelerated recommender model deployment framework that is designed to effectively use the GPU memory to accelerate the inference through decoupling the Parameter Server, embedding cache, and model weight. The HugeCTR Backend supports concurrent model inference execution across multiple GPUs through the use of an embedding cache that is shared between multiple model instances.
+The Hierarchical Parameter Server(HPS) Backend is a framework for embedding vectors lookup on large-scale embedding tables that was designed to effectively use GPU memory to accelerate the lookup by decoupling the embedding tables and embedding cache from the end-to-end inference pipeline of the deep recommendation model. The HPS Backend supports  executing multiple embedding vector lookup services concurrently across multiple GPUs by embedding cache that is shared between multiple look_up sessions.
 
 ## Design
-The HugeCTR Backend adopts a hierarchical framework to prevent services from being affected in multiple models that are deployed on multiple GPUs by isolating the loading of embedding tables through the Parameter Server, as well as achieving high service availability through the embedding cache. The GPU cache is used to accelerate the embedding vector lookup efficiency during the inference process. 
+The HPS Backend adopts a hierarchical framework to prevent services from being affected in multiple different lookup sevices that are deployed on multiple GPUs by isolating the loading of embedding tables through the Hierarchical Parameter Server storeage, as well as achieving high service availability through the the shared embedding cache. The GPU cache is used to accelerate the embedding vector lookup efficiency during the inference process. 
 
-The HugeCTR Backend also offers the following:
+The HPS Backend also offers the following:
 
-* **Concurrent Model Execution**: Multiple models and instances of the same model can run simultaneously on the same GPU or multiple GPUs.
+* **Concurrent Model Execution**: Multiple lookup sessions of the same embedding tables can run simultaneously on the same GPU or multiple GPUs.
 * **Extensible Backends**: The Inference interface provided by HugeCTR can be easily integrated with the backend API, which allows models to be extended with any execution logic using Python or C++.
-* **Easy Deployment of New Models**: Updating a model should be as transparent as possible and should not affect the inference performance. This means that no matter how many models need to be deployed, as long as these models were trained using HugeCTR, they can be loaded through the same HugeCTR backend API. **Note**: It might be necessary to update configuration files for each model in some cases.
+* **Easy Deployment of New Embedding Tables**: Updating a embedding tables should be as transparent as possible and should not affect the lookup performance. This means that no matter how many embedding tables of different models need to be deployed, as long as the training embedding table conforms to the input format of key-value pairs, it can be deployed in the HPS backend to provide efficient embedding vector lookup services, they can be loaded through the same HPS backend API. **Note**: It might be necessary to update configuration files for each model in some cases. For the specific input format of the embedding table, please refer to [here](#hierarchical-parameter-server-input-format)
 
-### HugeCTR Backend Framework
+### HPS Backend Framework
 The following components make up the HugeCTR Backend framework:
 
-* The **Parameter Server** is responsible for loading and managing large embedding tables that belong to different models. The embedding tables provide syncup and update services for the embedding cache. It also ensures that the embedding table is completely loaded and updated regularly.
+* The **Hierarchical Database Backend** is responsible for loading and managing large embedding tables that belong to different models. The embedding tables provide syncup and update services for the embedding cache. It also ensures that the embedding table is completely loaded and updated regularly.
 * The **Embedding Cache** can be loaded directly into the GPU memory. Thereby, it provides embedding vector lookup functionalities for the model, thus, avoiding the comparatively high latencies incurred when transferring data  from the Parameter Server (CPU and GPU transfer). It also provides the update mechanism for loading the latest cached embedding vector in time to ensure a high hit througput rate.
-* The **Model** is much smaller than the embedding table, so it can usually be directly loaded into the GPU memory to accelerate inference. The model can interact directly with the embedding cache in the GPU memory to obtain embedding vectors. Based on the hierarchical design structure, multiple model instances will share embedding cache in the GPU memory to enforce concurrent model execution. Based on the dependencies of the hierarchical level, the embedding table can be decoupled from the lookup operation of the model, which implements an efficient and low-latency lookup operation by relying on the embedding cache. This makes it possible to implement inference logic using interface-by-interface initialization and dependency injection.  
+* The **Lookup Session/Instance** can interact directly with the embedding cache in the GPU memory to obtain embedding vectors. Based on the hierarchical design structure, multiple lookup instances will share embedding cache in the GPU memory to enforce concurrent lookup execution. Based on the dependencies of the hierarchical storage, GPU caching completely decouples embedding vectors lookup services from the host,which implements an efficient and low-latency lookup operation relying on the GPU embedding cache. Meanwhile, the Lookup Session/Instance is thread-safe and can be launched concurrently with multiple threads to improve the QPS of the inference service. 
 
 Here's an in-depth look into the design framework of the HugeCTR Inference interface:
 
-<div align=center><img src ="user_guide_src/HugeCTR_Inference_Interface_Design.png"/></div>
-<div align=center>Fig. 1. HugeCTR Inference Design Architecture</div>
+<div align=center><img src ="user_guide_src/Hierarchical_Parameter_Server_Design_Architecture.png" width="50%"/></div>
+<div align=center>Fig. 1. Hierarchical Parameter Server Design Architecture</div>
 
-In actual applications, a Parameter Server is used to load the embedding tables for all models. Since different models will obtain different embedding tables by training in different application scenarios, high memory overheads are to be expected during the inference process. By introducing a Parameter Server, the embedding table can be loaded directly into the GPU memory when the embedding table size is small, or if the GPU resources are exhausted, be loaded into the CPU's memory, or even into the solid-state drive (SSD) when the embedding table size is too large. This ensures that different models and the embedding tables shared between these models are isolated.
+In actual applications, a Hierarchical Parameter Server is used to load the embedding tables for all models. Since different models will obtain different embedding tables by training in different application scenarios, high memory overheads are to be expected during the inference process. By introducing a Parameter Server, the embedding table can be loaded directly into the GPU memory when the embedding table size is small, or if the GPU resources are exhausted, be loaded into the CPU's memory, or even into the solid-state drive (SSD) when the embedding table size is too large. This ensures that different models and the embedding tables shared between these models are isolated.
 
-Each embedding table will create an individual embedding cache on different GPUs. The embedding cache treats the embedding table as the smallest granularity, which means that the embedding cache can look up and synchronize with the corresponding embedding table directly. This mechanism ensures that multiple model instances for the same model can share the same embedding cache on the deployed GPU node. 
+Each embedding table will create an individual embedding cache on different GPUs. The embedding cache treats the embedding table as the smallest granularity, which means that the embedding cache can look up and synchronize with the corresponding embedding table directly. This mechanism ensures that multiple lookup instances for the same embedding table can share the same embedding cache on the deployed GPU node. 
 
 ### Enabling the GPU Embedding Cache
 When the GPU embedding cache mechanism is enabled, the model will look up the embedding vector from the GPU embedding cache. If the embedding vector does not exist in the GPU embedding cache, it will return the default embedding vector. The default value is 0.  
@@ -66,48 +66,47 @@ The following parameters have to be set in the ps.json file for the HugeCTR Back
    * If the real hit rate of the GPU embedding cache lookup embedding keys is lower than the user-defined threshold, the GPU embedding cache will insert the missing vector into the embedding cache synchronously. 
    * If the real hit rate of the GPU embedding cache lookup is greater than the threshold set by the user, the GPU embedding cache will choose to insert the missing key asynchronously.  
 
-   The hit rate threshold must be set in the Parameter Server JSON file. For example, see [HugeCTR Backend configuration]( ../samples/README.md#HugeCTR_Backend_configuration). 
+   The hit rate threshold must be set in the Parameter Server JSON file. For more details, see [HugeCTR HPS Configuration Book](https://nvidia-merlin.github.io/HugeCTR/main/hierarchical_parameter_server/hps_database_backend.html#configuration). 
 
-* **Periodically refresh the embedding cache**: Refresh operation will be triggered when the sparse model files need to be updated into GPU embedding cache. After completing the version iteration or incremental parameters update of the model on the training side, the latest embedding table needs to be updated to the embedding cache on the inference server. In order to ensure that the running model can be updated online, we will update the Localized RocksDB and Distributed Redis Cluster through the distributed event streaming platform(Kafka). At the same time, the embedding  keys in the GPU embedding cache are periodically refreshed based on the `"refresh_interval"` seconds configured by user, which should be added into customized  `parameters` block in `config.pbtxt` file as follows:
 
-```json.
- ...
-  parameters [
-  {
-  ...,
-  {
-  key: "refresh_interval"
-  value: { string_value: "0" }
-  },
-...
-]
-```  
-  Please refer to [HugeCTR Backend configuration]( ../samples/README.md#HugeCTR_Backend_configuration) for details.  
-
-### Disabling the GPU Embedding Cache
 When the GPU embedding cache mechanism is disabled (i.e., `"gpucache"` is set to `false`), the model will directly look up the embedding vector from the Parameter Server. In this case, all remaining settings pertaining to the GPU embedding cache will be ignored.
 
-## Localized Deployment
-The Parameter Server implements localized deployment on the same nodes and cluster. Each node only has one GPU and Parameter Server that is deployed on the same node. Here are several deployment scenarios that HugeCTR supports:
+### List of other required configurations
+ ```json.
+ ...
+    "models":[
+    {
+      ...
+      "model": "hps_wdl",
+		  "sparse_files": ["../wdl0_sparse_2000.model", "../wdl1_sparse_2000.model"],
+		  "embedding_table_names":["table1","table2"],
+		  "embedding_vecsize_per_table":[1,16],
+       "maxnum_catfeature_query_per_table_per_sample":[2,26],
+		  "deployed_device_list":[3],
+		  "max_batch_size":1024,
+      ...
+    }
+  ]  
+...
+]
+```
+* **model**: This item will be used to assist in generating the corresponding data table name and topic name during incremental update in the backend database.
+* **sparse_files**: This item will be used to indicate the embedded table path that needs to be read when HPS loads and updates.
+* **deployed_device_list**: Indicate the list of devices used to deploy HPS.
+* **max_batch_size**: This item specifies the number of samples per lookup request.
+* **embedding_vecsize_per_table**: This item determines the pre-allocated memory size on the host and device.  For the case of multiple embedding tables, we assume that the size of the embedding vector in each embedding table is different, then this configuration item requires the user to fill in each embedding table with maximum vector size. 
+* **maxnum_catfeature_query_per_table_per_sample**: List[Int], this item determines the pre-allocated memory size on the host and device. We assume that for each input sample, there is a maximum number of embedding keys per sample in each embedding table that need to be looked up, so the user needs to configure the [ Maximum(the number of embedding keys that need to be queried from embedding table 1 in each sample), Maximum(the number of embedding keys that need to be queried from embedding table 2 in each sample), ...] in this item. This is a mandatory configuration item.
 
-* Scenario 1: One GPU (Node 1) deploys one model so that the hit rate of the embedding cache will be maximized by launching multiple parallel instances.
-* Scenario 2: One GPU (Node 2) deploys multiple models so that the GPU resources can be maximized. A balance between the number of concurrent instances and multiple embedding caches is needed to ensure efficient use of the GPU memory. Data transmission between each embedding cache and Parameter Server will be an independent cuda stream.  
+* **maxnum_des_feature_per_sample**: Int, each sample may contain a varying number of numeric (dense) features. This item so the user needs to configure the value of Maximum(the number of dense feature in each sample) in this item, which determines the pre-allocated memory size on the host and device. The default value is `26`.
 
-  **NOTE**: Multiple GPUs and a Parameter Server is deployed on each node in the examples noted below.
-  
-* Scenario 3: Multiple GPUs (Node 3) deploys a single model in which the Parameter Server can help increase the hit rate of the embedding cache between GPUs.
-* Scenario 4: Multiple GPUs (Node 4) deploys multiple models, and with this being the most complicated scenario for localized deployment, it is necessary to ensure that different embedding caches can share the same Parameter Server and different models can share embedding caches on the same node.  
-
-<div align=center><img src ="user_guide_src/HugeCTR_Inference_Localized_Deployment.png"/></div>
-<div align=center>Fig. 2. HugeCTR Inference Localized Deployment Architecture</div>  
-  
+* **embedding_table_names**: List[String], this configuration item needs to be filled with the name of each embedded table, which will be used to name the data partition and data table in the hierarchical database backend. The default value is `["sparse_embedding1", "sparse_embedding2", ...]`
     
 ## Distributed Deployment with Hierarchical HugeCTR Parameter Server ##
 The hierarchical HugeCTR parameter server (PS) allows deploying models that exceed the existing GPU memory space, while retaining a relatively low latency. To provide this functionality, our PS exhibits a hierarchical structure that can make use of the various memory resources of each cluster node. In other words, the hierachical parameter server utilizes Random Access Memory (RAM) and non-volatile memory resources in your cluster to extend the embedding cache and allow faster response times for ver large datasets.
 
 At the bottom of the hierachy exists a permanent storage layer that maintains a full copy of your embedding tables in an inexpensive non-volatile memory location (typically file-system-based, e.g., a SSD/HDD). To improve access performance, various volatile memories such as local, but also remote RAM-resources can be utilized, thus, forming a cache hierarchy.
 
-As of version 3.3 of HugeCTR individual hierarchy stages of the hierachical parameter server are individually configurable. To introduce the concept, we next present a minimal configuration, where the local SSD/HDD of each node stores a fallback copy of the entire embedding table in a RocksDB column group, and via a Redis cluster, portions of the RAM in each node are used as a cache for frequently used embeddings. This configuration is equivalent to `"db_type" = "hierarchy"` in previous versions of HugeCTR. Please refer to the [HugeCTR Inference Hierarchical Parameter Server](../hps_backend/docs/hierarchical_parameter_server.md) for details.
+The hierarchy storage of the hierachical parameter server are individually configurable. To introduce the concept, we next present a minimal configuration, where the local SSD/HDD of each node stores a fallback copy of the entire embedding table in a RocksDB column group, and via a Redis cluster, portions of the RAM in each node are used as a cache for frequently used embeddings. Please refer to the [HugeCTR Inference Hierarchical Parameter Server](hierarchical_parameter_server.md) for details.
 
 ```json
 {
@@ -180,39 +179,148 @@ For ultra-large-scale embedding tables that still cannot fully load into the Red
   }
   ```
 
-<div align=center><img src ="user_guide_src/HugeCTR_Inference_Hierarchy.png"/></div>
-<div align=center>Fig. 3. HugeCTR Inference Distributed Deployment Architecture</div>
+<div align=center><img src ="user_guide_src/Hierarchical_Parameter_Server.png" width="80%"/></div>
+<div align=center>Fig. 2. HPS Inference Distributed Deployment Architecture</div>
 
-## Variant Compressed Sparse Row Input ##
-The Variant Compressed Sparse Row (CSR) data format is typically used as input for HugeCTR models. It allows efficiently reading the data, obtaining data semantic information from the raw data, and avoids consuming too much time for data parsing. NVTabular has to output the corresponding slot information to indicate the feature files for the categorical data. Using the variant CSR data format, the model obtains the feature field information when reading data from the request. Addtionally, the inference process is sped up by avoiding excessive request data processing. For each sample, there are three main types of input data: 
- 
-* **Dense Feature**: Represents the actual numerical data.
-* **Column Indices**: The upstream preprocessing tool where NVTabular performs one-hot and multi-hot encoding on categorical data and converts it into numerical data.  
-* **Row ptr**: Contains the number of categorical features per slot. 
+## Hierarchical Parameter Server Input Format ##
+### Embedding Table Input Format
+Each embedding table supported by the HPS is supposed to have a list of embedding key files and vector files. The two lists are in one-to-one correspondence. Each key-vector file pair represents an embedding table with the same vector size.  
+The file format of the **key file** as follows:
+* Keys are stored in binary format using the respective host system’s native byte order.
 
-<div align=center><img src ="user_guide_src/HugeCTR_Inference_Input_Format.png"/></div>
-<div align=center>Fig. 4. HugeCTR Inference VCSR Input Format</div>
+* There are no separators between keys.
 
-### VCSR Example
-#### Single Embedding Table Per Model
-Take the **Row 0**, a sample, of the figure above as an example. The input data contains four slots and HugeCTR parses the Row 0 slot information according to the "Row ptr" input. All the embedding vectors are stored in a single embedding table.
+* All keys use the same data type as the categorical features in the dataset (i.e., long long).
 
-<div align=center><img img width="80%" height="80%" src ="user_guide_src/HugeCTR_Inference_VCSR_Example1.png"/></div>
-<div align=center>Fig. 5. HugeCTR Inference VCSR Example for Single Embedding Table per Model</div>
+* There are no requirements with respect to the sequential ordering. Hence, keys may be stored in any order.
 
-* Slot 1: Contains **1** categorical feature and the embedding key is 1. 
-* Slot 2: Contains **1** categorical feature and the embedding key is 3.
-* Slot 3: Contains **0** categorical features.
-* Slot 4: Contains **2** categorical features and the embedding keys are 8 and 9. HugeCTR will look up two embedding vectors from the GPU's embedding cache or the Parameter Server and end up with one final embedding vector for slot 4.
+The file format of the **vector file** as follows:
 
-#### Multiple Embedding Table Per Model
+* Vectors are stored in binary format using the respective host system’s native byte order.
 
-Again, we take the **Row 0**, a sample, of the figure above as an example. However, this time we assume that the input data consists of four slots, where the first two slots (Slot 1 and Slot 2) belong to the first embedding table, and the last two slots (Slot 3 and Slot 4) belong to the second table. So two independent **Row prts** are required to form the complete **Row prts** in the input data.
+* There are no separators between vectors.
 
-<div align=center><img img width="80%" height="80%" src ="user_guide_src/HugeCTR_Inference_VCSR_Example2.png"/></div>
-<div align=center>Fig. 5. HugeCTR Inference VCSR Example for Muliple Embedding Tables per Model</div>
+* All vectors use the same data type (i.e., float).
 
-* Slot 1: Contains **1** categorical feature and the embedding key is 1. The corresponding embedding vector is stored in embedding table 1.  
-* Slot 2: Contains **1** categorical feature and the embedding key is 3. The corresponding embedding vector is stored in embedding table 1.
-* Slot 3: Contains **0** categorical features.
-* Slot 4: Contains **2** categorical features and the embedding keys are 8 and 9. The corresponding embedding vectors are stored in embedding table 2. In this case, HugeCTR will look up two embedding vectors from the GPU's embedding cache or the Parameter Server and end up with one final embedding vector for slot 4.
+* **Each vector needs to have a strict one-to-one correspondence with the order in the key file**.
+
+<div align=center><img src ="user_guide_src/Embedding_Table_Format.png" width="80%"/></div>
+<div align=center>Fig. 3. HPS Embedding Table Format</div>
+
+The storage levels of key-vector files corresponding to different embedding tables are as follows:
+```
+|-- embedding_table1
+|   |-- emb_vector
+|   `-- key
+`-- embedding_table2
+    |-- emb_vector
+    `-- key
+```  
+
+### Lookup Request Format
+In order to effectively support batch concurrent lookup performance, the HPS backend makes the following requirements for the input request format. For each batch, two types of information need to be included in the request:
+
+* **Embedding Keys**: The embedding keys to be looked-up for all samples in each batch.
+* **The Number of Keys per Embedding Table**: Contains the number of embedding keys per embedding tables need to be looked-up. 
+
+#### Request Example
+We assume that the batch size in request is 2(two samples), and each sample needs to lookup the embedding vector from two embedding tables with different embedding vector sizes, which means the first two embedding keys in each sample need to be looked-up from the Embedding Table 1. The last 26 embedding keys are queried from Embedded Table 2. Therefore, the input request format is as follows:
+
+<div align=center><img src ="user_guide_src/Request_Format.png" width="80%"/></div>
+<div align=center>Fig. 4. HPS Backend Request Example</div>
+
+## Hierarchical Parameter Server API List ##
+
+## List of Native API
+* [HPS Backend](#hps-backend)
+   * [create()](#create-hps)
+   * [get_hps_model_configuration_map()](#get-hps-configuration-struct)
+* [Embedding Cache](#embedding-cache)
+   * [get_embedding_cache()](#create-embedding-cache) 
+* [Lookup Session Base](#lookup-session-base)
+  * [create()](#create-lookup-session)
+  * [lookup()](#lookup-embedding-keys)
+
+
+
+### **HPS Backend** ###
+#### **Create HPS**
+```hash
+HugeCTR::HierParameterServerBase::create()
+```
+
+`HierParameterServerBase::create()` returns an `HugeCTR::HierParameterServerBase` object according to the Parameter Server json configuration，which specify the hierarcgical storage resources.
+
+**Arguments**
+* `ps_json_config_file_`: String, the path of the parameter server json configuration file. The default value is empty string. 
+
+Example:
+```C++
+hps = HugeCTR::HierParameterServerBase::create(ps_json_config_file_);
+```
+
+#### **Get HPS Configuration Struct**
+```hash
+get_hps_model_configuration_map()
+```
+`get_hps_model_configuration_map()` returns an map of modelname  and corresponding model configuration struct, which is`std::map<std::string, InferenceParams>` object , and the configuration struct will be used to create a `HugeCTR::LookupSessionBase` object.
+
+**Arguments**
+* `model_name`: String, the name of model, which must be consistent with the ps json configuration file.
+
+Example:
+```C++
+model_config = HPS->get_hps_model_configuration_map(model_name);
+```
+
+### **Embedding Cache** ###
+#### **Create Embedding Cache**
+```hash
+get_embedding_cache()
+```
+`get_embedding_cache()` returns an `HugeCTR::EmbeddingCacheBase` object, which the correspoding model cache on the specified  device and used to create a `HugeCTR::LookupSessionBase` object.
+
+**Arguments**
+* `model_name`: String, the name of model, which must be consistent with the ps json configuration file.
+* `device_id`: Integer, the id of device.
+
+Example:
+```C++
+embeddingcache = HPS->get_embedding_cache(model_name, device_id);
+```
+### **Lookup Session Base** ###
+#### **Create Lookup Session**
+```hash
+HugeCTR::LookupSessionBase::create()
+```
+`HugeCTR::LookupSessionBase::create()` returns an `HugeCTR::LookupSessionBase` object, which specifies the hierarchical storage resources.
+
+**Arguments**
+* `model_config`: InferenceParams, the configuration struct of model, obtained from the hps backend `get_hps_model_configuration_map()`.
+* `embeddingcache`: HugeCTR::EmbeddingCacheBase, the embedding cache of corresponding model on specified device, obtained from the hps backend `get_embedding_cache()`.
+
+Example:
+```C++
+lookupsession_ =
+      HugeCTR::LookupSessionBase::create(model_config, embeddingcache);
+```
+
+#### **Lookup Embedding Keys**
+```hash
+look_up()
+```
+
+`lookup()` is used to query the embedding vector corresponding to the embedding key from the embedding table, and the embedding vector will be directly written to the speficied device memory.
+
+**Arguments**
+* `h_keys_per_table`: vector<const void*>, a list of host pointers  that store the embedding keys that need to be looked-up.
+* `d_vectors_per_table`: vector<float*>, a list of device pointers that store the embedding vectors that looked-up from embedding tables.
+* `num_keys_per_table`: std::vector<size_t>, a list of the number of embedding keys needs to be looked-up from each embedding table.
+
+Example:
+```C++
+lookupsession_->lookup(keys_per_table, lookup_buffer_offset_per_table, num_keys_per_table);
+```
+
+## Python API
+Please refer to [Hierarchical Parameter Server Python API Demo](https://github.com/NVIDIA-Merlin/HugeCTR/blob/master/notebooks/hps_demo.ipynb) to get familiar with the workflow of end-to-end recommendation model inference through the combination of HPS and ONNX model.
